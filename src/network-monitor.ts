@@ -4,6 +4,8 @@ import { spawn } from 'child_process';
 import { join } from 'path';
 import { writeFileSync } from 'fs';
 import dotenv from 'dotenv';
+import CDP from 'chrome-remote-interface';
+
 dotenv.config();
 
 interface NetworkRequest {
@@ -74,19 +76,17 @@ async function main() {
   const stagehand = new Stagehand({
     env: "LOCAL",
     verbose: 0,
-    enableCaching: false,
-    modelName: "anthropic/claude-haiku-4-5-20251001",
+    model: "claude-haiku-4-5-20251001",
     localBrowserLaunchOptions: {
       cdpUrl: `http://localhost:${cdpPort}`,
     },
   });
 
   await stagehand.init();
-  const page = stagehand.page;
+  const page = stagehand.context.pages()[0];
 
-  // Get CDP session for network monitoring
-  const context = page.context();
-  const client = await context.newCDPSession(page);
+  // Connect directly to CDP endpoint
+  const client = await CDP({ port: cdpPort });
 
   // Enable network tracking
   await client.send('Network.enable');

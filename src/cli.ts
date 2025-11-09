@@ -119,14 +119,14 @@ async function initBrowser() {
   stagehandInstance = new Stagehand({
     env: "LOCAL",
     verbose: 0,
-    modelName: "anthropic/claude-haiku-4-5-20251001",
+    model: "claude-haiku-4-5-20251001",
     localBrowserLaunchOptions: {
       cdpUrl: `http://localhost:${cdpPort}`,
     },
   });
 
   await stagehandInstance.init();
-  currentPage = stagehandInstance.page;
+  currentPage = stagehandInstance.context.pages()[0];
 
   // Wait for page to be ready
   let retries = 0;
@@ -200,7 +200,7 @@ async function closeBrowser() {
       const tempStagehand = new Stagehand({
         env: "LOCAL",
         verbose: 0,
-        modelName: "anthropic/claude-haiku-4-5-20251001",
+        model: "claude-haiku-4-5-20251001",
         localBrowserLaunchOptions: {
           cdpUrl: `http://localhost:${cdpPort}`,
         },
@@ -297,8 +297,8 @@ async function navigate(url: string) {
 
 async function act(action: string) {
   try {
-    const { page } = await initBrowser();
-    await page.act(action);
+    const { stagehand, page } = await initBrowser();
+    await stagehand.act(action);
     const screenshotPath = await takeScreenshot(page, PLUGIN_ROOT);
     return {
       success: true,
@@ -315,7 +315,7 @@ async function act(action: string) {
 
 async function extract(instruction: string, schema?: Record<string, string>) {
   try {
-    const { page } = await initBrowser();
+    const { stagehand, page } = await initBrowser();
 
     let zodSchemaObject;
 
@@ -358,7 +358,7 @@ async function extract(instruction: string, schema?: Record<string, string>) {
       extractOptions.schema = zodSchemaObject;
     }
 
-    const result = await page.extract(extractOptions);
+    const result = await stagehand.extract(extractOptions);
 
     const screenshotPath = await takeScreenshot(page, PLUGIN_ROOT);
     return {
@@ -376,8 +376,8 @@ async function extract(instruction: string, schema?: Record<string, string>) {
 
 async function observe(query: string) {
   try {
-    const { page } = await initBrowser();
-    const actions = await page.observe(query);
+    const { stagehand, page } = await initBrowser();
+    const actions = await stagehand.observe(query);
     const screenshotPath = await takeScreenshot(page, PLUGIN_ROOT);
     return {
       success: true,
