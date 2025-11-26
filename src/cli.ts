@@ -278,6 +278,7 @@ async function closeBrowser() {
     }
     stagehandInstance = null;
     currentPage = null;
+    cdpClient = null; // Reset CDP client to prevent stale reference
   }
 
   // If we started Chrome in this process, kill it
