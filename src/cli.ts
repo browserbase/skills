@@ -39,6 +39,63 @@ let stagehandInstance: Stagehand | null = null;
 let currentPage: any = null;
 let chromeProcess: ChildProcess | null = null;
 let weStartedChrome = false; // Track if we launched Chrome vs. reused existing
+let cdpClient: any = null; // CDP client for DevTools features
+
+// DevTools capture state
+interface NetworkRequest {
+  id: string;
+  url: string;
+  method: string;
+  type: string;
+  timestamp: string;
+  status?: number;
+  responseHeaders?: Record<string, string>;
+}
+
+interface ConsoleMessage {
+  type: string;
+  text: string;
+  timestamp: string;
+  url?: string;
+  lineNumber?: number;
+}
+
+const capturedNetworkRequests: Map<string, NetworkRequest> = new Map();
+const capturedConsoleMessages: ConsoleMessage[] = [];
+
+// File paths for persisting DevTools data across CLI invocations
+const NETWORK_DATA_FILE = join(PLUGIN_ROOT, '.devtools-network.json');
+const CONSOLE_DATA_FILE = join(PLUGIN_ROOT, '.devtools-console.json');
+
+// Load persisted data on startup
+function loadPersistedData() {
+  try {
+    if (existsSync(NETWORK_DATA_FILE)) {
+      const data = JSON.parse(readFileSync(NETWORK_DATA_FILE, 'utf8'));
+      for (const req of data) {
+        capturedNetworkRequests.set(req.id, req);
+      }
+    }
+  } catch { /* ignore */ }
+
+  try {
+    if (existsSync(CONSOLE_DATA_FILE)) {
+      const data = JSON.parse(readFileSync(CONSOLE_DATA_FILE, 'utf8'));
+      capturedConsoleMessages.push(...data);
+    }
+  } catch { /* ignore */ }
+}
+
+// Save data to files
+function persistData() {
+  try {
+    writeFileSync(NETWORK_DATA_FILE, JSON.stringify(Array.from(capturedNetworkRequests.values()), null, 2));
+    writeFileSync(CONSOLE_DATA_FILE, JSON.stringify(capturedConsoleMessages, null, 2));
+  } catch { /* ignore */ }
+}
+
+// Load on module init
+loadPersistedData();
 
 async function initBrowser() {
   if (stagehandInstance) {
@@ -143,6 +200,66 @@ async function initBrowser() {
     behavior: "allow",
     downloadPath: downloadsPath,
     eventsEnabled: true,
+  });
+
+  // Store CDP client for DevTools features
+  cdpClient = client;
+
+  // Enable Network monitoring
+  await client.send('Network.enable');
+
+  // Listen to network requests
+  client.on('Network.requestWillBeSent', (params: any) => {
+    const request = params.request;
+    capturedNetworkRequests.set(params.requestId, {
+      id: params.requestId,
+      url: request.url,
+      method: request.method,
+      type: params.type || 'Other',
+      timestamp: new Date().toISOString(),
+    });
+    persistData();
+  });
+
+  // Listen to network responses
+  client.on('Network.responseReceived', (params: any) => {
+    const existing = capturedNetworkRequests.get(params.requestId);
+    if (existing) {
+      existing.status = params.response.status;
+      existing.responseHeaders = params.response.headers;
+      persistData();
+    }
+  });
+
+  // Enable Runtime for console messages
+  await client.send('Runtime.enable');
+
+  // Listen to console messages
+  client.on('Runtime.consoleAPICalled', (params: any) => {
+    const text = params.args
+      .map((arg: any) => arg.value || arg.description || String(arg))
+      .join(' ');
+
+    capturedConsoleMessages.push({
+      type: params.type,
+      text: text,
+      timestamp: new Date().toISOString(),
+      url: params.stackTrace?.callFrames?.[0]?.url,
+      lineNumber: params.stackTrace?.callFrames?.[0]?.lineNumber,
+    });
+    persistData();
+  });
+
+  // Listen to exceptions
+  client.on('Runtime.exceptionThrown', (params: any) => {
+    capturedConsoleMessages.push({
+      type: 'error',
+      text: params.exceptionDetails?.text || 'Exception thrown',
+      timestamp: new Date().toISOString(),
+      url: params.exceptionDetails?.url,
+      lineNumber: params.exceptionDetails?.lineNumber,
+    });
+    persistData();
   });
 
   return { stagehand: stagehandInstance, page: currentPage };
@@ -399,6 +516,173 @@ async function screenshot() {
   }
 }
 
+// DevTools commands
+async function network(filter?: string) {
+  try {
+    await initBrowser();
+
+    let requests = Array.from(capturedNetworkRequests.values());
+
+    // Apply filter if provided
+    if (filter) {
+      const filterLower = filter.toLowerCase();
+      requests = requests.filter(req =>
+        req.url.toLowerCase().includes(filterLower) ||
+        req.type.toLowerCase().includes(filterLower) ||
+        req.method.toLowerCase().includes(filterLower)
+      );
+    }
+
+    // Sort by timestamp (most recent first)
+    requests.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    // Limit to last 50 requests to keep output manageable
+    const limitedRequests = requests.slice(0, 50);
+
+    return {
+      success: true,
+      total: capturedNetworkRequests.size,
+      filtered: limitedRequests.length,
+      requests: limitedRequests.map(req => ({
+        method: req.method,
+        url: req.url,
+        type: req.type,
+        status: req.status || 'pending',
+        timestamp: req.timestamp,
+      }))
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+async function networkGet(requestId: string) {
+  try {
+    await initBrowser();
+
+    if (!cdpClient) {
+      throw new Error('CDP client not initialized');
+    }
+
+    const request = capturedNetworkRequests.get(requestId);
+    if (!request) {
+      throw new Error(`Request ${requestId} not found`);
+    }
+
+    // Try to get response body
+    let body: string | undefined;
+    try {
+      const bodyResponse = await cdpClient.send('Network.getResponseBody', { requestId });
+      body = bodyResponse.body;
+    } catch {
+      body = undefined; // Body may not be available
+    }
+
+    return {
+      success: true,
+      request: {
+        ...request,
+        body: body ? (body.length > 5000 ? body.substring(0, 5000) + '...(truncated)' : body) : null,
+      }
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+async function consoleMessages(filter?: string) {
+  try {
+    await initBrowser();
+
+    let messages = [...capturedConsoleMessages];
+
+    // Apply filter if provided
+    if (filter) {
+      const filterLower = filter.toLowerCase();
+      messages = messages.filter(msg =>
+        msg.text.toLowerCase().includes(filterLower) ||
+        msg.type.toLowerCase().includes(filterLower)
+      );
+    }
+
+    // Sort by timestamp (most recent first)
+    messages.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+
+    // Limit to last 100 messages
+    const limitedMessages = messages.slice(0, 100);
+
+    return {
+      success: true,
+      total: capturedConsoleMessages.length,
+      filtered: limitedMessages.length,
+      messages: limitedMessages.map(msg => ({
+        type: msg.type,
+        text: msg.text.length > 500 ? msg.text.substring(0, 500) + '...' : msg.text,
+        timestamp: msg.timestamp,
+        source: msg.url ? `${msg.url}:${msg.lineNumber}` : undefined,
+      }))
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+async function evaluate(expression: string) {
+  try {
+    await initBrowser();
+
+    if (!cdpClient) {
+      throw new Error('CDP client not initialized');
+    }
+
+    const result = await cdpClient.send('Runtime.evaluate', {
+      expression,
+      returnByValue: true,
+      awaitPromise: true,
+    });
+
+    if (result.exceptionDetails) {
+      throw new Error(result.exceptionDetails.text || 'Evaluation error');
+    }
+
+    return {
+      success: true,
+      result: result.result.value,
+      type: result.result.type,
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error)
+    };
+  }
+}
+
+async function clearDevtools() {
+  capturedNetworkRequests.clear();
+  capturedConsoleMessages.length = 0;
+
+  // Delete persisted files
+  try {
+    if (existsSync(NETWORK_DATA_FILE)) unlinkSync(NETWORK_DATA_FILE);
+    if (existsSync(CONSOLE_DATA_FILE)) unlinkSync(CONSOLE_DATA_FILE);
+  } catch { /* ignore */ }
+
+  return {
+    success: true,
+    message: 'Cleared network requests and console messages'
+  };
+}
+
 // Main CLI handler
 async function main() {
   // Prepare Chrome profile on first run
@@ -450,8 +734,35 @@ async function main() {
         result = { success: true, message: 'Browser closed' };
         break;
 
+      // DevTools commands
+      case 'network':
+        result = await network(args[1]);
+        break;
+
+      case 'network-get':
+        if (args.length < 2) {
+          throw new Error('Usage: browser network-get <requestId>');
+        }
+        result = await networkGet(args[1]);
+        break;
+
+      case 'console':
+        result = await consoleMessages(args[1]);
+        break;
+
+      case 'eval':
+        if (args.length < 2) {
+          throw new Error('Usage: browser eval "<javascript>"');
+        }
+        result = await evaluate(args.slice(1).join(' '));
+        break;
+
+      case 'clear':
+        result = await clearDevtools();
+        break;
+
       default:
-        throw new Error(`Unknown command: ${command}\nAvailable commands: navigate, act, extract, observe, screenshot, close`);
+        throw new Error(`Unknown command: ${command}\nAvailable commands: navigate, act, extract, observe, screenshot, close, network, network-get, console, eval, clear`);
     }
 
     console.log(JSON.stringify(result, null, 2));

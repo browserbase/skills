@@ -44,3 +44,7 @@ agent/downloads/*
 
 # Stagehand Cache
 tmp/.cache/.chrome-pid
+
+# DevTools captured data
+.devtools-network.json
+.devtools-console.json

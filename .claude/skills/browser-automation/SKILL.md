@@ -155,6 +155,70 @@ browser close
 
 **Output**: JSON with success status and message
 
+## DevTools Commands
+
+These commands provide Chrome DevTools-like functionality for debugging and monitoring.
+
+### View Network Requests
+```bash
+browser network [filter]
+```
+
+**When to use**: Debugging API calls, checking what resources loaded, monitoring XHR/fetch requests.
+
+**Example usage**:
+- `browser network` - List all captured requests
+- `browser network api` - Filter requests containing "api"
+- `browser network POST` - Filter by HTTP method
+
+**Output**: JSON with list of network requests (method, URL, type, status, timestamp)
+
+### Get Request Details
+```bash
+browser network-get <requestId>
+```
+
+**When to use**: Getting full details of a specific request including response body.
+
+**Output**: JSON with full request details and response body (if available)
+
+### View Console Messages
+```bash
+browser console [filter]
+```
+
+**When to use**: Debugging JavaScript errors, checking console.log output, monitoring warnings.
+
+**Example usage**:
+- `browser console` - List all console messages
+- `browser console error` - Filter by message type
+- `browser console "failed"` - Filter by text content
+
+**Output**: JSON with list of console messages (type, text, timestamp, source)
+
+### Evaluate JavaScript
+```bash
+browser eval "<javascript>"
+```
+
+**When to use**: Running JavaScript in the page context, checking values, triggering actions.
+
+**Example usage**:
+- `browser eval "document.title"` - Get page title
+- `browser eval "document.querySelectorAll('a').length"` - Count links
+- `browser eval "localStorage.getItem('token')"` - Check localStorage
+
+**Output**: JSON with evaluation result and type
+
+### Clear DevTools Data
+```bash
+browser clear
+```
+
+**When to use**: Starting fresh, clearing captured network/console data between test runs.
+
+**Output**: JSON with success message
+
 ## Browser Behavior
 
 **Persistent Browser**: The browser stays open between commands for faster sequential operations and to preserve browser state (cookies, sessions, etc.).
