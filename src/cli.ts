@@ -441,7 +441,8 @@ async function main() {
   // Prepare Chrome profile on first run
   prepareChromeProfile(PLUGIN_ROOT);
 
-  const args = process.argv.slice(2);
+  const { port: cliPort, args } = parseArgs(process.argv.slice(2));
+  cdpPort = resolvePort(cliPort);
   const command = args[0];
 
   try {
