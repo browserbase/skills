@@ -39,6 +39,7 @@ let stagehandInstance: Stagehand | null = null;
 let currentPage: any = null;
 let chromeProcess: ChildProcess | null = null;
 let weStartedChrome = false; // Track if we launched Chrome vs. reused existing
+let cdpPort = 9222; // Will be set by main() based on CLI/env config
 
 // Port configuration helpers
 function parseArgs(argv: string[]): { port?: number; args: string[] } {
