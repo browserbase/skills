@@ -40,6 +40,25 @@ let currentPage: any = null;
 let chromeProcess: ChildProcess | null = null;
 let weStartedChrome = false; // Track if we launched Chrome vs. reused existing
 
+// Port configuration helpers
+function parseArgs(argv: string[]): { port?: number; args: string[] } {
+  const args: string[] = [];
+  let port: number | undefined;
+
+  for (let i = 0; i < argv.length; i++) {
+    if (argv[i] === '--port' && argv[i + 1]) {
+      const parsed = parseInt(argv[i + 1], 10);
+      if (!isNaN(parsed) && parsed > 0 && parsed < 65536) {
+        port = parsed;
+      }
+      i++; // skip the port value
+    } else {
+      args.push(argv[i]);
+    }
+  }
+  return { port, args };
+}
+
 async function initBrowser() {
   if (stagehandInstance) {
     return { stagehand: stagehandInstance, page: currentPage };
