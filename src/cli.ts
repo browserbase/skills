@@ -59,6 +59,23 @@ function parseArgs(argv: string[]): { port?: number; args: string[] } {
   return { port, args };
 }
 
+function resolvePort(cliPort?: number): number {
+  // Priority: CLI flag > environment variable > default
+  if (cliPort !== undefined) {
+    return cliPort;
+  }
+
+  const envPort = process.env.BROWSER_CDP_PORT;
+  if (envPort) {
+    const parsed = parseInt(envPort, 10);
+    if (!isNaN(parsed) && parsed > 0 && parsed < 65536) {
+      return parsed;
+    }
+  }
+
+  return 9222; // Default CDP port
+}
+
 async function initBrowser() {
   if (stagehandInstance) {
     return { stagehand: stagehandInstance, page: currentPage };
