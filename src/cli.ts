@@ -47,11 +47,15 @@ function parseArgs(argv: string[]): { port?: number; args: string[] } {
   let port: number | undefined;
 
   for (let i = 0; i < argv.length; i++) {
-    if (argv[i] === '--port' && argv[i + 1]) {
-      const parsed = parseInt(argv[i + 1], 10);
-      if (!isNaN(parsed) && parsed > 0 && parsed < 65536) {
-        port = parsed;
+    if (argv[i] === '--port') {
+      if (!argv[i + 1]) {
+        throw new Error('--port flag requires a value');
       }
+      const parsed = parseInt(argv[i + 1], 10);
+      if (isNaN(parsed) || parsed <= 0 || parsed >= 65536) {
+        throw new Error(`Invalid port: ${argv[i + 1]}. Port must be a number between 1 and 65535.`);
+      }
+      port = parsed;
       i++; // skip the port value
     } else {
       args.push(argv[i]);
@@ -69,9 +73,11 @@ function resolvePort(cliPort?: number): number {
   const envPort = process.env.BROWSER_CDP_PORT;
   if (envPort) {
     const parsed = parseInt(envPort, 10);
-    if (!isNaN(parsed) && parsed > 0 && parsed < 65536) {
-      return parsed;
+    if (isNaN(parsed) || parsed <= 0 || parsed >= 65536) {
+      console.error(`Warning: Invalid BROWSER_CDP_PORT="${envPort}". Using default port 9222.`);
+      return 9222;
     }
+    return parsed;
   }
 
   return 9222; // Default CDP port
