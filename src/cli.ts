@@ -487,7 +487,7 @@ async function main() {
         break;
 
       default:
-        throw new Error(`Unknown command: ${command}\nAvailable commands: navigate, act, extract, observe, screenshot, close`);
+        throw new Error(`Unknown command: ${command}\nAvailable commands: navigate, act, extract, observe, screenshot, close\nOptions: --port <number> (default: 9222, or set BROWSER_CDP_PORT env var)`);
     }
 
     console.log(JSON.stringify(result, null, 2));
