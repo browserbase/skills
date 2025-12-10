@@ -40,6 +40,27 @@ Once installed, just ask Claude to browse:
 
 Claude will handle the rest.
 
+## Running Multiple Browser Instances
+
+To run multiple browser instances concurrently (e.g., across different Claude Code sessions), specify different CDP ports:
+
+```bash
+# Instance 1 on default port 9222
+browser navigate https://example.com
+
+# Instance 2 on port 9223
+browser --port 9223 navigate https://example.com
+
+# Or use environment variable
+export BROWSER_CDP_PORT=9224
+browser navigate https://example.com
+```
+
+Port resolution priority:
+1. `--port` CLI flag (highest)
+2. `BROWSER_CDP_PORT` environment variable
+3. Default: 9222
+
 ## Troubleshooting
 
 ### Chrome not found
