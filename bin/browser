@@ -1,0 +1,14 @@
+#!/bin/bash
+# Wrapper to ensure Node 22 is used (Node 25+ breaks Stagehand)
+SCRIPT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+
+if command -v node22 &> /dev/null; then
+  exec node22 "$SCRIPT_DIR/dist/src/check-node.js" "$@"
+elif [ -x "/opt/homebrew/opt/node@22/bin/node" ]; then
+  exec /opt/homebrew/opt/node@22/bin/node "$SCRIPT_DIR/dist/src/check-node.js" "$@"
+elif [ -x "/usr/local/opt/node@22/bin/node" ]; then
+  exec /usr/local/opt/node@22/bin/node "$SCRIPT_DIR/dist/src/check-node.js" "$@"
+else
+  # Fall back to default node - check-node.js will show error if version is wrong
+  exec node "$SCRIPT_DIR/dist/src/check-node.js" "$@"
+fi
