@@ -1,5 +1,4 @@
-import { Page } from '@browserbasehq/stagehand';
-import { existsSync, cpSync, mkdirSync, readFileSync } from 'fs';
+import { existsSync, cpSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import { platform } from 'os';
 import { join } from 'path';
 import { execSync } from 'child_process';
@@ -174,8 +173,8 @@ export function prepareChromeProfile(pluginRoot: string) {
   }
 }
 
- // Use CDP to take screenshot directly
-export async function takeScreenshot(page: Page, pluginRoot: string) {
+// Take screenshot using page's screenshot method
+export async function takeScreenshot(page: any, pluginRoot: string) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const screenshotDir = join(pluginRoot, 'agent/browser_screenshots');
   const screenshotPath = join(screenshotDir, `screenshot-${timestamp}.png`);
@@ -185,37 +184,28 @@ export async function takeScreenshot(page: Page, pluginRoot: string) {
     mkdirSync(screenshotDir, { recursive: true });
   }
 
- const context = page.context();
- const client = await context.newCDPSession(page);
- const screenshotResult = await client.send('Page.captureScreenshot', {
-   format: 'png',
-   quality: 100,
-   fromSurface: false
- });
+  // Use page.screenshot() which returns a Buffer
+  const buffer = await page.screenshot({ type: 'png' });
+  
+  // Resize if needed
+  const sharp = (await import('sharp')).default;
+  const image = sharp(buffer);
+  const metadata = await image.metadata();
+  const { width, height } = metadata;
 
- // Save the base64 screenshot data to file with resizing if needed
- const fs = await import('fs');
- const sharp = (await import('sharp')).default;
- const buffer = Buffer.from(screenshotResult.data, 'base64');
+  let finalBuffer: Buffer = buffer;
 
- // Check image dimensions
- const image = sharp(buffer);
- const metadata = await image.metadata();
- const { width, height } = metadata;
+  // Only resize if image exceeds 2000x2000
+  if (width && height && (width > 2000 || height > 2000)) {
+    finalBuffer = await sharp(buffer)
+      .resize(2000, 2000, {
+        fit: 'inside',
+        withoutEnlargement: true
+      })
+      .png()
+      .toBuffer();
+  }
 
- let finalBuffer: Buffer = buffer;
-
- // Only resize if image exceeds 2000x2000
- if (width && height && (width > 2000 || height > 2000)) {
-   finalBuffer = await sharp(buffer)
-     .resize(2000, 2000, {
-       fit: 'inside',
-       withoutEnlargement: true
-     })
-     .png()
-     .toBuffer();
- }
-
- fs.writeFileSync(screenshotPath, finalBuffer);
- return screenshotPath;
+  writeFileSync(screenshotPath, finalBuffer);
+  return screenshotPath;
 }
