@@ -26,9 +26,26 @@ If you prefer the manual interface:
 
 ## Setup
 
-Set your Anthropic API key:
+Choose one of these authentication methods:
+
+### Option 1: API Key
 ```bash
 export ANTHROPIC_API_KEY="your-api-key"
+```
+
+### Option 2: Claude Subscription (OAuth)
+If you have Claude Pro/Max:
+```bash
+claude setup-token
+```
+
+### Option 3: CLIProxyAPI
+Run a local proxy that handles authentication. Useful when integrating with AI coding agents (Droid, Amp, OpenCode, etc.).
+
+```bash
+# CLIProxyAPI listens on http://localhost:8317 by default
+# Set a custom URL with:
+export CLIPROXY_URL="http://localhost:8317"
 ```
 
 ## Usage

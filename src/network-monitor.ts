@@ -74,19 +74,17 @@ async function main() {
   const stagehand = new Stagehand({
     env: "LOCAL",
     verbose: 0,
-    enableCaching: false,
-    modelName: "anthropic/claude-haiku-4-5-20251001",
+    model: "anthropic/claude-haiku-4-5-20251001",
     localBrowserLaunchOptions: {
       cdpUrl: `http://localhost:${cdpPort}`,
     },
   });
 
   await stagehand.init();
-  const page = stagehand.page;
+  const page = stagehand.context.pages()[0];
 
-  // Get CDP session for network monitoring
-  const context = page.context();
-  const client = await context.newCDPSession(page);
+  // Get CDP session for network monitoring via page's internal context
+  const client = await (page as any).context().newCDPSession(page);
 
   // Enable network tracking
   await client.send('Network.enable');

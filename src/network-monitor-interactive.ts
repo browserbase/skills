@@ -70,19 +70,17 @@ async function main() {
   const stagehand = new Stagehand({
     env: "LOCAL",
     verbose: 1,
-    enableCaching: false,
-    modelName: "anthropic/claude-haiku-4-5-20251001",
+    model: "anthropic/claude-haiku-4-5-20251001",
     localBrowserLaunchOptions: {
       cdpUrl: `http://localhost:${cdpPort}`,
     },
   });
 
   await stagehand.init();
-  const page = stagehand.page;
+  const page = stagehand.context.pages()[0];
 
-  // Get CDP session for network monitoring
-  const context = page.context();
-  const client = await context.newCDPSession(page);
+  // Get CDP session for network monitoring via page's internal context
+  const client = await (page as any).context().newCDPSession(page);
 
   // Enable network tracking
   await client.send('Network.enable');
@@ -156,7 +154,7 @@ async function main() {
   console.log(`Navigating to ${url}...\n`);
 
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeoutMs: 15000 });
     console.log('Page loaded!\n');
   } catch (error) {
     console.log('Page load timeout, but continuing...\n');
@@ -168,7 +166,7 @@ async function main() {
   // Try to navigate to meetings page if logged in
   try {
     console.log('Attempting to navigate to meetings...\n');
-    await page.goto('https://app.circleback.ai/meetings', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto('https://app.circleback.ai/meetings', { waitUntil: 'domcontentloaded', timeoutMs: 15000 });
     await new Promise(resolve => setTimeout(resolve, 5000));
   } catch (error) {
     console.log('Could not navigate to meetings page\n');
