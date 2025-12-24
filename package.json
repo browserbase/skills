@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "type": "module",
   "bin": {
-    "browser": "./dist/src/cli.js"
+    "browser": "./bin/browser"
   },
   "scripts": {
     "claude": "tsx agent-browse.ts",
