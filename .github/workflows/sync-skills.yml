@@ -1,0 +1,34 @@
+name: Sync Skills
+
+on:
+  push:
+    paths:
+      - '.claude/skills/**'
+    branches:
+      - main
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Sync .claude/skills to .factory/skills
+        run: |
+          # Remove old .factory/skills and copy fresh from .claude/skills
+          rm -rf .factory/skills
+          cp -r .claude/skills .factory/skills
+          
+      - name: Check for changes
+        id: changes
+        run: |
+          git diff --quiet .factory/skills || echo "changed=true" >> $GITHUB_OUTPUT
+
+      - name: Commit and push
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .factory/skills
+          git commit -m "chore: sync skills from .claude to .factory"
+          git push
