@@ -227,71 +227,75 @@ async function screenshot() {
   }
 }
 
-async function main() {
-  prepareChromeProfile(PLUGIN_ROOT);
+import { Command } from 'commander';
 
-  const args = process.argv.slice(2);
-  const command = args[0];
-
+async function runCommand(fn: () => Promise<any>, keepOpen: boolean) {
   try {
-    let result: { success: boolean; [key: string]: any };
-
-    switch (command) {
-      case 'navigate':
-        if (args.length < 2) {
-          throw new Error('Usage: browser navigate <url>');
-        }
-        result = await navigate(args[1]);
-        break;
-
-      case 'act':
-        if (args.length < 2) {
-          throw new Error('Usage: browser act "<action>"');
-        }
-        result = await act(args.slice(1).join(' '));
-        break;
-
-      case 'extract':
-        if (args.length < 2) {
-          throw new Error('Usage: browser extract "<instruction>" [\'{"field": "type"}\']');
-        }
-        const instruction = args[1];
-        const schema = args[2] ? JSON.parse(args[2]) : undefined;
-        result = await extract(instruction, schema);
-        break;
-
-      case 'observe':
-        if (args.length < 2) {
-          throw new Error('Usage: browser observe "<query>"');
-        }
-        result = await observe(args.slice(1).join(' '));
-        break;
-
-      case 'screenshot':
-        result = await screenshot();
-        break;
-
-      case 'close':
-        await closeBrowser();
-        result = { success: true, message: 'Browser closed' };
-        break;
-
-      default:
-        throw new Error(`Unknown command: ${command}\nAvailable commands: navigate, act, extract, observe, screenshot, close`);
-    }
-
+    const result = await fn();
     console.log(JSON.stringify(result, null, 2));
-    await closeBrowser();
+    if (!keepOpen) await closeBrowser();
     process.exit(0);
   } catch (error) {
     await closeBrowser();
-
     console.error(JSON.stringify({
       success: false,
       error: error instanceof Error ? error.message : String(error)
     }, null, 2));
     process.exit(1);
   }
+}
+
+async function main() {
+  prepareChromeProfile(PLUGIN_ROOT);
+
+  const program = new Command()
+    .name('browser')
+    .description('Browser automation CLI powered by Stagehand')
+    .version('1.0.0');
+
+  program
+    .command('navigate <url>')
+    .description('Navigate to a URL')
+    .option('-k, --keep-open', 'Keep browser open after command')
+    .action((url, opts) => runCommand(() => navigate(url), opts.keepOpen));
+
+  program
+    .command('act <action>')
+    .description('Perform an action using natural language')
+    .option('-k, --keep-open', 'Keep browser open after command')
+    .action((action, opts) => runCommand(() => act(action), opts.keepOpen));
+
+  program
+    .command('extract <instruction>')
+    .description('Extract data from the page')
+    .argument('[schema]', 'Optional JSON schema for extraction')
+    .option('-k, --keep-open', 'Keep browser open after command')
+    .action((instruction, schema, opts) => {
+      const parsedSchema = schema ? JSON.parse(schema) : undefined;
+      runCommand(() => extract(instruction, parsedSchema), opts.keepOpen);
+    });
+
+  program
+    .command('observe <query>')
+    .description('Observe page elements matching a query')
+    .option('-k, --keep-open', 'Keep browser open after command')
+    .action((query, opts) => runCommand(() => observe(query), opts.keepOpen));
+
+  program
+    .command('screenshot')
+    .description('Take a screenshot of the current page')
+    .option('-k, --keep-open', 'Keep browser open after command')
+    .action((opts) => runCommand(() => screenshot(), opts.keepOpen));
+
+  program
+    .command('close')
+    .description('Close the browser')
+    .action(() => runCommand(async () => {
+      await closeBrowser();
+      return { success: true, message: 'Browser closed' };
+    }, true));
+
+  await program.parseAsync(process.argv);
 }
 
 process.on('SIGINT', async () => {

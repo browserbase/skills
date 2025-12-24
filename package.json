@@ -13,6 +13,7 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.14",
     "@browserbasehq/stagehand": "^3.0.6",
+    "commander": "^14.0.2",
     "dotenv": "^16.4.5",
     "sharp": "^0.34.4",
     "zod": "^3.25.0"
