@@ -8,7 +8,8 @@
   "scripts": {
     "claude": "tsx agent-browse.ts",
     "build": "tsc",
-    "postinstall": "npm run build"
+    "postinstall": "npm run build",
+    "test": "./scripts/smoke-test.sh"
   },
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.1.14",

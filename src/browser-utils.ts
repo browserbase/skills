@@ -174,20 +174,19 @@ export function prepareChromeProfile(pluginRoot: string) {
   }
 }
 
-export async function takeScreenshot(page: Page, pluginRoot: string) {
+export async function takeScreenshot(page: Page, pluginRoot: string, fullPage: boolean = false, customDir?: string) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-  const screenshotDir = join(pluginRoot, 'agent/browser_screenshots');
+  const screenshotDir = customDir || join(pluginRoot, 'agent/browser_screenshots');
   const screenshotPath = join(screenshotDir, `screenshot-${timestamp}.png`);
 
-  // Create directory if it doesn't exist
   if (!existsSync(screenshotDir)) {
     mkdirSync(screenshotDir, { recursive: true });
   }
 
-  // Use page.screenshot() which returns a Buffer
-  const buffer = await page.screenshot({ type: 'png' });
+  const buffer = await page.screenshot({ type: 'png', fullPage });
   
-  // Resize if needed
+  const MAX_SCREENSHOT_DIMENSION = 2_000;
+  
   const sharp = (await import('sharp')).default;
   const image = sharp(buffer);
   const metadata = await image.metadata();
@@ -195,10 +194,9 @@ export async function takeScreenshot(page: Page, pluginRoot: string) {
 
   let finalBuffer: Buffer = buffer;
 
-  // Only resize if image exceeds 2000x2000
-  if (width && height && (width > 2000 || height > 2000)) {
+  if (width && height && (width > MAX_SCREENSHOT_DIMENSION || height > MAX_SCREENSHOT_DIMENSION)) {
     finalBuffer = await sharp(buffer)
-      .resize(2000, 2000, {
+      .resize(MAX_SCREENSHOT_DIMENSION, MAX_SCREENSHOT_DIMENSION, {
         fit: 'inside',
         withoutEnlargement: true
       })
