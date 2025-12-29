@@ -4,7 +4,7 @@ import { spawn } from 'child_process';
 import { join } from 'path';
 import { writeFileSync } from 'fs';
 import dotenv from 'dotenv';
-import CDP from 'chrome-remote-interface';
+
 dotenv.config();
 
 interface NetworkRequest {
@@ -71,7 +71,7 @@ async function main() {
   const stagehand = new Stagehand({
     env: "LOCAL",
     verbose: 1,
-    model: "claude-haiku-4-5-20251001",
+    model: "anthropic/claude-haiku-4-5-20251001",
     localBrowserLaunchOptions: {
       cdpUrl: `http://localhost:${cdpPort}`,
     },
@@ -81,15 +81,15 @@ async function main() {
   const page = stagehand.context.pages()[0];
 
   // Connect directly to CDP endpoint
-  const client = await CDP({ port: cdpPort });
+  const client = page.mainFrame().session;
 
   // Enable network tracking
-  await client.Network.enable();
+  await client.send('Network.enable');
 
   console.log('Network monitoring enabled\n');
 
   // Listen to network requests
-  client.Network.requestWillBeSent((params: any) => {
+  client.on('Network.requestWillBeSent', (params: any) => {
     const request = params.request;
 
     // Capture all API calls
@@ -117,7 +117,7 @@ async function main() {
   });
 
   // Listen to network responses
-  client.Network.responseReceived(async (params: any) => {
+  client.on('Network.responseReceived', async (params: any) => {
     const response = params.response;
 
     // Capture API responses
@@ -125,7 +125,7 @@ async function main() {
         response.url.includes('circleback.ai/trpc/')) {
 
       try {
-        const bodyResponse = await client.Network.getResponseBody({
+        const bodyResponse = await client.send<{ body: string; base64Encoded: boolean }>('Network.getResponseBody', {
           requestId: params.requestId,
         });
 

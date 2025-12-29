@@ -254,7 +254,6 @@ JSON output:
 ```
 
 **Implementation Details**:
-- Uses Chrome DevTools Protocol `Page.captureScreenshot`
 - Captures full viewport at current scroll position
 - Saves as PNG format with timestamp in filename
 - Automatically resizes images larger than 2000x2000 pixels using Sharp
@@ -345,9 +344,9 @@ new Stagehand({
   env: "LOCAL",
   verbose: 0,
   enableCaching: true,
-  modelName: "anthropic/claude-haiku-4-5-20251001",
+  model: "anthropic/claude-haiku-4-5-20251001",
   localBrowserLaunchOptions: {
-    cdpUrl: `http://localhost:9222`,
+    cdpUrl: wsUrl,
   },
 })
 ```

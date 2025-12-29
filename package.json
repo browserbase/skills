@@ -11,15 +11,13 @@
     "postinstall": "npm run build"
   },
   "dependencies": {
-    "@anthropic-ai/claude-agent-sdk": "^0.1.14",
-    "@browserbasehq/stagehand": "^3.0.1",
-    "chrome-remote-interface": "^0.33.3",
+    "@anthropic-ai/claude-agent-sdk": "^0.1.76",
+    "@browserbasehq/stagehand": "^3.0.7",
     "dotenv": "^16.4.5",
     "sharp": "^0.34.4",
-    "zod": "^3.25.0"
+    "zod": "^4.2.1"
   },
   "devDependencies": {
-    "@types/chrome-remote-interface": "^0.31.14",
     "@types/node": "^24.7.2",
     "tsx": "^4.20.6",
     "typescript": "^5.9.3"
