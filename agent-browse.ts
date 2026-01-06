@@ -2,7 +2,7 @@ import { query } from '@anthropic-ai/claude-agent-sdk';
 import * as readline from "readline";
 import { prepareChromeProfile } from './src/browser-utils.js';
 import { fileURLToPath } from 'url';
-import { dirname, resolve } from 'path';
+import { dirname } from 'path';
 
 // Resolve plugin root directory
 const __filename = fileURLToPath(import.meta.url);

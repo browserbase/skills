@@ -44,3 +44,6 @@ agent/downloads/*
 
 # Stagehand Cache
 tmp/.cache/.chrome-pid
+
+# Chrome PID
+.chrome-pid 

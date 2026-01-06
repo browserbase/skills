@@ -1,9 +1,10 @@
 import { Stagehand } from '@browserbasehq/stagehand';
-import { findLocalChrome, getChromeUserDataDir } from './browser-utils.js';
+import { findLocalChrome } from './browser-utils.js';
 import { spawn } from 'child_process';
 import { join } from 'path';
 import { writeFileSync } from 'fs';
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 interface NetworkRequest {
@@ -70,19 +71,17 @@ async function main() {
   const stagehand = new Stagehand({
     env: "LOCAL",
     verbose: 1,
-    enableCaching: false,
-    modelName: "anthropic/claude-haiku-4-5-20251001",
+    model: "anthropic/claude-haiku-4-5-20251001",
     localBrowserLaunchOptions: {
       cdpUrl: `http://localhost:${cdpPort}`,
     },
   });
 
   await stagehand.init();
-  const page = stagehand.page;
+  const page = stagehand.context.pages()[0];
 
-  // Get CDP session for network monitoring
-  const context = page.context();
-  const client = await context.newCDPSession(page);
+  // Connect directly to CDP endpoint
+  const client = page.mainFrame().session;
 
   // Enable network tracking
   await client.send('Network.enable');
@@ -126,7 +125,7 @@ async function main() {
         response.url.includes('circleback.ai/trpc/')) {
 
       try {
-        const bodyResponse = await client.send('Network.getResponseBody', {
+        const bodyResponse = await client.send<{ body: string; base64Encoded: boolean }>('Network.getResponseBody', {
           requestId: params.requestId,
         });
 
@@ -156,7 +155,7 @@ async function main() {
   console.log(`Navigating to ${url}...\n`);
 
   try {
-    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeoutMs: 15000 });
     console.log('Page loaded!\n');
   } catch (error) {
     console.log('Page load timeout, but continuing...\n');
@@ -168,7 +167,7 @@ async function main() {
   // Try to navigate to meetings page if logged in
   try {
     console.log('Attempting to navigate to meetings...\n');
-    await page.goto('https://app.circleback.ai/meetings', { waitUntil: 'domcontentloaded', timeout: 15000 });
+    await page.goto('https://app.circleback.ai/meetings', { waitUntil: 'domcontentloaded', timeoutMs: 15000 });
     await new Promise(resolve => setTimeout(resolve, 5000));
   } catch (error) {
     console.log('Could not navigate to meetings page\n');

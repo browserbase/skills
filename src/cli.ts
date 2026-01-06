@@ -1,11 +1,11 @@
 #!/usr/bin/env node
-import { Stagehand } from '@browserbasehq/stagehand';
+import { Page, Stagehand } from '@browserbasehq/stagehand';
 import { existsSync, mkdirSync, writeFileSync, readFileSync, unlinkSync } from 'fs';
 import { spawn, ChildProcess } from 'child_process';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { findLocalChrome, prepareChromeProfile, takeScreenshot, getAnthropicApiKey } from './browser-utils.js';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import dotenv from 'dotenv';
 
 // Validate ES module environment
@@ -45,13 +45,13 @@ if (process.env.DEBUG) {
 
 // Persistent browser state
 let stagehandInstance: Stagehand | null = null;
-let currentPage: any = null;
+let currentPage: Page | null = null;
 let chromeProcess: ChildProcess | null = null;
 let weStartedChrome = false; // Track if we launched Chrome vs. reused existing
 
-async function initBrowser() {
+async function initBrowser(): Promise<{ stagehand: Stagehand }> {
   if (stagehandInstance) {
-    return { stagehand: stagehandInstance, page: currentPage };
+    return { stagehand: stagehandInstance };
   }
 
   const chromePath = findLocalChrome();
@@ -115,18 +115,23 @@ async function initBrowser() {
     }
   }
 
-  // Initialize Stagehand
+  // Get the WebSocket URL from Chrome's CDP endpoint
+  const versionResponse = await fetch(`http://127.0.0.1:${cdpPort}/json/version`);
+  const versionData = await versionResponse.json() as { webSocketDebuggerUrl: string };
+  const wsUrl = versionData.webSocketDebuggerUrl;
+
+  // Initialize Stagehand with the WebSocket URL
   stagehandInstance = new Stagehand({
     env: "LOCAL",
     verbose: 0,
-    modelName: "anthropic/claude-haiku-4-5-20251001",
+    model: "anthropic/claude-haiku-4-5-20251001",
     localBrowserLaunchOptions: {
-      cdpUrl: `http://localhost:${cdpPort}`,
+      cdpUrl: wsUrl,
     },
   });
 
   await stagehandInstance.init();
-  currentPage = stagehandInstance.page;
+  currentPage = stagehandInstance.context.pages()[0];
 
   // Wait for page to be ready
   let retries = 0;
@@ -146,15 +151,14 @@ async function initBrowser() {
     mkdirSync(downloadsPath, { recursive: true });
   }
 
-  const context = currentPage.context();
-  const client = await context.newCDPSession(currentPage);
+  const client = currentPage.mainFrame().session;
   await client.send("Browser.setDownloadBehavior", {
     behavior: "allow",
     downloadPath: downloadsPath,
     eventsEnabled: true,
   });
 
-  return { stagehand: stagehandInstance, page: currentPage };
+  return { stagehand: stagehandInstance };
 }
 
 async function closeBrowser() {
@@ -196,13 +200,17 @@ async function closeBrowser() {
     });
 
     if (response.ok) {
+      // Get WebSocket URL for graceful shutdown
+      const versionData = await response.json() as { webSocketDebuggerUrl: string };
+      const wsUrl = versionData.webSocketDebuggerUrl;
+
       // Connect and close gracefully via Stagehand
       const tempStagehand = new Stagehand({
         env: "LOCAL",
         verbose: 0,
-        modelName: "anthropic/claude-haiku-4-5-20251001",
+        model: "anthropic/claude-haiku-4-5-20251001",
         localBrowserLaunchOptions: {
-          cdpUrl: `http://localhost:${cdpPort}`,
+          cdpUrl: wsUrl,
         },
       });
       await tempStagehand.init();
@@ -279,9 +287,11 @@ async function verifyIsChromeProcess(pid: number): Promise<boolean> {
 // CLI commands
 async function navigate(url: string) {
   try {
-    const { page } = await initBrowser();
-    await page.goto(url);
-    const screenshotPath = await takeScreenshot(page, PLUGIN_ROOT);
+    const { stagehand } = await initBrowser();
+    await stagehand.context.pages()[0].goto(url);
+
+    const screenshotPath = await takeScreenshot(stagehand, PLUGIN_ROOT);
+
     return {
       success: true,
       message: `Successfully navigated to ${url}`,
@@ -297,9 +307,9 @@ async function navigate(url: string) {
 
 async function act(action: string) {
   try {
-    const { page } = await initBrowser();
-    await page.act(action);
-    const screenshotPath = await takeScreenshot(page, PLUGIN_ROOT);
+    const { stagehand } = await initBrowser();
+    await stagehand.act(action);
+    const screenshotPath = await takeScreenshot(stagehand, PLUGIN_ROOT);
     return {
       success: true,
       message: `Successfully performed action: ${action}`,
@@ -315,7 +325,7 @@ async function act(action: string) {
 
 async function extract(instruction: string, schema?: Record<string, string>) {
   try {
-    const { page } = await initBrowser();
+    const { stagehand } = await initBrowser();
 
     let zodSchemaObject;
 
@@ -358,9 +368,9 @@ async function extract(instruction: string, schema?: Record<string, string>) {
       extractOptions.schema = zodSchemaObject;
     }
 
-    const result = await page.extract(extractOptions);
+    const result = await stagehand.extract(extractOptions);
 
-    const screenshotPath = await takeScreenshot(page, PLUGIN_ROOT);
+    const screenshotPath = await takeScreenshot(stagehand, PLUGIN_ROOT);
     return {
       success: true,
       message: `Successfully extracted data: ${JSON.stringify(result)}`,
@@ -376,9 +386,9 @@ async function extract(instruction: string, schema?: Record<string, string>) {
 
 async function observe(query: string) {
   try {
-    const { page } = await initBrowser();
-    const actions = await page.observe(query);
-    const screenshotPath = await takeScreenshot(page, PLUGIN_ROOT);
+    const { stagehand } = await initBrowser();
+    const actions = await stagehand.observe(query);
+    const screenshotPath = await takeScreenshot(stagehand, PLUGIN_ROOT);
     return {
       success: true,
       message: `Successfully observed: ${actions}`,
@@ -394,8 +404,8 @@ async function observe(query: string) {
 
 async function screenshot() {
   try {
-    const { page } = await initBrowser();
-    const screenshotPath = await takeScreenshot(page, PLUGIN_ROOT);
+    const { stagehand } = await initBrowser();
+    const screenshotPath = await takeScreenshot(stagehand, PLUGIN_ROOT);
     return {
       success: true,
       screenshot: screenshotPath

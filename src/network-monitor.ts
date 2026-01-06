@@ -4,6 +4,7 @@ import { spawn } from 'child_process';
 import { join } from 'path';
 import { writeFileSync } from 'fs';
 import dotenv from 'dotenv';
+
 dotenv.config();
 
 interface NetworkRequest {
@@ -74,19 +75,17 @@ async function main() {
   const stagehand = new Stagehand({
     env: "LOCAL",
     verbose: 0,
-    enableCaching: false,
-    modelName: "anthropic/claude-haiku-4-5-20251001",
+    model: "anthropic/claude-haiku-4-5-20251001",
     localBrowserLaunchOptions: {
       cdpUrl: `http://localhost:${cdpPort}`,
     },
   });
 
   await stagehand.init();
-  const page = stagehand.page;
+  const page = stagehand.context.pages()[0];
 
-  // Get CDP session for network monitoring
-  const context = page.context();
-  const client = await context.newCDPSession(page);
+  // Connect directly to CDP endpoint
+  const client = stagehand.context.pages()[0].mainFrame().session;
 
   // Enable network tracking
   await client.send('Network.enable');
@@ -128,7 +127,7 @@ async function main() {
 
       try {
         // Get response body
-        const bodyResponse = await client.send('Network.getResponseBody', {
+        const bodyResponse = await client.send<{ body: string; base64Encoded: boolean }>('Network.getResponseBody', {
           requestId: params.requestId,
         });
 

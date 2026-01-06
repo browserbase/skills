@@ -1,4 +1,4 @@
-import { Page } from '@browserbasehq/stagehand';
+import { Stagehand } from '@browserbasehq/stagehand';
 import { existsSync, cpSync, mkdirSync, readFileSync } from 'fs';
 import { platform } from 'os';
 import { join } from 'path';
@@ -175,7 +175,7 @@ export function prepareChromeProfile(pluginRoot: string) {
 }
 
  // Use CDP to take screenshot directly
-export async function takeScreenshot(page: Page, pluginRoot: string) {
+export async function takeScreenshot(stagehand: Stagehand, pluginRoot: string) {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const screenshotDir = join(pluginRoot, 'agent/browser_screenshots');
   const screenshotPath = join(screenshotDir, `screenshot-${timestamp}.png`);
@@ -185,29 +185,25 @@ export async function takeScreenshot(page: Page, pluginRoot: string) {
     mkdirSync(screenshotDir, { recursive: true });
   }
 
- const context = page.context();
- const client = await context.newCDPSession(page);
- const screenshotResult = await client.send('Page.captureScreenshot', {
-   format: 'png',
-   quality: 100,
-   fromSurface: false
+ const page = stagehand.context.pages()[0];
+ const screenshotResult = await page.screenshot({
+   type: 'png',
  });
 
  // Save the base64 screenshot data to file with resizing if needed
  const fs = await import('fs');
  const sharp = (await import('sharp')).default;
- const buffer = Buffer.from(screenshotResult.data, 'base64');
 
  // Check image dimensions
- const image = sharp(buffer);
+ const image = sharp(screenshotResult);
  const metadata = await image.metadata();
  const { width, height } = metadata;
 
- let finalBuffer: Buffer = buffer;
+ let finalBuffer: Buffer = screenshotResult;
 
  // Only resize if image exceeds 2000x2000
  if (width && height && (width > 2000 || height > 2000)) {
-   finalBuffer = await sharp(buffer)
+   finalBuffer = await sharp(screenshotResult)
      .resize(2000, 2000, {
        fit: 'inside',
        withoutEnlargement: true
