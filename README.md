@@ -13,14 +13,14 @@ On Claude Code, to add the marketplace, simply run:
 Then install the plugin:
 
 ```bash
-/plugin install browser-automation@browser-tools
+/plugin install agent-browse@browserbase
 ```
 
 If you prefer the manual interface:
 1. On Claude Code, type `/plugin`
 2. Select option `3. Add marketplace`
 3. Enter the marketplace source: `browserbase/agent-browse`
-4. Press enter to select the `browser-automation` plugin
+4. Press enter to select the `agent-browse` plugin
 5. Hit enter again to `Install now`
 6. **Restart Claude Code** for changes to take effect
 

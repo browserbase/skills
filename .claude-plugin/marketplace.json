@@ -1,5 +1,5 @@
 {
-  "name": "browser-tools",
+  "name": "browserbase",
   "owner": {
     "name": "Browserbase",
     "email": "support@browserbase.com"
@@ -10,7 +10,7 @@
   },
   "plugins": [
     {
-      "name": "browser-automation",
+      "name": "agent-browse",
       "source": "./",
       "description": "Automate web browser interactions using natural language. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications.",
       "version": "0.0.1",
