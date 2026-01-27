@@ -8,7 +8,7 @@
   },
   "plugins": [
     {
-      "name": "browserbase",
+      "name": "browse",
       "description": "Browser automation and web scraping using Browserbase cloud browsers",
       "version": "1.0.0",
       "author": {
