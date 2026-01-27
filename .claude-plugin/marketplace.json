@@ -1,0 +1,22 @@
+{
+  "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
+  "name": "browserbase",
+  "description": "Browser automation skills using Browserbase cloud browsers",
+  "owner": {
+    "name": "Browserbase",
+    "email": "support@browserbase.com"
+  },
+  "plugins": [
+    {
+      "name": "browserbase",
+      "description": "Browser automation and web scraping using Browserbase cloud browsers",
+      "version": "1.0.0",
+      "author": {
+        "name": "Browserbase",
+        "email": "support@browserbase.com"
+      },
+      "source": "./",
+      "category": "automation"
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+{
+  "name": "browserbase",
+  "description": "Browser automation skills using Browserbase cloud browsers",
+  "author": {
+    "name": "Browserbase",
+    "email": "support@browserbase.com"
+  }
+}
