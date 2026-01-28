@@ -23,18 +23,7 @@ Get API key and Project ID from: https://browserbase.com/settings
 
 ### 2. Set Environment Variables
 
-Either store for reuse:
-```bash
-stagehand fn auth login
-# Enter API key and Project ID when prompted
-```
-
-Then export for the current session:
-```bash
-eval "$(stagehand fn auth export)"
-```
-
-Or set directly:
+Set directly:
 ```bash
 export BROWSERBASE_API_KEY="your_api_key"
 export BROWSERBASE_PROJECT_ID="your_project_id"
@@ -268,13 +257,12 @@ defineFn("safe-scrape", async ({ session, params }) => {
 
 ### "Missing API key"
 ```bash
-# Check credentials
-stagehand fn auth status
+# Check .env file has credentials
+cat .env
 
-# Set for current shell
-eval "$(stagehand fn auth export)"
-
-# Or add to .env in project directory
+# Or set for current shell
+export BROWSERBASE_API_KEY="your_key"
+export BROWSERBASE_PROJECT_ID="your_project"
 ```
 
 ### Dev server won't start

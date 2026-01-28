@@ -1,13 +1,21 @@
 ---
 name: browse
-description: Complete guide for creating and deploying browser automation functions using the stagehand CLI
+description: Complete guide for creating and deploying browser automation functions using the browse CLI
 homepage: https://browserbase.com
-metadata: {"moltbot":{"emoji":"🌐","requires":{"bins":["stagehand"],"env":["BROWSERBASE_API_KEY","BROWSERBASE_PROJECT_ID"]},"primaryEnv":"BROWSERBASE_API_KEY"}}
+metadata: {"moltbot":{"emoji":"🌐","requires":{"bins":["browse"],"env":["BROWSERBASE_API_KEY","BROWSERBASE_PROJECT_ID"]},"primaryEnv":"BROWSERBASE_API_KEY"}}
 ---
 
 # Browser Automation & Functions Skill
 
-Complete guide for creating and deploying browser automation functions using the `stagehand` CLI.
+Complete guide for creating and deploying browser automation functions using the `browse` CLI.
+
+## Installation
+
+```bash
+npm install -g @browserbasehq/browse-cli
+```
+
+Requires Chrome/Chromium installed on the system.
 
 ## When to Use
 
@@ -20,48 +28,48 @@ Complete guide for creating and deploying browser automation functions using the
 
 ### Set Up Credentials
 
+Get API key and Project ID from: https://browserbase.com/settings
+
 ```bash
-stagehand fn auth status  # Check if configured
-stagehand fn auth login   # If needed - get credentials from https://browserbase.com/settings
+export BROWSERBASE_API_KEY="your_api_key"
+export BROWSERBASE_PROJECT_ID="your_project_id"
 ```
 
 ## Complete Workflow
 
 ### Step 1: Explore the Site Interactively
 
-Start a local browser session to understand the site structure:
+Start a browser session to understand the site structure:
 
 ```bash
-stagehand session create --local
-stagehand goto https://example.com
-stagehand snapshot                    # Get DOM structure with refs
-stagehand screenshot -o page.png      # Visual inspection
+browse open https://example.com
+browse snapshot                    # Get DOM structure with refs
+browse screenshot page.png         # Visual inspection
 ```
 
 Test interactions manually:
 ```bash
-stagehand click @0-5
-stagehand fill @0-6 "value"
-stagehand eval "document.querySelector('.price').textContent"
-stagehand session end  # When done exploring
+browse click @0-5
+browse fill @0-6 "value"
+browse stop  # When done exploring
 ```
 
 ### Step 2: Initialize Function Project
 
 ```bash
-stagehand fn init my-automation
+pnpm dlx @browserbasehq/sdk-functions init my-automation
 cd my-automation
 ```
 
 Creates:
 - `package.json` - Dependencies
-- `.env` - Credentials (from `~/.stagehand/config.json`)
+- `.env` - Add credentials here
 - `index.ts` - Function template
 - `tsconfig.json` - TypeScript config
 
 ### Step 3: ⚠️ FIX package.json IMMEDIATELY
 
-**CRITICAL BUG**: `stagehand fn init` generates incomplete `package.json` that causes deployment to fail with "No functions were built."
+**CRITICAL BUG**: The init command may generate incomplete `package.json` that causes deployment to fail with "No functions were built."
 
 **REQUIRED FIX** - Update `package.json` before doing anything else:
 
@@ -165,7 +173,6 @@ Dev server auto-reloads on file changes. Check terminal for logs.
 
 ```bash
 pnpm bb publish index.ts
-# or: stagehand fn publish index.ts
 ```
 
 **Expected output:**
@@ -179,11 +186,6 @@ Function ID: yyy-yyy-yyy  ← Save this!
 
 ### Step 7: Test Production
 
-```bash
-stagehand fn invoke <function-id> -p '{"param": "value"}'
-```
-
-Or via API:
 ```bash
 curl -X POST https://api.browserbase.com/v1/functions/<function-id>/invoke \
   -H "Content-Type: application/json" \
@@ -304,7 +306,7 @@ defineFn("multi-page", async (context) => {
 
 **This is the #1 error!**
 
-**Cause:** Generated `package.json` from `stagehand fn init` is incomplete.
+**Cause:** Generated `package.json` is incomplete.
 
 **Fix:**
 1. Update `package.json` (see Step 3 above)
@@ -319,11 +321,8 @@ defineFn("multi-page", async (context) => {
 ### Local dev server won't start
 
 ```bash
-# Check credentials
-stagehand fn auth status
-
-# Re-login if needed
-stagehand fn auth login
+# Check credentials in .env
+cat .env
 
 # Install SDK globally
 pnpm add -g @browserbasehq/sdk-functions
@@ -340,8 +339,8 @@ pnpm add -g @browserbasehq/sdk-functions
 
 ### Cannot extract data from page
 
-1. Take screenshot: `stagehand screenshot -o debug.png`
-2. Get snapshot: `stagehand snapshot`
+1. Take screenshot: `browse screenshot debug.png`
+2. Get snapshot: `browse snapshot`
 3. Use `page.evaluate()` to log what's in the DOM
 4. Check if selectors match actual HTML structure
 
@@ -353,8 +352,8 @@ pnpm add -g @browserbasehq/sdk-functions
 
 ## Best Practices
 
-1. ✅ **Fix package.json immediately** after `stagehand fn init`
-2. ✅ **Explore interactively first** - Use local browser session to understand site
+1. ✅ **Fix package.json immediately** after init
+2. ✅ **Explore interactively first** - Use browser session to understand site
 3. ✅ **Test manually** - Verify each step works before writing code
 4. ✅ **Test locally** - Use dev server before deploying
 5. ✅ **Return meaningful data** - Include timestamps, counts, URLs
@@ -366,16 +365,16 @@ pnpm add -g @browserbasehq/sdk-functions
 
 ## Quick Checklist
 
-- [ ] Explore site with `stagehand session create --local`
+- [ ] Explore site with `browse open <url>`
 - [ ] Test interactions manually
-- [ ] Create project: `stagehand fn init <name>`
+- [ ] Create project: `pnpm dlx @browserbasehq/sdk-functions init <name>`
 - [ ] **Fix package.json immediately** (Step 3)
 - [ ] Run `pnpm install`
 - [ ] Write automation in `index.ts`
 - [ ] Test locally: `pnpm bb dev index.ts`
 - [ ] Verify with curl
 - [ ] Deploy: `pnpm bb publish index.ts`
-- [ ] Test production: `stagehand fn invoke <function-id>`
+- [ ] Test production via API
 - [ ] Save function ID
 
 ## Code Fix Needed (For Maintainers)
