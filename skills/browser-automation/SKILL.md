@@ -1,6 +1,6 @@
 # Browser Automation Skill
 
-Automate web browser interactions using the `stagehand` CLI for AI agents.
+Automate web browser interactions using the `browse` CLI for AI agents.
 
 ## When to Use
 
@@ -14,560 +14,334 @@ Use this skill when the user asks to:
 
 ## Core Concepts
 
-The `stagehand` CLI provides:
+The `browse` CLI provides:
 - **Daemon architecture** - Browser state persists between commands
-- **Element references** - Snapshot creates refs like `@0-5` for easy clicking
-- **Execute command** - Batch multiple operations in one turn (RECOMMENDED for multi-step tasks)
-- **Multiple sessions** - Run parallel browser instances
+- **Element references** - Snapshot creates refs like `@0-5` for easy clicking/filling
 - **Self-healing** - Auto-recovers from crashes
-- **Environment modes** - LOCAL (your machine) or BROWSERBASE (remote cloud browser)
+- **Multiple sessions** - Run parallel browser instances
+- **Browserbase support** - Uses `--env BROWSERBASE` for remote cloud browsers
 
 ## Environment Selection
 
-The CLI automatically detects which browser environment to use:
-
-- **BROWSERBASE (remote cloud)** - Used when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` environment variables are set
-- **LOCAL (your machine)** - Used when Browserbase credentials are not present
-
-You can override auto-detection with the `--env` flag:
+**ALWAYS use Browserbase (remote cloud browser):**
 
 ```bash
-# Force local browser (on your machine)
-stagehand --env LOCAL open https://example.com
-
-# Force remote browser (Browserbase cloud)
-stagehand --env BROWSERBASE open https://example.com
+browse --env BROWSERBASE open https://example.com
 ```
 
-**When to use `--env BROWSERBASE`:**
-- Running in CI/CD pipelines
-- Need browser recordings for debugging
-- Want residential proxies or stealth mode
-- Testing across different geographies
+The `--env BROWSERBASE` flag ensures:
+- Browser runs in Browserbase cloud (not locally)
+- Advanced stealth mode enabled
+- Residential proxies available
+- CAPTCHA solving enabled
+- Session recordings for debugging
 
-**When to use `--env LOCAL`:**
-- Rapid local development
-- Need to see the browser visually (`--headed`)
-- Testing on your specific machine configuration
-
-## Performance Tip: Use Execute for Multi-Step Tasks
-
-For workflows requiring multiple operations, use `stagehand execute` to batch them together. This reduces turns by 70-85% and prevents timeout issues.
-
-**When to use execute:**
-- Multi-step navigation (open → click → extract)
-- Form workflows (fill multiple fields → submit → verify)
-- Data extraction from multiple elements
-- Any task requiring 3+ individual commands
-
-## ⚠️ IMPORTANT: Always Use Browserbase
-
-**ALL stagehand commands MUST include `--env BROWSERBASE` flag:**
+## Quick Start Workflow
 
 ```bash
-stagehand --env BROWSERBASE open https://example.com
-stagehand --env BROWSERBASE snapshot -c
-stagehand --env BROWSERBASE stop
+# 1. Navigate to page (browser auto-starts)
+browse --env BROWSERBASE open https://example.com
+
+# 2. Get page structure with element refs
+browse --env BROWSERBASE snapshot -c
+
+# Output includes refs like [0-5], [1-2]:
+# RootWebArea "Example" url="https://example.com"
+#   [0-0] link "Home"
+#   [0-1] link "About"
+#   [0-2] button "Sign In"
+
+# 3. Interact using refs
+browse --env BROWSERBASE click @0-2
+browse --env BROWSERBASE fill @0-5 "search query"
+
+# 4. Re-snapshot to verify changes
+browse --env BROWSERBASE snapshot -c
+
+# 5. Stop when done
+browse --env BROWSERBASE stop
 ```
 
-This ensures browser automation runs in the cloud (Browserbase) instead of locally.
-
-## Quick Start
-
-### Batched Approach (⭐ RECOMMENDED - Use for all tasks)
+## Navigation Commands
 
 ```bash
-# Execute multiple operations in one turn - THIS IS THE DEFAULT APPROACH
-stagehand --env BROWSERBASE execute '
-  // Navigate and wait
-  await page.goto("https://example.com");
-  await page.waitForLoadState("domcontentloaded");
+# Navigate to URL
+browse --env BROWSERBASE open <url>
 
-  // Extract data
-  const data = await page.evaluate(() => ({
-    title: document.title,
-    links: Array.from(document.querySelectorAll("a")).map(a => a.textContent)
-  }));
+# With custom timeout for slow pages
+browse --env BROWSERBASE open <url> --timeout 60000
 
-  return data;
-'
-
-# Stop browser when done
-stagehand --env BROWSERBASE stop
+# Page navigation
+browse --env BROWSERBASE reload
+browse --env BROWSERBASE back
+browse --env BROWSERBASE forward
 ```
 
-### Simple Approach (Only for single operations)
+## Element Interaction
 
-```bash
-# Use individual commands ONLY for simple 1-operation tasks
-# For anything more complex, use execute above
-
-# Navigate to a URL (browser starts automatically)
-stagehand --env BROWSERBASE open https://example.com
-
-# Get page structure with element refs
-stagehand --env BROWSERBASE snapshot -c
-
-# Click an element by ref
-stagehand --env BROWSERBASE click @0-5
-
-# Stop browser when done
-stagehand --env BROWSERBASE stop
-```
-
-## Common Commands
-
-### Navigation
-
-```bash
-# Open URL
-stagehand --env BROWSERBASE open https://example.com
-stagehand --env BROWSERBASE open https://example.com --wait networkidle --timeout 60000
-
-# Browser history
-stagehand --env BROWSERBASE reload
-stagehand --env BROWSERBASE back
-stagehand --env BROWSERBASE forward
-```
-
-### Page Inspection
+### Get Page Structure
 
 ```bash
 # Get accessibility tree with element refs
-stagehand --env BROWSERBASE snapshot
-stagehand --env BROWSERBASE snapshot -c  # Compact output (tree only)
+browse --env BROWSERBASE snapshot -c
 
-# Take screenshot
-stagehand --env BROWSERBASE screenshot ./page.png
-stagehand --env BROWSERBASE screenshot --full-page
-
-# Get page info
-stagehand get url
-stagehand get title
-stagehand get text @0-5
-stagehand get html @0-5
+# Get full snapshot with XPath/CSS mappings
+browse --env BROWSERBASE snapshot --json
 ```
 
-### Interactions
+### Click Elements
 
 ```bash
-# Click elements
-stagehand --env BROWSERBASE click @0-5          # Click by ref
-stagehand click_xy 100 200    # Click at coordinates
+# Click by ref (from snapshot)
+browse --env BROWSERBASE click @0-5
+browse --env BROWSERBASE click 0-5       # @ prefix optional
 
-# Fill forms
-stagehand fill @0-6 "value"          # Fill and press Enter
-stagehand fill @0-6 "value" --no-press-enter
+# Click with options
+browse --env BROWSERBASE click @0-5 -b right -c 2  # Right-click twice
 
-# Type text and press keys
-stagehand type "Hello world"
-stagehand press Enter
-stagehand press "Cmd+A"
-
-# Select options
-stagehand select @0-8 value1 value2
+# Click at coordinates
+browse --env BROWSERBASE click_xy 100 200
 ```
 
-### Waiting
+### Form Filling
+
+```bash
+# Fill input (auto-presses Enter by default)
+browse --env BROWSERBASE fill @0-5 "my value"
+
+# Fill without pressing Enter
+browse --env BROWSERBASE fill @0-5 "my value" --no-press-enter
+
+# Select dropdown options
+browse --env BROWSERBASE select @0-8 "Option 1" "Option 2"
+```
+
+### Typing
+
+```bash
+# Type text naturally
+browse --env BROWSERBASE type "Hello, world!"
+
+# Type with delay between characters
+browse --env BROWSERBASE type "slow typing" -d 100
+
+# Press special keys
+browse --env BROWSERBASE press Enter
+browse --env BROWSERBASE press Tab
+browse --env BROWSERBASE press "Cmd+A"
+```
+
+## Data Extraction
+
+```bash
+# Get page info
+browse --env BROWSERBASE get url
+browse --env BROWSERBASE get title
+browse --env BROWSERBASE get text body
+browse --env BROWSERBASE get html @0-5
+
+# Take screenshot
+browse --env BROWSERBASE screenshot page.png
+browse --env BROWSERBASE screenshot -f        # Full page
+browse --env BROWSERBASE screenshot --type jpeg
+
+# Get element coordinates
+browse --env BROWSERBASE get box @0-5  # Returns center x,y
+```
+
+## Waiting
 
 ```bash
 # Wait for page load
-stagehand wait load
-stagehand wait load networkidle
+browse --env BROWSERBASE wait load
+browse --env BROWSERBASE wait load networkidle
 
 # Wait for element
-stagehand wait selector @0-5
-stagehand wait selector ".button" --state visible --timeout 10000
+browse --env BROWSERBASE wait selector ".my-class"
+browse --env BROWSERBASE wait selector ".my-class" -t 10000 -s visible
 
-# Wait fixed time
-stagehand wait timeout 2000
+# Wait for time
+browse --env BROWSERBASE wait timeout 2000
 ```
 
-### Multi-Tab
+## Multi-Tab Support
 
 ```bash
-# List tabs
-stagehand pages
+# List all tabs
+browse --env BROWSERBASE pages
 
-# Create new tab
-stagehand newpage https://example.com
+# Open new tab
+browse --env BROWSERBASE newpage https://example.com
 
 # Switch tabs
-stagehand tab_switch 0
+browse --env BROWSERBASE tab_switch 1
 
 # Close tab
-stagehand tab_close 1
+browse --env BROWSERBASE tab_close 2
 ```
 
-### Sessions
+## Network Capture
+
+Capture HTTP requests for inspection:
 
 ```bash
-# Multiple browser sessions
-BROWSE_SESSION=session1 stagehand open https://google.com
-BROWSE_SESSION=session2 stagehand open https://github.com
+# Start capturing
+browse --env BROWSERBASE network on
 
-# Or use --session flag
-stagehand --session work open https://slack.com
+# Get capture directory
+browse --env BROWSERBASE network path
+
+# Stop capturing
+browse --env BROWSERBASE network off
+
+# Clear captures
+browse --env BROWSERBASE network clear
 ```
 
-## Workflow Patterns
+Captured requests are saved as directories with `request.json` and `response.json`.
 
-### Pattern 1: Simple Single-Step Tasks (Individual Commands)
-
-Use individual commands for simple 1-2 operation tasks:
+## Daemon Control
 
 ```bash
-# Navigate
-stagehand --env BROWSERBASE open https://example.com
+# Check status
+browse --env BROWSERBASE status
 
-# Get element refs
-stagehand --env BROWSERBASE snapshot -c
+# Stop browser
+browse --env BROWSERBASE stop
 
-# Click
-stagehand --env BROWSERBASE click @0-2
-
-# Stop
-stagehand --env BROWSERBASE stop
+# Force stop
+browse --env BROWSERBASE stop --force
 ```
 
-### Pattern 2: Multi-Step Tasks (Execute - RECOMMENDED)
+## Element References
 
-Use execute for tasks requiring 3+ operations:
+After `snapshot`, elements have refs you can use:
 
-```bash
-stagehand execute '
-  // 1. Navigate and explore
-  await page.goto("https://example.com");
-  await page.waitForLoadState("domcontentloaded");
-
-  // 2. Interact with elements
-  await page.deepLocator("button.sign-in").click();
-  await page.waitForLoadState("domcontentloaded");
-
-  // 3. Extract data
-  const data = await page.evaluate(() => ({
-    title: document.title,
-    url: location.href,
-    hasLoginForm: !!document.querySelector("form[action*=\"login\"]")
-  }));
-
-  // 4. Return results
-  return data;
-'
+```
+RootWebArea "Login Page"
+  [0-0] heading "Welcome"
+  [0-1] textbox "Email" name="email"
+  [0-2] textbox "Password" name="password"
+  [0-3] button "Sign In"
 ```
 
-### Pattern 3: Complex Navigation + Data Extraction
-
+Use these refs directly:
 ```bash
-stagehand execute '
-  // Navigate to target page
-  await page.goto("https://example.com/products");
-  await page.waitForLoadState("domcontentloaded");
-
-  // Find and click category
-  const categoryLink = page.deepLocator("a:has-text(\"Electronics\")");
-  await categoryLink.click();
-  await page.waitForLoadState("domcontentloaded");
-
-  // Extract product data
-  const products = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll(".product")).map(p => ({
-      name: p.querySelector(".product-name")?.textContent,
-      price: p.querySelector(".product-price")?.textContent,
-      inStock: p.querySelector(".in-stock") !== null
-    }));
-  });
-
-  return {
-    category: "Electronics",
-    productCount: products.length,
-    products: products.slice(0, 10) // First 10
-  };
-'
-```
-
-### Pattern 4: Form Submission Workflow
-
-```bash
-stagehand execute '
-  // Fill multiple form fields
-  await page.deepLocator("input[name=\"username\"]").fill("testuser");
-  await page.deepLocator("input[name=\"email\"]").fill("test@example.com");
-  await page.deepLocator("textarea[name=\"message\"]").fill("Hello world");
-
-  // Submit form
-  await page.deepLocator("button[type=\"submit\"]").click();
-  await page.waitForLoadState("domcontentloaded");
-
-  // Verify submission
-  const success = await page.evaluate(() => {
-    const successMsg = document.querySelector(".success-message");
-    return {
-      submitted: !!successMsg,
-      message: successMsg?.textContent,
-      url: location.href
-    };
-  });
-
-  return success;
-'
-```
-
-## Advanced Features
-
-### Network Capture
-
-```bash
-# Enable network monitoring
-stagehand network on
-
-# Captured requests go to filesystem
-stagehand network path
-
-# Clear captured data
-stagehand network clear
-
-# Disable capture
-stagehand network off
-```
-
-### Coordinate Actions
-
-```bash
-# Hover at coordinates
-stagehand hover 100 200
-
-# Scroll at coordinates
-stagehand scroll 100 200 0 500
-
-# Drag from one point to another
-stagehand drag 100 100 200 200 --steps 20
-```
-
-### JavaScript Evaluation
-
-```bash
-# Run JavaScript in browser context (limited)
-stagehand eval "document.title"
-stagehand eval "Array.from(document.querySelectorAll('a')).map(a => a.href)"
-```
-
-### Execute Node.js Code (Recommended)
-
-Execute Node.js code with full Stagehand API access. Use this for multi-step workflows.
-
-```bash
-# Simple execution
-stagehand execute 'return { url: page.url(), title: await page.title() }'
-
-# Complex workflow
-stagehand execute '
-  // Navigate
-  await page.goto("https://example.com");
-  await page.waitForLoadState("domcontentloaded");
-
-  // Interact with page
-  await page.deepLocator("input[name=\"search\"]").fill("query");
-  await page.deepLocator("button[type=\"submit\"]").click();
-  await page.waitForLoadState("domcontentloaded");
-
-  // Extract results
-  const results = await page.evaluate(() => {
-    return Array.from(document.querySelectorAll(".result")).map(r => ({
-      title: r.querySelector("h3")?.textContent,
-      url: r.querySelector("a")?.href
-    }));
-  });
-
-  return { results, count: results.length };
-'
-```
-
-**Available in execute context:**
-- `page` - Current browser page
-- `context` - Browser context (for multi-page workflows)
-- `stagehand` - Full Stagehand API (act, extract, observe, agent)
-
-### Visual Cursor
-
-```bash
-# Enable cursor overlay for debugging
-stagehand cursor
-```
-
-## Example: Search Workflow
-
-```bash
-# 1. Navigate to search page
-stagehand --env BROWSERBASE open https://www.google.com
-
-# 2. Get page structure
-stagehand --env BROWSERBASE snapshot -c
-# Output shows: [0-5] textbox: Search
-
-# 3. Fill search box
-stagehand fill @0-5 "stagehand browser automation"
-
-# 4. Wait for results
-stagehand wait load
-
-# 5. Get results
-stagehand --env BROWSERBASE snapshot -c
-
-# 6. Take screenshot
-stagehand --env BROWSERBASE screenshot search-results.png
-
-# 7. Extract specific data
-stagehand get text @1-3
-
-# 8. Clean up
-stagehand --env BROWSERBASE stop
-```
-
-## Example: Form Submission
-
-```bash
-# Navigate to form
-stagehand --env BROWSERBASE open https://example.com/form
-
-# Get form structure
-stagehand --env BROWSERBASE snapshot -c
-# Output: [0-10] textbox: Name
-#         [0-11] textbox: Email
-#         [0-12] button: Submit
-
-# Fill fields
-stagehand fill @0-10 "John Doe" --no-press-enter
-stagehand fill @0-11 "john@example.com" --no-press-enter
-
-# Submit
-stagehand --env BROWSERBASE click @0-12
-
-# Verify submission
-stagehand wait load
-stagehand get title
-```
-
-## Example: Multi-Page Scraping
-
-```bash
-# Open first page
-stagehand --env BROWSERBASE open https://example.com/page1
-stagehand --env BROWSERBASE snapshot -c
-stagehand get text @0-5 > data1.txt
-
-# Open second page in new tab
-stagehand newpage https://example.com/page2
-stagehand --env BROWSERBASE snapshot -c
-stagehand get text @0-5 > data2.txt
-
-# Switch back to first tab
-stagehand tab_switch 0
-stagehand get url
-```
-
-## Troubleshooting
-
-### Browser Won't Start
-
-```bash
-# Check Chrome is installed
-which google-chrome
-# macOS: /Applications/Google Chrome.app/Contents/MacOS/Google Chrome
-
-# Force stop stale daemon
-stagehand stop --force
-```
-
-### Element Not Found
-
-```bash
-# Always snapshot first to get current refs
-stagehand --env BROWSERBASE snapshot -c
-
-# Refs expire when page changes - re-snapshot after navigation
-stagehand --env BROWSERBASE open https://new-page.com
-stagehand --env BROWSERBASE snapshot -c  # Get fresh refs
-```
-
-### Timeout Errors
-
-```bash
-# Increase timeout for slow pages
-stagehand --env BROWSERBASE open https://slow-site.com --timeout 60000
-
-# Wait for specific state
-stagehand wait load networkidle
+browse --env BROWSERBASE fill @0-1 "user@example.com"
+browse --env BROWSERBASE fill @0-2 "mypassword"
+browse --env BROWSERBASE click @0-3
 ```
 
 ## Best Practices
 
-1. ✅ **Use execute for multi-step tasks** - Reduces turns by 70-85%, prevents timeouts
-2. ✅ **Batch related operations** - Combine navigate → interact → extract in one execute call
-3. ✅ **Wait for page loads** - Always use `await page.waitForLoadState("domcontentloaded")`
-4. ✅ **Extract data efficiently** - Use `page.evaluate()` to get multiple elements at once
-5. ✅ **Use deepLocator for selectors** - More reliable than CSS selectors alone
-6. ✅ **Return structured data** - Return objects with clear result structure
-7. ✅ **Clean up sessions** - Run `stagehand stop` when done
-8. ✅ **Handle errors gracefully** - Wrap complex operations in try/catch
-
-### When to Use Individual Commands vs Execute
-
-**Use individual commands:**
-- Single operation (open one URL, take one screenshot)
-- Quick debugging (check current page state)
-- Simple verification (is element visible?)
-
-**Use execute (RECOMMENDED):**
-- Multi-step workflows (navigate → click → extract)
-- Form submissions (fill multiple fields → submit → verify)
-- Data extraction from multiple sources
-- Any task requiring 3+ commands
-- Complex interactions with waits and conditions
-
-## Quick Reference
-
-| Task | Command |
-|------|---------|
-| **Execute code** | `stagehand execute 'code'` ⭐ RECOMMENDED |
-| Open URL | `stagehand open <url>` |
-| Get elements | `stagehand snapshot -c` |
-| Click element | `stagehand click @ref` |
-| Fill form | `stagehand fill @ref "value"` |
-| Get text | `stagehand get text @ref` |
-| Screenshot | `stagehand screenshot file.png` |
-| Wait for load | `stagehand wait load` |
-| Stop browser | `stagehand stop` |
-
-### Execute Command Examples
-
+### 1. Always snapshot after navigation
 ```bash
-# Simple page info
-stagehand execute 'return { url: page.url(), title: await page.title() }'
-
-# Navigate and extract
-stagehand execute '
-  await page.goto("https://example.com");
-  await page.waitForLoadState("domcontentloaded");
-  return await page.evaluate(() => ({ title: document.title }));
-'
-
-# Multi-step workflow
-stagehand execute '
-  await page.deepLocator("button.menu").click();
-  await page.waitForLoadState("domcontentloaded");
-  const items = await page.evaluate(() =>
-    Array.from(document.querySelectorAll(".menu-item")).map(i => i.textContent)
-  );
-  return { items };
-'
+browse --env BROWSERBASE open https://example.com
+browse --env BROWSERBASE snapshot -c  # Get refs
 ```
 
-## Notes
+### 2. Re-snapshot after actions that change the page
+```bash
+browse --env BROWSERBASE click @0-5
+browse --env BROWSERBASE snapshot -c  # Get new state
+```
 
-- Browser auto-starts on first command
-- State persists between commands (cookies, refs, etc.)
-- Multiple sessions supported via `--session` flag
-- All commands output JSON when using `--json` flag
-- Daemon auto-recovers from crashes
-- Commands timeout after 60 seconds by default
+### 3. Use refs instead of selectors
+```bash
+# ✅ Good: Use refs from snapshot
+browse --env BROWSERBASE click @0-5
+
+# ❌ Avoid: Manual selectors (refs are more reliable)
+browse --env BROWSERBASE click "#submit-button"
+```
+
+### 4. Wait for elements when needed
+```bash
+browse --env BROWSERBASE open https://slow-site.com
+browse --env BROWSERBASE wait selector ".content" -s visible
+browse --env BROWSERBASE snapshot -c
+```
+
+### 5. Always use --env BROWSERBASE
+```bash
+# ✅ Correct: Remote browser
+browse --env BROWSERBASE open https://example.com
+
+# ❌ Wrong: Local browser (will fail in evals)
+browse open https://example.com
+```
+
+## Common Patterns
+
+### Login Flow
+```bash
+browse --env BROWSERBASE open https://example.com/login
+browse --env BROWSERBASE snapshot -c
+# [0-5] textbox "Email"
+# [0-6] textbox "Password"
+# [0-7] button "Sign In"
+browse --env BROWSERBASE fill @0-5 "user@example.com"
+browse --env BROWSERBASE fill @0-6 "password123"
+browse --env BROWSERBASE click @0-7
+browse --env BROWSERBASE wait load
+browse --env BROWSERBASE snapshot -c  # Verify logged in
+```
+
+### Search and Extract
+```bash
+browse --env BROWSERBASE open https://example.com
+browse --env BROWSERBASE snapshot -c
+# [0-3] textbox "Search"
+browse --env BROWSERBASE fill @0-3 "my query"
+browse --env BROWSERBASE wait selector ".results"
+browse --env BROWSERBASE snapshot -c
+# [1-0] text "Result 1"
+# [1-1] text "Result 2"
+browse --env BROWSERBASE get text @1-0
+browse --env BROWSERBASE get text @1-1
+```
+
+### Multi-Page Navigation
+```bash
+browse --env BROWSERBASE open https://example.com
+browse --env BROWSERBASE snapshot -c
+# [0-5] link "Next Page"
+browse --env BROWSERBASE click @0-5
+browse --env BROWSERBASE wait load
+browse --env BROWSERBASE snapshot -c  # Get new page structure
+```
+
+## Troubleshooting
+
+### Browser won't start
+- Check that `browse` is installed: `which browse`
+- Check status: `browse status`
+- Force stop and retry: `browse stop --force`
+
+### Element not found
+- Take a snapshot to verify refs: `browse --env BROWSERBASE snapshot -c`
+- Wait for element to appear: `browse --env BROWSERBASE wait selector ...`
+- Check if ref changed after page update
+
+### Page not loading
+- Increase timeout: `browse --env BROWSERBASE open <url> --timeout 60000`
+- Wait for load state: `browse --env BROWSERBASE wait load networkidle`
+
+### Commands failing with "session not found"
+- The daemon auto-recovers from crashes
+- If issues persist: `browse --env BROWSERBASE stop --force && browse --env BROWSERBASE open <url>`
+
+## Performance Tips
+
+1. **Use compact snapshots** (`-c`) for faster parsing
+2. **Wait strategically** - only wait when needed
+3. **Stop browser when done** to free resources
+4. **Use refs over selectors** - faster and more reliable
+
+## Important Notes
+
+- Browser state persists between commands (cookies, refs, etc.)
+- Refs are invalidated when the page changes significantly
+- Always take a new snapshot after navigation or major DOM changes
+- The daemon auto-starts on first command
+- Multiple sessions supported via `--session` flag or `BROWSE_SESSION` env var
