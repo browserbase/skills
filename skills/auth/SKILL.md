@@ -1,3 +1,8 @@
+---
+name: browserbase-auth
+description: Guide Claude through interactive authentication flows using the stagehand CLI
+---
+
 # Authentication Skill
 
 Guide Claude through interactive authentication flows using the `stagehand` CLI.

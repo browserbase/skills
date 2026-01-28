@@ -1,3 +1,8 @@
+---
+name: browserbase-fix
+description: Guide Claude through debugging and fixing failing browser automations
+---
+
 # Fix Automation Skill
 
 Guide Claude through debugging and fixing failing browser automations.

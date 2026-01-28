@@ -1,3 +1,8 @@
+---
+name: browserbase-functions
+description: Guide Claude through deploying serverless browser automation using the official bb CLI
+---
+
 # Browserbase Functions Skill
 
 Guide Claude through deploying serverless browser automation using the official `bb` CLI.

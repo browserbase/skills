@@ -1,3 +1,8 @@
+---
+name: browserbase-browser-automation
+description: Automate web browser interactions using the stagehand CLI for AI agents
+---
+
 # Browser Automation Skill
 
 Automate web browser interactions using the `stagehand` CLI for AI agents.

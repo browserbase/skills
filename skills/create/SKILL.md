@@ -1,3 +1,8 @@
+---
+name: browserbase-create
+description: Guide Claude through creating new browser automation scripts using the stagehand CLI
+---
+
 # Create Automation Skill
 
 Guide Claude through creating new browser automation scripts using the `stagehand` CLI.

@@ -1,3 +1,8 @@
+---
+name: browserbase
+description: Complete guide for creating and deploying browser automation functions using the stagehand CLI
+---
+
 # Browser Automation & Functions Skill
 
 Complete guide for creating and deploying browser automation functions using the `stagehand` CLI.
