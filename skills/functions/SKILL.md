@@ -20,13 +20,13 @@ Get API key and Project ID from: https://browserbase.com/settings
 
 Either store for reuse:
 ```bash
-browse fn auth login
+stagehand fn auth login
 # Enter API key and Project ID when prompted
 ```
 
 Then export for the current session:
 ```bash
-eval "$(browse fn auth export)"
+eval "$(stagehand fn auth export)"
 ```
 
 Or set directly:
@@ -264,10 +264,10 @@ defineFn("safe-scrape", async ({ session, params }) => {
 ### "Missing API key"
 ```bash
 # Check credentials
-browse fn auth status
+stagehand fn auth status
 
 # Set for current shell
-eval "$(browse fn auth export)"
+eval "$(stagehand fn auth export)"
 
 # Or add to .env in project directory
 ```

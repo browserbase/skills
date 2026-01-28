@@ -1,6 +1,6 @@
 # Authentication Skill
 
-Guide Claude through interactive authentication flows using the `browse` CLI.
+Guide Claude through interactive authentication flows using the `stagehand` CLI.
 
 ## When to Use
 
@@ -17,7 +17,7 @@ Use this skill when:
 After navigating to a URL, check if authentication is needed:
 
 ```bash
-browse snapshot
+stagehand snapshot
 ```
 
 Look for indicators:
@@ -45,16 +45,16 @@ Use the snapshot refs to identify form fields:
 
 ```bash
 # Get the current page state
-browse snapshot
+stagehand snapshot
 
 # Fill the email/username field
-browse fill @0-5 "user@example.com"
+stagehand fill @0-5 "user@example.com"
 
 # Fill the password field  
-browse fill @0-8 "their-password"
+stagehand fill @0-8 "their-password"
 
 # Click the submit button
-browse click @0-12
+stagehand click @0-12
 ```
 
 ### 4. Handle 2FA/MFA
@@ -62,7 +62,7 @@ browse click @0-12
 If a 2FA prompt appears after login:
 
 ```bash
-browse snapshot
+stagehand snapshot
 ```
 
 Prompt the user:
@@ -76,8 +76,8 @@ What is your 2FA code?
 
 Then fill and submit:
 ```bash
-browse fill @0-3 "123456"
-browse click @0-5
+stagehand fill @0-3 "123456"
+stagehand click @0-5
 ```
 
 ### 5. Verify Success
@@ -85,8 +85,8 @@ browse click @0-5
 After submitting credentials:
 
 ```bash
-browse wait networkidle
-browse snapshot
+stagehand wait networkidle
+stagehand snapshot
 ```
 
 Check for:
@@ -116,13 +116,13 @@ For OAuth buttons (Google, GitHub, etc.):
 
 ```bash
 # Click OAuth button
-browse click @0-15
+stagehand click @0-15
 
 # Wait for OAuth flow to complete
-browse wait networkidle
+stagehand wait networkidle
 
 # Verify authentication succeeded
-browse snapshot
+stagehand snapshot
 ```
 
 ## Common Patterns
@@ -152,7 +152,7 @@ What email should I use?
 This login page has a CAPTCHA. I cannot solve CAPTCHAs automatically.
 
 Options:
-1. Use `browse session live` to open the browser and solve it manually
+1. Use `stagehand session live` to open the browser and solve it manually
 2. Try a different authentication method
 3. Contact the site administrator
 ```
@@ -170,25 +170,25 @@ Options:
 ### Login button doesn't work
 ```bash
 # Try waiting for page to be fully loaded
-browse wait networkidle
+stagehand wait networkidle
 
 # Check if button is actually clickable
-browse snapshot
+stagehand snapshot
 
 # Try clicking by coordinates if ref doesn't work
-browse click 450,320
+stagehand click 450,320
 ```
 
 ### Form fields not found
 ```bash
 # Get full snapshot to find correct refs
-browse snapshot
+stagehand snapshot
 
 # Try using evaluate to find elements
-browse eval "document.querySelector('input[type=password]')?.id"
+stagehand eval "document.querySelector('input[type=password]')?.id"
 ```
 
 ### Session expires quickly
 - Some sites have short session timeouts
-- Consider using `browse session create` with Browserbase for persistent sessions
+- Consider using `stagehand session create` with Browserbase for persistent sessions
 - Check if "Remember me" checkbox is available

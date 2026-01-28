@@ -1,6 +1,6 @@
 # Create Automation Skill
 
-Guide Claude through creating new browser automation scripts using the `browse` CLI.
+Guide Claude through creating new browser automation scripts using the `stagehand` CLI.
 
 ## When to Use
 
@@ -25,18 +25,18 @@ Ask clarifying questions:
 Start a local browser session to understand the site structure:
 
 ```bash
-browse session create --local
-browse goto https://example.com
+stagehand session create --local
+stagehand goto https://example.com
 ```
 
 Use snapshot to understand the DOM:
 ```bash
-browse snapshot
+stagehand snapshot
 ```
 
 Take screenshots to see the visual layout:
 ```bash
-browse screenshot -o exploration.png
+stagehand screenshot -o exploration.png
 ```
 
 ### 3. Identify Key Elements
@@ -58,21 +58,21 @@ Use the accessibility tree refs to understand element relationships:
 Before writing code, verify each step works:
 
 ```bash
-browse fill @0-6 "test@example.com"
-browse fill @0-7 "password123"
-browse click @0-5
-browse wait networkidle
-browse snapshot
+stagehand fill @0-6 "test@example.com"
+stagehand fill @0-7 "password123"
+stagehand click @0-5
+stagehand wait networkidle
+stagehand snapshot
 ```
 
 ### 5. Enable Network Capture (if needed)
 
 For API-based automations or debugging:
 ```bash
-browse network on
+stagehand network on
 # perform actions
-browse network list
-browse network show 0
+stagehand network list
+stagehand network show 0
 ```
 
 ### 6. Create the Function
@@ -80,13 +80,13 @@ browse network show 0
 Once you understand the flow, create a full function project:
 
 ```bash
-browse fn init my-automation
+stagehand fn init my-automation
 cd my-automation
 ```
 
 This creates a complete project with:
 - `package.json` with dependencies
-- `.env` with credentials (from `~/.browse/config.json` if available)
+- `.env` with credentials (from `~/.stagehand/config.json` if available)
 - `tsconfig.json`
 - `index.ts` template
 
@@ -117,7 +117,7 @@ defineFn("my-automation", async (context) => {
 Start the local development server:
 ```bash
 pnpm bb dev index.ts
-# or: browse fn dev index.ts
+# or: stagehand fn dev index.ts
 ```
 
 Then invoke locally via curl:
@@ -132,14 +132,14 @@ curl -X POST http://127.0.0.1:14113/v1/functions/my-automation/invoke \
 When ready for production:
 ```bash
 pnpm bb publish index.ts
-# or: browse fn publish index.ts
+# or: stagehand fn publish index.ts
 ```
 
 ### 9. Test Production
 
 Invoke the deployed function:
 ```bash
-browse fn invoke <function-id> -p '{"email": "test@example.com"}'
+stagehand fn invoke <function-id> -p '{"email": "test@example.com"}'
 ```
 
 ## Best Practices
