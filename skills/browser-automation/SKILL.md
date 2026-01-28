@@ -2,6 +2,8 @@
 
 Automate web browser interactions using the `browse` CLI for AI agents.
 
+**🔑 CRITICAL:** A Browserbase session is pre-created with stealth/proxy/captcha. Use `--ws $BROWSERBASE_CONNECT_URL` in ALL commands (not `--env BROWSERBASE`).
+
 ## When to Use
 
 Use this skill when the user asks to:
@@ -23,27 +25,31 @@ The `browse` CLI provides:
 
 ## Environment Selection
 
-**ALWAYS use Browserbase (remote cloud browser):**
+**IMPORTANT: A Browserbase session with stealth/proxy/captcha has been pre-created for you.**
+
+The session URL is available in the `BROWSERBASE_CONNECT_URL` environment variable.
+
+**ALWAYS use `--ws $BROWSERBASE_CONNECT_URL` to connect:**
 
 ```bash
-browse --env BROWSERBASE open https://example.com
+browse --ws $BROWSERBASE_CONNECT_URL open https://example.com
 ```
 
-The `--env BROWSERBASE` flag ensures:
+This ensures:
 - Browser runs in Browserbase cloud (not locally)
-- Advanced stealth mode enabled
-- Residential proxies available
+- Advanced stealth mode enabled (bypasses Cloudflare)
+- Residential proxies enabled
 - CAPTCHA solving enabled
-- Session recordings for debugging
+- Session recordings for debugging at: $BROWSERBASE_DEBUG_URL
 
 ## Quick Start Workflow
 
 ```bash
-# 1. Navigate to page (browser auto-starts)
-browse --env BROWSERBASE open https://example.com
+# 1. Navigate to page (browser auto-starts, connects to pre-created session)
+browse --ws $BROWSERBASE_CONNECT_URL open https://example.com
 
 # 2. Get page structure with element refs
-browse --env BROWSERBASE snapshot -c
+browse --ws $BROWSERBASE_CONNECT_URL snapshot -c
 
 # Output includes refs like [0-5], [1-2]:
 # RootWebArea "Example" url="https://example.com"
@@ -52,29 +58,31 @@ browse --env BROWSERBASE snapshot -c
 #   [0-2] button "Sign In"
 
 # 3. Interact using refs
-browse --env BROWSERBASE click @0-2
-browse --env BROWSERBASE fill @0-5 "search query"
+browse --ws $BROWSERBASE_CONNECT_URL click @0-2
+browse --ws $BROWSERBASE_CONNECT_URL fill @0-5 "search query"
 
 # 4. Re-snapshot to verify changes
-browse --env BROWSERBASE snapshot -c
+browse --ws $BROWSERBASE_CONNECT_URL snapshot -c
 
 # 5. Stop when done
-browse --env BROWSERBASE stop
+browse --ws $BROWSERBASE_CONNECT_URL stop
 ```
 
 ## Navigation Commands
 
+**NOTE:** Use `browse --ws $BROWSERBASE_CONNECT_URL` for all commands below.
+
 ```bash
 # Navigate to URL
-browse --env BROWSERBASE open <url>
+browse --ws $BROWSERBASE_CONNECT_URL open <url>
 
 # With custom timeout for slow pages
-browse --env BROWSERBASE open <url> --timeout 60000
+browse --ws $BROWSERBASE_CONNECT_URL open <url> --timeout 60000
 
 # Page navigation
-browse --env BROWSERBASE reload
-browse --env BROWSERBASE back
-browse --env BROWSERBASE forward
+browse --ws $BROWSERBASE_CONNECT_URL reload
+browse --ws $BROWSERBASE_CONNECT_URL back
+browse --ws $BROWSERBASE_CONNECT_URL forward
 ```
 
 ## Element Interaction
