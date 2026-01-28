@@ -1,6 +1,8 @@
 ---
 name: browse
 description: Complete guide for creating and deploying browser automation functions using the stagehand CLI
+homepage: https://browserbase.com
+metadata: {"moltbot":{"emoji":"🌐","requires":{"bins":["stagehand"],"env":["BROWSERBASE_API_KEY","BROWSERBASE_PROJECT_ID"]},"primaryEnv":"BROWSERBASE_API_KEY"}}
 ---
 
 # Browser Automation & Functions Skill
