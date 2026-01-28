@@ -1,5 +1,5 @@
 ---
-name: browserbase
+name: browse
 description: Complete guide for creating and deploying browser automation functions using the stagehand CLI
 ---
 
