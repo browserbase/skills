@@ -1,11 +1,11 @@
 ---
 name: browserbase-auth
-description: Guide Claude through interactive authentication flows using the stagehand CLI
+description: Guide Claude through interactive authentication flows using the browse CLI
 ---
 
 # Authentication Skill
 
-Guide Claude through interactive authentication flows using the `stagehand` CLI.
+Guide Claude through interactive authentication flows using the `browse` CLI.
 
 ## When to Use
 
@@ -22,7 +22,7 @@ Use this skill when:
 After navigating to a URL, check if authentication is needed:
 
 ```bash
-stagehand snapshot
+browse snapshot
 ```
 
 Look for indicators:
@@ -50,16 +50,16 @@ Use the snapshot refs to identify form fields:
 
 ```bash
 # Get the current page state
-stagehand snapshot
+browse snapshot
 
 # Fill the email/username field
-stagehand fill @0-5 "user@example.com"
+browse fill @0-5 "user@example.com"
 
 # Fill the password field  
-stagehand fill @0-8 "their-password"
+browse fill @0-8 "their-password"
 
 # Click the submit button
-stagehand click @0-12
+browse click @0-12
 ```
 
 ### 4. Handle 2FA/MFA
@@ -67,7 +67,7 @@ stagehand click @0-12
 If a 2FA prompt appears after login:
 
 ```bash
-stagehand snapshot
+browse snapshot
 ```
 
 Prompt the user:
@@ -81,8 +81,8 @@ What is your 2FA code?
 
 Then fill and submit:
 ```bash
-stagehand fill @0-3 "123456"
-stagehand click @0-5
+browse fill @0-3 "123456"
+browse click @0-5
 ```
 
 ### 5. Verify Success
@@ -90,8 +90,8 @@ stagehand click @0-5
 After submitting credentials:
 
 ```bash
-stagehand wait networkidle
-stagehand snapshot
+browse wait load networkidle
+browse snapshot
 ```
 
 Check for:
@@ -121,13 +121,13 @@ For OAuth buttons (Google, GitHub, etc.):
 
 ```bash
 # Click OAuth button
-stagehand click @0-15
+browse click @0-15
 
 # Wait for OAuth flow to complete
-stagehand wait networkidle
+browse wait load networkidle
 
 # Verify authentication succeeded
-stagehand snapshot
+browse snapshot
 ```
 
 ## Common Patterns
@@ -157,7 +157,7 @@ What email should I use?
 This login page has a CAPTCHA. I cannot solve CAPTCHAs automatically.
 
 Options:
-1. Use `stagehand session live` to open the browser and solve it manually
+1. Use Browserbase's CAPTCHA solving (enabled via --ws $BROWSERBASE_CONNECT_URL)
 2. Try a different authentication method
 3. Contact the site administrator
 ```
@@ -175,25 +175,25 @@ Options:
 ### Login button doesn't work
 ```bash
 # Try waiting for page to be fully loaded
-stagehand wait networkidle
+browse wait load networkidle
 
 # Check if button is actually clickable
-stagehand snapshot
+browse snapshot
 
 # Try clicking by coordinates if ref doesn't work
-stagehand click 450,320
+browse click_xy 450 320
 ```
 
 ### Form fields not found
 ```bash
 # Get full snapshot to find correct refs
-stagehand snapshot
+browse snapshot
 
-# Try using evaluate to find elements
-stagehand eval "document.querySelector('input[type=password]')?.id"
+# Use get to inspect specific elements
+browse get html body
 ```
 
 ### Session expires quickly
 - Some sites have short session timeouts
-- Consider using `stagehand session create` with Browserbase for persistent sessions
+- Use Browserbase for persistent cloud sessions
 - Check if "Remember me" checkbox is available

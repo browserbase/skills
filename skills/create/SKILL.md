@@ -1,11 +1,11 @@
 ---
 name: browserbase-create
-description: Guide Claude through creating new browser automation scripts using the stagehand CLI
+description: Guide Claude through creating new browser automation scripts using the browse CLI
 ---
 
 # Create Automation Skill
 
-Guide Claude through creating new browser automation scripts using the `stagehand` CLI.
+Guide Claude through creating new browser automation scripts using the `browse` CLI.
 
 ## When to Use
 
@@ -30,18 +30,17 @@ Ask clarifying questions:
 Start a local browser session to understand the site structure:
 
 ```bash
-stagehand session create --local
-stagehand goto https://example.com
+browse open https://example.com
 ```
 
 Use snapshot to understand the DOM:
 ```bash
-stagehand snapshot
+browse snapshot
 ```
 
 Take screenshots to see the visual layout:
 ```bash
-stagehand screenshot -o exploration.png
+browse screenshot exploration.png
 ```
 
 ### 3. Identify Key Elements
@@ -63,21 +62,21 @@ Use the accessibility tree refs to understand element relationships:
 Before writing code, verify each step works:
 
 ```bash
-stagehand fill @0-6 "test@example.com"
-stagehand fill @0-7 "password123"
-stagehand click @0-5
-stagehand wait networkidle
-stagehand snapshot
+browse fill @0-6 "test@example.com"
+browse fill @0-7 "password123"
+browse click @0-5
+browse wait load networkidle
+browse snapshot
 ```
 
 ### 5. Enable Network Capture (if needed)
 
 For API-based automations or debugging:
 ```bash
-stagehand network on
+browse network on
 # perform actions
-stagehand network list
-stagehand network show 0
+browse network path
+# inspect captured requests in the directory
 ```
 
 ### 6. Create the Function
@@ -85,13 +84,13 @@ stagehand network show 0
 Once you understand the flow, create a full function project:
 
 ```bash
-stagehand fn init my-automation
+pnpm dlx @browserbasehq/sdk-functions init my-automation
 cd my-automation
 ```
 
 This creates a complete project with:
 - `package.json` with dependencies
-- `.env` with credentials (from `~/.stagehand/config.json` if available)
+- `.env` for credentials
 - `tsconfig.json`
 - `index.ts` template
 
@@ -122,7 +121,6 @@ defineFn("my-automation", async (context) => {
 Start the local development server:
 ```bash
 pnpm bb dev index.ts
-# or: stagehand fn dev index.ts
 ```
 
 Then invoke locally via curl:
@@ -137,14 +135,16 @@ curl -X POST http://127.0.0.1:14113/v1/functions/my-automation/invoke \
 When ready for production:
 ```bash
 pnpm bb publish index.ts
-# or: stagehand fn publish index.ts
 ```
 
 ### 9. Test Production
 
-Invoke the deployed function:
+Invoke the deployed function via API:
 ```bash
-stagehand fn invoke <function-id> -p '{"email": "test@example.com"}'
+curl -X POST https://api.browserbase.com/v1/functions/<function-id>/invoke \
+  -H "Content-Type: application/json" \
+  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -d '{"params": {"email": "test@example.com"}}'
 ```
 
 ## Best Practices

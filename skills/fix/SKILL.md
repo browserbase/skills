@@ -24,32 +24,23 @@ Before debugging, gather context from:
 3. **Recent invocations** - Check for patterns in failures
 4. **Function history** - When did it last work?
 
-```bash
-stagehand fn errors <function-name>
-stagehand fn logs <function-name>
-```
+Check function logs via the Browserbase dashboard or API.
 
 ## Debugging Workflow
 
 ### 1. Reproduce the Issue
 
-Start a Browserbase session to see what's happening:
+Start a browser session to see what's happening:
 
 ```bash
-stagehand session create
-stagehand session live  # Open in browser to watch
-```
-
-Navigate to the target URL:
-```bash
-stagehand goto <target-url>
+browse open <target-url>
 ```
 
 ### 2. Compare Expected vs Actual State
 
 Take a snapshot of the current page:
 ```bash
-stagehand snapshot
+browse snapshot
 ```
 
 Compare with what the automation expects:
@@ -63,9 +54,9 @@ Compare with what the automation expects:
 #### Selector Changes
 The site updated their HTML:
 ```bash
-stagehand snapshot
+browse snapshot
 # Look for similar elements with new selectors
-stagehand eval "document.querySelector('.new-class')?.textContent"
+browse get text body
 ```
 
 **Fix**: Update selectors in the function code.
@@ -73,9 +64,9 @@ stagehand eval "document.querySelector('.new-class')?.textContent"
 #### Timing Issues
 Elements load slower than expected:
 ```bash
-stagehand network on
-stagehand goto <url>
-stagehand network list
+browse network on
+browse open <url>
+browse network path
 # Check if resources are slow to load
 ```
 
@@ -84,7 +75,7 @@ stagehand network list
 #### Authentication Expired
 Session cookies no longer valid:
 ```bash
-stagehand snapshot
+browse snapshot
 # Look for login prompts
 ```
 
@@ -93,9 +84,9 @@ stagehand snapshot
 #### Rate Limiting / Bot Detection
 Site is blocking automated access:
 ```bash
-stagehand network list
-# Look for 403, 429 status codes
-stagehand screenshot -o blocked.png
+browse network path
+# Look for 403, 429 status codes in captured requests
+browse screenshot blocked.png
 ```
 
 **Fix**: Add delays, use proxies, or contact site owner.
@@ -103,8 +94,8 @@ stagehand screenshot -o blocked.png
 #### Site Redesign
 Major structural changes:
 ```bash
-stagehand snapshot
-stagehand screenshot -o current.png
+browse snapshot
+browse screenshot current.png
 ```
 
 **Fix**: Rewrite affected portions of the automation.
@@ -115,13 +106,13 @@ Make changes to the function code, then test:
 
 ```bash
 # Test locally first
-stagehand fn invoke <name> --local
+pnpm bb dev index.ts
+# Invoke via curl to test
 
 # If local works, deploy
-stagehand fn publish <entrypoint>
+pnpm bb publish index.ts
 
-# Test in production
-stagehand fn invoke <name>
+# Test in production via API
 ```
 
 ### 5. Verify Fix is Complete
@@ -150,51 +141,41 @@ gh pr create --title "Fix <function-name>" --body "..."
 
 | Command | Purpose |
 |---------|---------|
-| `stagehand session create` | Start debug session |
-| `stagehand session live` | Open visual debugger |
-| `stagehand goto <url>` | Navigate to target |
-| `stagehand snapshot` | Inspect DOM structure |
-| `stagehand screenshot` | Capture visual state |
-| `stagehand network on` | Enable request capture |
-| `stagehand network list` | View captured requests |
-| `stagehand network show <id>` | Inspect specific request |
-| `stagehand eval <js>` | Run diagnostic JS |
-| `stagehand fn errors <name>` | View recent failures |
-| `stagehand fn logs <name>` | View function logs |
+| `browse open <url>` | Navigate to target |
+| `browse snapshot` | Inspect DOM structure |
+| `browse screenshot` | Capture visual state |
+| `browse network on` | Enable request capture |
+| `browse network path` | Get capture directory |
+| `browse get text <selector>` | Extract text content |
 
 ## Example Debug Session
 
 ```
 User: My price-monitor function stopped working yesterday
 
-Claude: Let me investigate. First, let me check the recent errors:
+Claude: Let me investigate. First, let me start a debug session:
 
-> stagehand fn errors price-monitor
+> browse open https://example.com/product/123
 
-I see several failures with "Element not found: .price". Let me start a debug session:
+Let me check the page structure:
 
-> stagehand session create
-> stagehand session live
-> stagehand goto https://example.com/product/123
-
-Opening in browser so you can watch. Let me check the page structure:
-
-> stagehand snapshot
+> browse snapshot
 
 I can see the price element now uses a different class `.product-price` instead of `.price`. The site appears to have been redesigned.
 
 Let me verify:
-> stagehand eval "document.querySelector('.product-price')?.textContent"
+> browse get text .product-price
 
 Yes, that returns "$29.99". I'll update the selector in your function:
 
 [edits price-monitor.ts to use '.product-price']
 
 Testing locally:
-> stagehand fn invoke price-monitor --local -p '{"productUrl": "https://example.com/product/123"}'
+> pnpm bb dev index.ts
+> curl -X POST http://127.0.0.1:14113/v1/functions/price-monitor/invoke -H "Content-Type: application/json" -d '{"params": {"productUrl": "https://example.com/product/123"}}'
 
 Works! Deploying fix:
-> stagehand fn publish price-monitor.ts
+> pnpm bb publish index.ts
 
 The function should work now. Would you like me to commit this fix?
 ```
