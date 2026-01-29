@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "browserbase",
-  "description": "Browser automation skills using Browserbase cloud browsers",
+  "description": "Browser automation skills for AI agents using Browserbase",
   "owner": {
     "name": "Browserbase",
     "email": "support@browserbase.com"
@@ -9,13 +9,46 @@
   "plugins": [
     {
       "name": "browse",
-      "description": "Browser automation and web scraping using Browserbase cloud browsers",
-      "version": "1.0.0",
+      "description": "Browser automation CLI for AI agents - create, test, and deploy web automations",
+      "version": "1.0.1",
       "author": {
         "name": "Browserbase",
         "email": "support@browserbase.com"
       },
-      "source": "./",
+      "source": "./skills/browse",
+      "category": "automation"
+    },
+    {
+      "name": "browser-automation",
+      "description": "Detailed browser automation reference for the browse CLI",
+      "version": "1.0.1",
+      "author": {
+        "name": "Browserbase",
+        "email": "support@browserbase.com"
+      },
+      "source": "./skills/browser-automation",
+      "category": "automation"
+    },
+    {
+      "name": "auth",
+      "description": "Authentication flows for browser automation",
+      "version": "1.0.1",
+      "author": {
+        "name": "Browserbase",
+        "email": "support@browserbase.com"
+      },
+      "source": "./skills/auth",
+      "category": "automation"
+    },
+    {
+      "name": "functions",
+      "description": "Deploying serverless browser automation functions",
+      "version": "1.0.1",
+      "author": {
+        "name": "Browserbase",
+        "email": "support@browserbase.com"
+      },
+      "source": "./skills/functions",
       "category": "automation"
     }
   ]

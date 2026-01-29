@@ -1,8 +1,19 @@
 {
   "name": "browse",
-  "description": "Browser automation skills using Browserbase cloud browsers",
+  "description": "Browser automation CLI for AI agents - create, test, and deploy web automations",
+  "version": "1.0.1",
   "author": {
     "name": "Browserbase",
     "email": "support@browserbase.com"
+  },
+  "requires": {
+    "npm": [
+      "@browserbasehq/browse-cli",
+      "@browserbasehq/sdk-functions"
+    ],
+    "env": [
+      "BROWSERBASE_API_KEY",
+      "BROWSERBASE_PROJECT_ID"
+    ]
   }
 }

@@ -17,7 +17,6 @@ This will automatically install the required CLIs:
 - **[skills/browse/](./skills/browse/SKILL.md)** - Main skill: Browser automation CLI
 - **[skills/browser-automation/](./skills/browser-automation/SKILL.md)** - Detailed automation reference
 - **[skills/auth/](./skills/auth/SKILL.md)** - Authentication flows
-- **[skills/fix/](./skills/fix/SKILL.md)** - Debugging and fixing automations
 - **[skills/functions/](./skills/functions/SKILL.md)** - Deploying Browserbase Functions
 
 ## Quick Start
