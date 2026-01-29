@@ -9,46 +9,13 @@
   "plugins": [
     {
       "name": "browse",
-      "description": "Browser automation CLI for AI agents - create, test, and deploy web automations",
-      "version": "1.0.1",
+      "description": "Browser automation CLI for AI agents - automate web tasks, scrape data, fill forms, and deploy serverless browser functions",
+      "version": "1.0.2",
       "author": {
         "name": "Browserbase",
         "email": "support@browserbase.com"
       },
-      "source": "./skills/browse",
-      "category": "automation"
-    },
-    {
-      "name": "browser-automation",
-      "description": "Detailed browser automation reference for the browse CLI",
-      "version": "1.0.1",
-      "author": {
-        "name": "Browserbase",
-        "email": "support@browserbase.com"
-      },
-      "source": "./skills/browser-automation",
-      "category": "automation"
-    },
-    {
-      "name": "auth",
-      "description": "Authentication flows for browser automation",
-      "version": "1.0.1",
-      "author": {
-        "name": "Browserbase",
-        "email": "support@browserbase.com"
-      },
-      "source": "./skills/auth",
-      "category": "automation"
-    },
-    {
-      "name": "functions",
-      "description": "Deploying serverless browser automation functions",
-      "version": "1.0.1",
-      "author": {
-        "name": "Browserbase",
-        "email": "support@browserbase.com"
-      },
-      "source": "./skills/functions",
+      "source": "./",
       "category": "automation"
     }
   ]

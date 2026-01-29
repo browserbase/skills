@@ -1,7 +1,7 @@
 {
   "name": "browse",
-  "description": "Browser automation CLI for AI agents - create, test, and deploy web automations",
-  "version": "1.0.1",
+  "description": "Browser automation CLI for AI agents - automate web tasks, scrape data, fill forms, and deploy serverless browser functions",
+  "version": "1.0.2",
   "author": {
     "name": "Browserbase",
     "email": "support@browserbase.com"
