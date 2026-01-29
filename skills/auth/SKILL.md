@@ -1,5 +1,5 @@
 ---
-name: browserbase-auth
+name: auth
 description: Guide Claude through interactive authentication flows using the browse CLI
 ---
 
