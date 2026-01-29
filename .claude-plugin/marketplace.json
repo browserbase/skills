@@ -1,7 +1,7 @@
 {
   "$schema": "https://anthropic.com/claude-code/marketplace.schema.json",
   "name": "browserbase",
-  "description": "Browser automation skills for AI agents using Browserbase",
+  "description": "Browser automation skills for AI agents. Automate web tasks, scrape data, fill forms, and deploy serverless browser functions using the browse CLI and Browserbase cloud infrastructure.",
   "owner": {
     "name": "Browserbase",
     "email": "support@browserbase.com"
