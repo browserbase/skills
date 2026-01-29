@@ -1,18 +1,27 @@
 ---
 name: browse
 description: Browser automation CLI for AI agents - create, test, and deploy web automations
-requires:
-  npm:
-    - "@browserbasehq/browse-cli"
-    - "@browserbasehq/sdk-functions"
-  env:
-    - BROWSERBASE_API_KEY
-    - BROWSERBASE_PROJECT_ID
 ---
 
 # Browse - Browser Automation CLI
 
 Browser automation CLI for AI agents. Create, test, and deploy web automations using the `browse` CLI.
+
+## Setup (Run First!)
+
+Before using this skill, install the required CLIs:
+
+```bash
+npm install -g @browserbasehq/browse-cli @browserbasehq/sdk-functions
+```
+
+Set your credentials:
+```bash
+export BROWSERBASE_API_KEY="your_api_key"
+export BROWSERBASE_PROJECT_ID="your_project_id"
+```
+
+Get credentials from: https://browserbase.com/settings
 
 ## When to Use
 
