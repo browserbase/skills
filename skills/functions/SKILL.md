@@ -1,6 +1,12 @@
 ---
 name: browserbase-functions
 description: Guide Claude through deploying serverless browser automation using the official bb CLI
+requires:
+  npm:
+    - "@browserbasehq/sdk-functions"
+  env:
+    - BROWSERBASE_API_KEY
+    - BROWSERBASE_PROJECT_ID
 ---
 
 # Browserbase Functions Skill

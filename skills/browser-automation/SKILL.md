@@ -1,6 +1,13 @@
 ---
 name: browserbase-browser-automation
 description: Automate web browser interactions using the browse CLI for AI agents
+requires:
+  npm:
+    - "@browserbasehq/browse-cli"
+  env:
+    - BROWSERBASE_API_KEY
+    - BROWSERBASE_PROJECT_ID
+    - BROWSERBASE_CONNECT_URL
 ---
 
 # Browser Automation Skill

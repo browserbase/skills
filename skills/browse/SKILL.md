@@ -1,11 +1,18 @@
 ---
-name: browserbase-create
-description: Guide Claude through creating new browser automation scripts using the browse CLI
+name: browse
+description: Browser automation CLI for AI agents - create, test, and deploy web automations
+requires:
+  npm:
+    - "@browserbasehq/browse-cli"
+    - "@browserbasehq/sdk-functions"
+  env:
+    - BROWSERBASE_API_KEY
+    - BROWSERBASE_PROJECT_ID
 ---
 
-# Create Automation Skill
+# Browse - Browser Automation CLI
 
-Guide Claude through creating new browser automation scripts using the `browse` CLI.
+Browser automation CLI for AI agents. Create, test, and deploy web automations using the `browse` CLI.
 
 ## When to Use
 
