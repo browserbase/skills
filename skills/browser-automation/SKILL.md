@@ -8,20 +8,12 @@ allowed-tools: Bash
 
 Automate browser interactions using Stagehand CLI with Claude.
 
-## First: Ask User Which Mode
+### First: Environment Selection (Local vs Remote)
 
-**Before any browser commands, ask the user:**
-
-> "Do you want to use **Local Chrome** (faster, requires Chrome installed) or **Browserbase** (cloud browser with stealth/proxy features)?"
-
-Based on their answer:
-- **Local**: Proceed with commands (no env vars needed, uses local Chrome)
-- **Browserbase**: User must set env vars first:
-  ```bash
-  export BROWSERBASE_API_KEY="your-api-key"
-  export BROWSERBASE_PROJECT_ID="your-project-id"
-  ```
-  Get credentials from: https://browserbase.com/settings
+The skill automatically selects between local and remote browser environments:
+- **If Browserbase API keys exist** (BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID in .env file): Uses remote Browserbase environment
+- **If no Browserbase API keys**: Falls back to local Chrome browser
+- **No user prompting**: The selection happens automatically based on available configuration
 
 ## Setup (First Time Only)
 
@@ -30,7 +22,6 @@ Check `setup.json` in this directory. If `setupComplete: false`:
 ```bash
 npm install    # Install dependencies
 npm link       # Create global 'browser' command
-export ANTHROPIC_API_KEY="your-key"  # Required for AI actions
 ```
 
 ## Commands
