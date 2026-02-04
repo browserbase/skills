@@ -49,7 +49,7 @@ cp .env.example .env
 # Chrome should be at standard location for your OS
 
 # 5. Test the installation
-browse navigate https://example.com
+browser navigate https://example.com
 
 # 6. If test succeeds, update setup.json
 # Set all "installed"/"configured" fields to true
@@ -69,29 +69,29 @@ browse navigate https://example.com
 
 ### Navigate to URLs
 ```bash
-browse navigate <url>
+browser navigate <url>
 ```
 
 **When to use**: Opening any website, loading a specific URL, going to a web page.
 
 **Example usage**:
-- `browse navigate https://example.com`
-- `browse navigate https://news.ycombinator.com`
+- `browser navigate https://example.com`
+- `browser navigate https://news.ycombinator.com`
 
 **Output**: JSON with success status, message, and screenshot path
 
 ### Interact with Pages
 ```bash
-browse act "<action>"
+browser act "<action>"
 ```
 
 **When to use**: Clicking buttons, filling forms, scrolling, selecting options, typing text.
 
 **Example usage**:
-- `browse act "click the Sign In button"`
-- `browse act "fill in the email field with test@example.com"`
-- `browse act "scroll down to the footer"`
-- `browse act "type 'laptop' in the search box and press enter"`
+- `browser act "click the Sign In button"`
+- `browser act "fill in the email field with test@example.com"`
+- `browser act "scroll down to the footer"`
+- `browser act "type 'laptop' in the search box and press enter"`
 
 **Important**: Be as specific as possible - details make a world of difference. When filling fields, you don't need to combine 'click and type'; the tool will perform a fill similar to Playwright's fill function.
 
@@ -99,7 +99,7 @@ browse act "<action>"
 
 ### Extract Data
 ```bash
-browse extract "<instruction>" ['{"field": "type"}']
+browser extract "<instruction>" ['{"field": "type"}']
 ```
 
 **When to use**: Scraping data, getting specific information, collecting structured content.
@@ -112,29 +112,29 @@ browse extract "<instruction>" ['{"field": "type"}']
 **Note**: The schema parameter is optional. If omitted or if schema validation fails, extraction will proceed without type validation.
 
 **Example usage**:
-- `browse extract "get the product title and price" '{"title": "string", "price": "number"}'`
-- `browse extract "get all article headlines" '{"headlines": "string"}'`
-- `browse extract "get the page title"` (no schema)
+- `browser extract "get the product title and price" '{"title": "string", "price": "number"}'`
+- `browser extract "get all article headlines" '{"headlines": "string"}'`
+- `browser extract "get the page title"` (no schema)
 
 **Output**: JSON with success status, extracted data, and screenshot path
 
 ### Discover Elements
 ```bash
-browse observe "<query>"
+browser observe "<query>"
 ```
 
 **When to use**: Understanding page structure, finding what's clickable, discovering form fields.
 
 **Example usage**:
-- `browse observe "find all clickable buttons"`
-- `browse observe "find all form fields"`
-- `browse observe "find all navigation links"`
+- `browser observe "find all clickable buttons"`
+- `browser observe "find all form fields"`
+- `browser observe "find all navigation links"`
 
 **Output**: JSON with success status, discovered elements, and screenshot path
 
 ### Take Screenshots
 ```bash
-browse screenshot
+browser screenshot
 ```
 
 **When to use**: Visual verification, documenting page state, debugging, creating records.
@@ -148,7 +148,7 @@ browse screenshot
 
 ### Clean Up
 ```bash
-browse close
+browser close
 ```
 
 **When to use**: After completing all browser interactions, to free up resources.
@@ -180,45 +180,45 @@ browse close
 
 ### Simple browsing task
 ```bash
-browse navigate https://example.com
-browse act "click the login button"
-browse screenshot
-browse close
+browser navigate https://example.com
+browser act "click the login button"
+browser screenshot
+browser close
 ```
 
 ### Data extraction task
 ```bash
-browse navigate https://example.com/products
-browse act "wait for page to load"
-browse extract "get all products" '{"name": "string", "price": "number"}'
+browser navigate https://example.com/products
+browser act "wait for page to load"
+browser extract "get all products" '{"name": "string", "price": "number"}'
 # Or without schema:
-# browse extract "get the page content"
-browse close
+# browser extract "get the page content"
+browser close
 ```
 
 ### Multi-step interaction
 ```bash
-browse navigate https://example.com/login
-browse act "fill in email with user@example.com"
-browse act "fill in password with mypassword"
-browse act "click the submit button"
-browse screenshot
-browse close
+browser navigate https://example.com/login
+browser act "fill in email with user@example.com"
+browser act "fill in password with mypassword"
+browser act "click the submit button"
+browser screenshot
+browser close
 ```
 
 ### Debugging workflow
 ```bash
-browse navigate https://example.com
-browse screenshot
-browse observe "find all buttons"
-browse act "click the specific button"
-browse screenshot
-browse close
+browser navigate https://example.com
+browser screenshot
+browser observe "find all buttons"
+browser act "click the specific button"
+browser screenshot
+browser close
 ```
 
 ## Troubleshooting
 
-**Page not loading**: Wait a few seconds after navigation before acting. You can explicitly: `browse act "wait for the page to fully load"`
+**Page not loading**: Wait a few seconds after navigation before acting. You can explicitly: `browser act "wait for the page to fully load"`
 
 **Element not found**: Use `observe` to discover what elements are actually available on the page
 

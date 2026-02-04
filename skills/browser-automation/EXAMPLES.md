@@ -10,17 +10,17 @@ This document provides detailed examples of common browser automation tasks usin
 
 1. **Navigate** to the product page:
    ```bash
-   browse navigate https://example.com/product/123
+   browser navigate https://example.com/product/123
    ```
 
 2. **Extract** product data with schema:
    ```bash
-   browse extract "Extract the product information" '{"productName": "string", "price": "number", "currency": "string", "inStock": "boolean", "rating": "number", "reviewCount": "number"}'
+   browser extract "Extract the product information" '{"productName": "string", "price": "number", "currency": "string", "inStock": "boolean", "rating": "number", "reviewCount": "number"}'
    ```
 
 3. **Close** the browser:
    ```bash
-   browse close
+   browser close
    ```
 
 **Expected result**: JSON object with product details that can be analyzed or stored.
@@ -35,37 +35,37 @@ This document provides detailed examples of common browser automation tasks usin
 
 1. **Navigate** to contact page:
    ```bash
-   browse navigate https://example.com/contact
+   browser navigate https://example.com/contact
    ```
 
 2. **Act**: Fill in name field:
    ```bash
-   browse act "Fill in the name field with 'John Doe'"
+   browser act "Fill in the name field with 'John Doe'"
    ```
 
 3. **Act**: Fill in email field:
    ```bash
-   browse act "Fill in the email field with 'john.doe@example.com'"
+   browser act "Fill in the email field with 'john.doe@example.com'"
    ```
 
 4. **Act**: Fill in message field:
    ```bash
-   browse act "Fill in the message field with 'I would like to inquire about your services'"
+   browser act "Fill in the message field with 'I would like to inquire about your services'"
    ```
 
 5. **Act**: Submit the form:
    ```bash
-   browse act "Click the Submit button"
+   browser act "Click the Submit button"
    ```
 
 6. **Screenshot** to capture confirmation:
    ```bash
-   browse screenshot
+   browser screenshot
    ```
 
 7. **Close** the browser:
    ```bash
-   browse close
+   browser close
    ```
 
 ---
@@ -78,17 +78,17 @@ This document provides detailed examples of common browser automation tasks usin
 
 1. **Navigate** to news site:
    ```bash
-   browse navigate https://techcrunch.com
+   browser navigate https://techcrunch.com
    ```
 
 2. **Extract** article headlines and summaries:
    ```bash
-   browse extract "Extract the top 5 article headlines and their summaries" '{"headlines": "string", "summary": "string", "author": "string", "publishedDate": "string"}'
+   browser extract "Extract the top 5 article headlines and their summaries" '{"headlines": "string", "summary": "string", "author": "string", "publishedDate": "string"}'
    ```
 
 3. **Close** the browser:
    ```bash
-   browse close
+   browser close
    ```
 
 4. Analyze and summarize the extracted data using Claude's text analysis capabilities.
@@ -103,42 +103,42 @@ This document provides detailed examples of common browser automation tasks usin
 
 1. **Navigate** to login page:
    ```bash
-   browse navigate https://example.com/login
+   browser navigate https://example.com/login
    ```
 
 2. **Act**: Fill in username:
    ```bash
-   browse act "Fill in the username field with 'myusername'"
+   browser act "Fill in the username field with 'myusername'"
    ```
 
 3. **Act**: Fill in password:
    ```bash
-   browse act "Fill in the password field with 'mypassword'"
+   browser act "Fill in the password field with 'mypassword'"
    ```
 
 4. **Act**: Click login button:
    ```bash
-   browse act "Click the Login button"
+   browser act "Click the Login button"
    ```
 
 5. **Act**: Wait for page load:
    ```bash
-   browse act "Wait for the page to fully load"
+   browser act "Wait for the page to fully load"
    ```
 
 6. **Navigate** to dashboard:
    ```bash
-   browse navigate https://example.com/dashboard
+   browser navigate https://example.com/dashboard
    ```
 
 7. **Screenshot** the dashboard:
    ```bash
-   browse screenshot
+   browser screenshot
    ```
 
 8. **Close** the browser:
    ```bash
-   browse close
+   browser close
    ```
 
 **Note**: This example uses Chrome's user profile (`.chrome-profile/`) which may preserve session cookies between runs.
@@ -153,27 +153,27 @@ This document provides detailed examples of common browser automation tasks usin
 
 1. **Navigate** to Google:
    ```bash
-   browse navigate https://www.google.com
+   browser navigate https://www.google.com
    ```
 
 2. **Act**: Perform search:
    ```bash
-   browse act "Type 'best TypeScript practices' in the search box and press Enter"
+   browser act "Type 'best TypeScript practices' in the search box and press Enter"
    ```
 
 3. **Act**: Wait for results:
    ```bash
-   browse act "Wait for search results to load"
+   browser act "Wait for search results to load"
    ```
 
 4. **Extract** search results:
    ```bash
-   browse extract "Extract the top 5 search results" '{"title": "string", "url": "string", "snippet": "string"}'
+   browser extract "Extract the top 5 search results" '{"title": "string", "url": "string", "snippet": "string"}'
    ```
 
 5. **Close** the browser:
    ```bash
-   browse close
+   browser close
    ```
 
 ---
@@ -186,17 +186,17 @@ This document provides detailed examples of common browser automation tasks usin
 
 1. **Navigate** to the file URL:
    ```bash
-   browse navigate https://example.com/documents/report.pdf
+   browser navigate https://example.com/documents/report.pdf
    ```
 
 2. **Act**: Wait for download to start:
    ```bash
-   browse act "Wait for 5 seconds for the download to complete"
+   browser act "Wait for 5 seconds for the download to complete"
    ```
 
 3. **Close** the browser:
    ```bash
-   browse close
+   browser close
    ```
 
 **Note**: Files are automatically downloaded to `./agent/downloads/` directory due to CDP configuration.
@@ -211,42 +211,42 @@ This document provides detailed examples of common browser automation tasks usin
 
 1. **Navigate** to the form page:
    ```bash
-   browse navigate https://example.com/form
+   browser navigate https://example.com/form
    ```
 
 2. **Screenshot** initial state:
    ```bash
-   browse screenshot
+   browser screenshot
    ```
 
 3. **Observe** available elements:
    ```bash
-   browse observe "Find all buttons and their states"
+   browser observe "Find all buttons and their states"
    ```
 
 4. **Observe** form fields:
    ```bash
-   browse observe "Find all form input fields and their required status"
+   browser observe "Find all form input fields and their required status"
    ```
 
 5. **Act**: Try filling required fields:
    ```bash
-   browse act "Fill in all required fields with test data"
+   browser act "Fill in all required fields with test data"
    ```
 
 6. **Screenshot** after filling:
    ```bash
-   browse screenshot
+   browser screenshot
    ```
 
 7. **Observe** button state again:
    ```bash
-   browse observe "Check if the submit button is now enabled"
+   browser observe "Check if the submit button is now enabled"
    ```
 
 8. **Close** the browser:
    ```bash
-   browse close
+   browser close
    ```
 
 Analyze the screenshots and observations to determine the issue.
@@ -261,37 +261,37 @@ Analyze the screenshots and observations to determine the issue.
 
 1. **Navigate** to products page:
    ```bash
-   browse navigate https://example.com/products
+   browser navigate https://example.com/products
    ```
 
 2. **Extract** products from page 1:
    ```bash
-   browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
+   browser extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
    ```
 
 3. **Act**: Click next page:
    ```bash
-   browse act "Click the Next Page button"
+   browser act "Click the Next Page button"
    ```
 
 4. **Extract** products from page 2:
    ```bash
-   browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
+   browser extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
    ```
 
 5. **Act**: Click next page:
    ```bash
-   browse act "Click the Next Page button"
+   browser act "Click the Next Page button"
    ```
 
 6. **Extract** products from page 3:
    ```bash
-   browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
+   browser extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
    ```
 
 7. **Close** the browser:
    ```bash
-   browse close
+   browser close
    ```
 
 Combine and process all extracted data.

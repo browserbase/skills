@@ -25,7 +25,7 @@ Navigate to a URL in the browser.
 
 **Usage**:
 ```bash
-browse navigate <url>
+browser navigate <url>
 ```
 
 **Parameters**:
@@ -49,7 +49,7 @@ JSON output:
 
 **Example**:
 ```bash
-browse navigate https://example.com
+browser navigate https://example.com
 ```
 
 **Error Handling**:
@@ -65,7 +65,7 @@ Perform an action on the page using natural language.
 
 **Usage**:
 ```bash
-browse act "<action>"
+browser act "<action>"
 ```
 
 **Parameters**:
@@ -92,14 +92,14 @@ Note: Without specificity it might succeed on the wrong element!
 
 **Natural Language Examples**:
 ```bash
-browse act "Click the login button"
-browse act "Fill in email field with test@example.com"
-browse act "Scroll to the bottom of the page"
-browse act "Select 'California' from the state dropdown"
-browse act "Hover over the menu icon"
-browse act "Wait for 3 seconds"
-browse act "Press the Enter key"
-browse act "Double-click the file icon"
+browser act "Click the login button"
+browser act "Fill in email field with test@example.com"
+browser act "Scroll to the bottom of the page"
+browser act "Select 'California' from the state dropdown"
+browser act "Hover over the menu icon"
+browser act "Wait for 3 seconds"
+browser act "Press the Enter key"
+browser act "Double-click the file icon"
 ```
 
 **Best Practices**:
@@ -122,7 +122,7 @@ Extract structured data from the current page using a schema.
 
 **Usage**:
 ```bash
-browse extract "<instruction>" '{"field": "type"}'
+browser extract "<instruction>" '{"field": "type"}'
 ```
 
 **Parameters**:
@@ -154,12 +154,12 @@ JSON output:
 
 **Schema Example**:
 ```bash
-browse extract "Extract the product information" '{"productName": "string", "price": "number", "inStock": "boolean", "description": "string", "rating": "number"}'
+browser extract "Extract the product information" '{"productName": "string", "price": "number", "inStock": "boolean", "description": "string", "rating": "number"}'
 ```
 
 **Complex Extraction Example**:
 ```bash
-browse extract "Extract all items from the shopping cart" '{"itemName": "string", "quantity": "number", "unitPrice": "number", "totalPrice": "number", "imageUrl": "string"}'
+browser extract "Extract all items from the shopping cart" '{"itemName": "string", "quantity": "number", "unitPrice": "number", "totalPrice": "number", "imageUrl": "string"}'
 ```
 
 **Best Practices**:
@@ -182,7 +182,7 @@ Discover available actions on the page.
 
 **Usage**:
 ```bash
-browse observe "<query>"
+browser observe "<query>"
 ```
 
 **Parameters**:
@@ -212,12 +212,12 @@ JSON output:
 
 **Query Examples**:
 ```bash
-browse observe "Find all buttons"
-browse observe "Find clickable links in the navigation"
-browse observe "Find form input fields"
-browse observe "Find all submit buttons"
-browse observe "Find elements with text 'Login'"
-browse observe "Find all images"
+browser observe "Find all buttons"
+browser observe "Find clickable links in the navigation"
+browser observe "Find form input fields"
+browser observe "Find all submit buttons"
+browser observe "Find elements with text 'Login'"
+browser observe "Find all images"
 ```
 
 **Use Cases**:
@@ -239,7 +239,7 @@ Take a screenshot of the current page.
 
 **Usage**:
 ```bash
-browse screenshot
+browser screenshot
 ```
 
 **Parameters**: None
@@ -266,7 +266,7 @@ JSON output:
 
 **Example**:
 ```bash
-browse screenshot
+browser screenshot
 ```
 
 **Image Processing**:
@@ -294,7 +294,7 @@ Close the browser and cleanup resources.
 
 **Usage**:
 ```bash
-browse close
+browser close
 ```
 
 **Parameters**: None
@@ -517,9 +517,9 @@ open ./agent/browser_screenshots/screenshot-*.png
 
 Test individual commands:
 ```bash
-browse navigate https://example.com
-browse screenshot
-browse close
+browser navigate https://example.com
+browser screenshot
+browser close
 ```
 
 ---

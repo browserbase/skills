@@ -1,9 +1,9 @@
 {
   "name": "agent-browse",
-  "version": "0.0.2",
+  "version": "0.0.1",
   "type": "module",
   "bin": {
-    "browse": "./dist/src/cli.js"
+    "browser": "./dist/src/cli.js"
   },
   "scripts": {
     "claude": "tsx agent-browse.ts",
