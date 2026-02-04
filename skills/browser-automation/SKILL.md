@@ -1,5 +1,5 @@
 ---
-name: Browser Automation
+name: browse
 description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications.
 allowed-tools: Bash
 ---
