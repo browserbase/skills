@@ -10,7 +10,7 @@
   },
   "plugins": [
     {
-      "name": "agent-browse",
+      "name": "browse",
       "source": "./",
       "description": "Automate web browser interactions using natural language. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications.",
       "version": "0.0.1",
@@ -22,6 +22,21 @@
       "strict": false,
       "skills": [
         "./.claude/skills/browser-automation"
+      ]
+    },
+    {
+      "name": "functions",
+      "source": "./",
+      "description": "Deploy serverless browser automation to the cloud using Browserbase Functions. Use when the user wants to deploy automation to run on a schedule, needs a webhook endpoint for browser automation, wants to run automation in the cloud instead of locally, or asks about Browserbase Functions.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "automation",
+      "keywords": ["serverless", "functions", "deployment", "cloud", "webhook", "scheduled-automation"],
+      "strict": false,
+      "skills": [
+        "./.claude/skills/functions"
       ]
     }
   ]
