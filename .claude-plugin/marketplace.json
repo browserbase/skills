@@ -21,7 +21,7 @@
       "keywords": ["browser", "automation", "web-scraping", "stagehand", "screenshots"],
       "strict": false,
       "skills": [
-        "./.claude/skills/browser-automation"
+        "./skills/browser-automation"
       ]
     },
     {
@@ -36,7 +36,7 @@
       "keywords": ["serverless", "functions", "deployment", "cloud", "webhook", "scheduled-automation"],
       "strict": false,
       "skills": [
-        "./.claude/skills/functions"
+        "./skills/functions"
       ]
     }
   ]
