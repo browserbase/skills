@@ -1,246 +1,82 @@
 ---
 name: Browser Automation
-description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications. Triggers include "browse", "navigate to", "go to website", "extract data from webpage", "screenshot", "web scraping", "fill out form", "click on", "search for on the web". When taking actions be as specific as possible.
+description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications.
 allowed-tools: Bash
 ---
 
 # Browser Automation
 
-Automate browser interactions using Stagehand CLI with Claude. This skill provides natural language control over a Chrome browser through command-line tools for navigation, interaction, data extraction, and screenshots.
+Automate browser interactions using Stagehand CLI with Claude.
 
-## Overview
+## First: Ask User Which Mode
 
-This skill uses a CLI-based approach where Claude Code calls browser automation commands via bash. The browser stays open between commands for faster sequential operations and preserves browser state (cookies, sessions, etc.).
+**Before any browser commands, ask the user:**
 
-## Setup Verification
+> "Do you want to use **Local Chrome** (faster, requires Chrome installed) or **Browserbase** (cloud browser with stealth/proxy features)?"
 
-**IMPORTANT: Before using any browser commands, you MUST check setup.json in this directory.**
+Based on their answer:
+- **Local**: Proceed with commands (no env vars needed, uses local Chrome)
+- **Browserbase**: User must set env vars first:
+  ```bash
+  export BROWSERBASE_API_KEY="your-api-key"
+  export BROWSERBASE_PROJECT_ID="your-project-id"
+  ```
+  Get credentials from: https://browserbase.com/settings
 
-### First-Time Setup Check
+## Setup (First Time Only)
 
-1. **Read `setup.json`** (located in `.claude/skills/browser-automation/setup.json`)
-2. **Check `setupComplete` field**:
-   - If `true`: All prerequisites are met, proceed with browser commands
-   - If `false`: Setup required - follow the steps below
-
-### If Setup is Required (`setupComplete: false`)
-
-Run these commands in the plugin directory:
+Check `setup.json` in this directory. If `setupComplete: false`:
 
 ```bash
-# 1. Install dependencies and build (REQUIRED)
-# This automatically builds TypeScript
-npm install
-# or: pnpm install
-# or: bun install
+npm install    # Install dependencies
+npm link       # Create global 'browser' command
+export ANTHROPIC_API_KEY="your-key"  # Required for AI actions
+```
 
-# 2. Link the browser command globally (REQUIRED)
-npm link
+## Commands
 
-# 3. Configure API key (REQUIRED)
-# Option 1 (RECOMMENDED): Export in your terminal
-export ANTHROPIC_API_KEY="your-api-key-here"
+All commands work identically in both modes:
 
-# Option 2: Or use .env file
-cp .env.example .env
-# Then edit .env and add: ANTHROPIC_API_KEY="your-api-key-here"
+```bash
+browser navigate <url>                    # Go to URL
+browser act "<action>"                    # Natural language action
+browser extract "<instruction>" ['{}']    # Extract data (optional schema)
+browser observe "<query>"                 # Discover elements
+browser screenshot                        # Take screenshot
+browser close                             # Close browser
+```
 
-# 4. Verify Chrome is installed
-# Chrome should be at standard location for your OS
+## Quick Example
 
-# 5. Test the installation
+```bash
 browser navigate https://example.com
-
-# 6. If test succeeds, update setup.json
-# Set all "installed"/"configured" fields to true
-# Set "setupComplete" to true
-```
-
-### Prerequisites Summary
-
-- ✅ Google Chrome installed on your system
-- ✅ Node.js dependencies installed and TypeScript built (`npm install` runs build automatically)
-- ✅ Browser command globally available (`npm link` creates the global symlink)
-- ✅ Anthropic API key configured (exported as `ANTHROPIC_API_KEY` environment variable or in `.env` file)
-
-**DO NOT attempt to use browser commands if `setupComplete: false` in setup.json. Guide the user through setup first.**
-
-## Available Commands
-
-### Navigate to URLs
-```bash
-browser navigate <url>
-```
-
-**When to use**: Opening any website, loading a specific URL, going to a web page.
-
-**Example usage**:
-- `browser navigate https://example.com`
-- `browser navigate https://news.ycombinator.com`
-
-**Output**: JSON with success status, message, and screenshot path
-
-### Interact with Pages
-```bash
-browser act "<action>"
-```
-
-**When to use**: Clicking buttons, filling forms, scrolling, selecting options, typing text.
-
-**Example usage**:
-- `browser act "click the Sign In button"`
-- `browser act "fill in the email field with test@example.com"`
-- `browser act "scroll down to the footer"`
-- `browser act "type 'laptop' in the search box and press enter"`
-
-**Important**: Be as specific as possible - details make a world of difference. When filling fields, you don't need to combine 'click and type'; the tool will perform a fill similar to Playwright's fill function.
-
-**Output**: JSON with success status, message, and screenshot path
-
-### Extract Data
-```bash
-browser extract "<instruction>" ['{"field": "type"}']
-```
-
-**When to use**: Scraping data, getting specific information, collecting structured content.
-
-**Schema format** (optional): JSON object where keys are field names and values are types:
-- `"string"` for text
-- `"number"` for numeric values
-- `"boolean"` for true/false values
-
-**Note**: The schema parameter is optional. If omitted or if schema validation fails, extraction will proceed without type validation.
-
-**Example usage**:
-- `browser extract "get the product title and price" '{"title": "string", "price": "number"}'`
-- `browser extract "get all article headlines" '{"headlines": "string"}'`
-- `browser extract "get the page title"` (no schema)
-
-**Output**: JSON with success status, extracted data, and screenshot path
-
-### Discover Elements
-```bash
-browser observe "<query>"
-```
-
-**When to use**: Understanding page structure, finding what's clickable, discovering form fields.
-
-**Example usage**:
-- `browser observe "find all clickable buttons"`
-- `browser observe "find all form fields"`
-- `browser observe "find all navigation links"`
-
-**Output**: JSON with success status, discovered elements, and screenshot path
-
-### Take Screenshots
-```bash
-browser screenshot
-```
-
-**When to use**: Visual verification, documenting page state, debugging, creating records.
-
-**Notes**:
-- Screenshots are saved to the plugin directory's `agent/browser_screenshots/` folder
-- Images larger than 2000x2000 pixels are automatically resized
-- Filename includes timestamp for uniqueness
-
-**Output**: JSON with success status and screenshot path
-
-### Clean Up
-```bash
+browser act "click the Sign In button"
+browser extract "get the page title"
 browser close
 ```
 
-**When to use**: After completing all browser interactions, to free up resources.
+## Mode Comparison
 
-**Output**: JSON with success status and message
-
-## Browser Behavior
-
-**Persistent Browser**: The browser stays open between commands for faster sequential operations and to preserve browser state (cookies, sessions, etc.).
-
-**Reuse Existing**: If Chrome is already running on port 9222, it will reuse that instance.
-
-**Minimized Launch**: Chrome opens off-screen (position -9999,-9999) to avoid disrupting workflow.
-
-**Safe Cleanup**: The browser only closes when you explicitly call the `close` command.
+| Feature | Local | Browserbase |
+|---------|-------|-------------|
+| Speed | Faster | Slightly slower |
+| Setup | Chrome required | API key required |
+| Stealth mode | No | Yes |
+| Proxy/CAPTCHA | No | Yes |
+| Best for | Development | Production/scraping |
 
 ## Best Practices
 
-1. **Always navigate first**: Before interacting with a page, navigate to the URL
-2. **📸 Always view screenshots**: After each command (navigate, act, extract, observe), use the Read tool to view the screenshot and verify the command worked correctly
-3. **Use natural language**: Describe actions as you would instruct a human
-4. **Extract with clear schemas**: Define field names and types explicitly in JSON
-5. **Handle errors gracefully**: Check the `success` field in JSON output; if an action fails, view the screenshot and try using `observe` to understand the page better
-6. **Close when done**: Always clean up browser resources after completing tasks
-7. **Be specific**: Use precise selectors in natural language ("the blue Submit button" vs "the button")
-8. **Chain commands**: Run multiple commands sequentially without reopening the browser
-
-## Common Patterns
-
-### Simple browsing task
-```bash
-browser navigate https://example.com
-browser act "click the login button"
-browser screenshot
-browser close
-```
-
-### Data extraction task
-```bash
-browser navigate https://example.com/products
-browser act "wait for page to load"
-browser extract "get all products" '{"name": "string", "price": "number"}'
-# Or without schema:
-# browser extract "get the page content"
-browser close
-```
-
-### Multi-step interaction
-```bash
-browser navigate https://example.com/login
-browser act "fill in email with user@example.com"
-browser act "fill in password with mypassword"
-browser act "click the submit button"
-browser screenshot
-browser close
-```
-
-### Debugging workflow
-```bash
-browser navigate https://example.com
-browser screenshot
-browser observe "find all buttons"
-browser act "click the specific button"
-browser screenshot
-browser close
-```
+1. **Always navigate first** before interacting
+2. **View screenshots** after each command to verify
+3. **Be specific** in action descriptions
+4. **Close browser** when done
 
 ## Troubleshooting
 
-**Page not loading**: Wait a few seconds after navigation before acting. You can explicitly: `browser act "wait for the page to fully load"`
-
-**Element not found**: Use `observe` to discover what elements are actually available on the page
-
-**Action fails**: Be more specific in natural language description. Instead of "click the button", try "click the blue Submit button in the form"
-
-**Screenshots missing**: Check the plugin directory's `agent/browser_screenshots/` folder for saved files
-
-**Chrome not found**: Install Google Chrome or the CLI will show an error with installation instructions
-
-**Port 9222 in use**: Another Chrome debugging session is running. Close it or wait for timeout
+- **Chrome not found**: Install Chrome or use Browserbase mode
+- **Action fails**: Use `browser observe` to discover available elements
+- **Browserbase fails**: Verify API key and project ID are set
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
-For API reference and technical details, see [REFERENCE.md](REFERENCE.md).
-
-## Dependencies
-
-To use this skill, install these dependencies only if they aren't already present:
-
-```bash
-npm install
-# or
-pnpm install
-# or
-bun install
-```
+For API reference, see [REFERENCE.md](REFERENCE.md).

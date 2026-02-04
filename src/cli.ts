@@ -54,9 +54,43 @@ async function initBrowser(): Promise<{ stagehand: Stagehand }> {
     return { stagehand: stagehandInstance };
   }
 
+  // Check if Browserbase credentials are available
+  const useBrowserbase = process.env.BROWSERBASE_API_KEY && process.env.BROWSERBASE_PROJECT_ID;
+
+  if (useBrowserbase) {
+    // Remote: Browserbase cloud browser
+    console.error('Using Browserbase cloud browser');
+    
+    stagehandInstance = new Stagehand({
+      env: "BROWSERBASE",
+      apiKey: process.env.BROWSERBASE_API_KEY,
+      projectId: process.env.BROWSERBASE_PROJECT_ID,
+      verbose: 0,
+      model: "anthropic/claude-haiku-4-5-20251001",
+    });
+
+    await stagehandInstance.init();
+    currentPage = stagehandInstance.context.pages()[0];
+
+    // Wait for page to be ready
+    let retries = 0;
+    while (retries < 30) {
+      try {
+        await currentPage.evaluate('document.readyState');
+        break;
+      } catch (error) {
+        await new Promise(resolve => setTimeout(resolve, 100));
+        retries++;
+      }
+    }
+
+    return { stagehand: stagehandInstance };
+  }
+
+  // Local: Use local Chrome browser
   const chromePath = findLocalChrome();
   if (!chromePath) {
-    throw new Error('Could not find Chrome installation');
+    throw new Error('Could not find Chrome installation. Either install Chrome or set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID for cloud browser.');
   }
 
   const cdpPort = 9222;
@@ -121,6 +155,7 @@ async function initBrowser(): Promise<{ stagehand: Stagehand }> {
   const wsUrl = versionData.webSocketDebuggerUrl;
 
   // Initialize Stagehand with the WebSocket URL
+  console.error('Using local Chrome browser');
   stagehandInstance = new Stagehand({
     env: "LOCAL",
     verbose: 0,
