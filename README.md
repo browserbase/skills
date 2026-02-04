@@ -1,6 +1,6 @@
-# Browser Automation Skill
+# Browserbase Skills
 
-A skill for seamlessly enabling **[Claude Code](https://docs.claude.com/en/docs/claude-code/overview)** to interface with a browser using **[Stagehand](https://github.com/browserbase/stagehand)** (AI browser automation framework). Because Stagehand accepts natural language instructions, it's significantly more context-efficient than native Playwright while providing more features built for automation.
+A set of skills for seamlessly enabling **[Claude Code](https://docs.claude.com/en/docs/claude-code/overview)** to interface with a browser using **[Stagehand](https://github.com/browserbase/stagehand)** (AI browser automation framework). Because Stagehand accepts natural language instructions, it's significantly more context-efficient than native Playwright while providing more features built for automation.
 
 ## Installation
 
@@ -23,13 +23,6 @@ If you prefer the manual interface:
 4. Press enter to select the `agent-browse` plugin
 5. Hit enter again to `Install now`
 6. **Restart Claude Code** for changes to take effect
-
-## Setup
-
-Set your Anthropic API key:
-```bash
-export ANTHROPIC_API_KEY="your-api-key"
-```
 
 ## Usage
 

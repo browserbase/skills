@@ -24,12 +24,12 @@
   },
   "setupInstructions": [
     "1. Run: npm install (this will automatically build TypeScript)",
-    "2. Run: npm link (this creates the global 'browser' command)",
+    "2. Run: npm link (this creates the global 'browse' command)",
     "3. (RECOMMENDED) Export ANTHROPIC_API_KEY: export ANTHROPIC_API_KEY='your-api-key-here' (check if already exported)",
     "   OR alternatively create .env file: cp .env.example .env and edit it to add your API key",
     "4. Ensure Google Chrome is installed on your system",
-    "5. Test installation: browser navigate https://example.com",
+    "5. Test installation: browse navigate https://example.com",
     "6. Update this setup.json file: set all 'installed'/'configured' to true and 'setupComplete' to true"
   ],
-  "verifySetup": "Run 'browser navigate https://example.com' from any directory to verify installation"
+  "verifySetup": "Run 'browse navigate https://example.com' from any directory to verify installation"
 }
