@@ -1,246 +1,210 @@
 ---
-name: Browser Automation
-description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications. Triggers include "browse", "navigate to", "go to website", "extract data from webpage", "screenshot", "web scraping", "fill out form", "click on", "search for on the web". When taking actions be as specific as possible.
-allowed-tools: Bash
+name: browse
+description: Browser automation CLI for AI agents - create, test, and deploy web automations
 ---
 
-# Browser Automation
+# Browse - Browser Automation CLI
 
-Automate browser interactions using Stagehand CLI with Claude. This skill provides natural language control over a Chrome browser through command-line tools for navigation, interaction, data extraction, and screenshots.
+Browser automation CLI for AI agents. Create, test, and deploy web automations using the `browse` CLI.
 
-## Overview
+## Setup (Run First!)
 
-This skill uses a CLI-based approach where Claude Code calls browser automation commands via bash. The browser stays open between commands for faster sequential operations and preserves browser state (cookies, sessions, etc.).
-
-## Setup Verification
-
-**IMPORTANT: Before using any browser commands, you MUST check setup.json in this directory.**
-
-### First-Time Setup Check
-
-1. **Read `setup.json`** (located in `.claude/skills/browser-automation/setup.json`)
-2. **Check `setupComplete` field**:
-   - If `true`: All prerequisites are met, proceed with browser commands
-   - If `false`: Setup required - follow the steps below
-
-### If Setup is Required (`setupComplete: false`)
-
-Run these commands in the plugin directory:
+Before using this skill, install the required CLIs:
 
 ```bash
-# 1. Install dependencies and build (REQUIRED)
-# This automatically builds TypeScript
-npm install
-# or: pnpm install
-# or: bun install
-
-# 2. Link the browser command globally (REQUIRED)
-npm link
-
-# 3. Configure API key (REQUIRED)
-# Option 1 (RECOMMENDED): Export in your terminal
-export ANTHROPIC_API_KEY="your-api-key-here"
-
-# Option 2: Or use .env file
-cp .env.example .env
-# Then edit .env and add: ANTHROPIC_API_KEY="your-api-key-here"
-
-# 4. Verify Chrome is installed
-# Chrome should be at standard location for your OS
-
-# 5. Test the installation
-browser navigate https://example.com
-
-# 6. If test succeeds, update setup.json
-# Set all "installed"/"configured" fields to true
-# Set "setupComplete" to true
+npm install -g @browserbasehq/browse-cli @browserbasehq/sdk-functions
 ```
 
-### Prerequisites Summary
-
-- ✅ Google Chrome installed on your system
-- ✅ Node.js dependencies installed and TypeScript built (`npm install` runs build automatically)
-- ✅ Browser command globally available (`npm link` creates the global symlink)
-- ✅ Anthropic API key configured (exported as `ANTHROPIC_API_KEY` environment variable or in `.env` file)
-
-**DO NOT attempt to use browser commands if `setupComplete: false` in setup.json. Guide the user through setup first.**
-
-## Available Commands
-
-### Navigate to URLs
+Set your credentials:
 ```bash
-browser navigate <url>
+export BROWSERBASE_API_KEY="your_api_key"
+export BROWSERBASE_PROJECT_ID="your_project_id"
 ```
 
-**When to use**: Opening any website, loading a specific URL, going to a web page.
+Get credentials from: https://browserbase.com/settings
 
-**Example usage**:
-- `browser navigate https://example.com`
-- `browser navigate https://news.ycombinator.com`
+## When to Use
 
-**Output**: JSON with success status, message, and screenshot path
+Use this skill when:
+- User wants to automate a website task
+- User needs to scrape data from a site
+- User wants to create a Browserbase Function
+- Starting from scratch on a new automation
 
-### Interact with Pages
+## Workflow
+
+### 1. Understand the Goal
+
+Ask clarifying questions:
+- What website/URL are you automating?
+- What's the end goal (extract data, submit forms, monitor changes)?
+- Does it require authentication?
+- Should this run on a schedule or on-demand?
+
+### 2. Explore the Site Interactively
+
+Start a local browser session to understand the site structure:
+
 ```bash
-browser act "<action>"
+browse open https://example.com
 ```
 
-**When to use**: Clicking buttons, filling forms, scrolling, selecting options, typing text.
-
-**Example usage**:
-- `browser act "click the Sign In button"`
-- `browser act "fill in the email field with test@example.com"`
-- `browser act "scroll down to the footer"`
-- `browser act "type 'laptop' in the search box and press enter"`
-
-**Important**: Be as specific as possible - details make a world of difference. When filling fields, you don't need to combine 'click and type'; the tool will perform a fill similar to Playwright's fill function.
-
-**Output**: JSON with success status, message, and screenshot path
-
-### Extract Data
+Use snapshot to understand the DOM:
 ```bash
-browser extract "<instruction>" ['{"field": "type"}']
+browse snapshot
 ```
 
-**When to use**: Scraping data, getting specific information, collecting structured content.
-
-**Schema format** (optional): JSON object where keys are field names and values are types:
-- `"string"` for text
-- `"number"` for numeric values
-- `"boolean"` for true/false values
-
-**Note**: The schema parameter is optional. If omitted or if schema validation fails, extraction will proceed without type validation.
-
-**Example usage**:
-- `browser extract "get the product title and price" '{"title": "string", "price": "number"}'`
-- `browser extract "get all article headlines" '{"headlines": "string"}'`
-- `browser extract "get the page title"` (no schema)
-
-**Output**: JSON with success status, extracted data, and screenshot path
-
-### Discover Elements
+Take screenshots to see the visual layout:
 ```bash
-browser observe "<query>"
+browse screenshot exploration.png
 ```
 
-**When to use**: Understanding page structure, finding what's clickable, discovering form fields.
+### 3. Identify Key Elements
 
-**Example usage**:
-- `browser observe "find all clickable buttons"`
-- `browser observe "find all form fields"`
-- `browser observe "find all navigation links"`
+For each step of the automation, identify:
+- Selectors for interactive elements
+- Wait conditions needed
+- Data to extract
 
-**Output**: JSON with success status, discovered elements, and screenshot path
+Use the accessibility tree refs to understand element relationships:
+```
+[@0-5] button: "Submit"
+[@0-6] textbox: "Email"
+[@0-7] textbox: "Password"
+```
 
-### Take Screenshots
+### 4. Test Interactions Manually
+
+Before writing code, verify each step works:
+
 ```bash
-browser screenshot
+browse fill @0-6 "test@example.com"
+browse fill @0-7 "password123"
+browse click @0-5
+browse wait load networkidle
+browse snapshot
 ```
 
-**When to use**: Visual verification, documenting page state, debugging, creating records.
+### 5. Enable Network Capture (if needed)
 
-**Notes**:
-- Screenshots are saved to the plugin directory's `agent/browser_screenshots/` folder
-- Images larger than 2000x2000 pixels are automatically resized
-- Filename includes timestamp for uniqueness
-
-**Output**: JSON with success status and screenshot path
-
-### Clean Up
+For API-based automations or debugging:
 ```bash
-browser close
+browse network on
+# perform actions
+browse network path
+# inspect captured requests in the directory
 ```
 
-**When to use**: After completing all browser interactions, to free up resources.
+### 6. Create the Function
 
-**Output**: JSON with success status and message
+Once you understand the flow, create a full function project:
 
-## Browser Behavior
+```bash
+pnpm dlx @browserbasehq/sdk-functions init my-automation
+cd my-automation
+```
 
-**Persistent Browser**: The browser stays open between commands for faster sequential operations and to preserve browser state (cookies, sessions, etc.).
+This creates a complete project with:
+- `package.json` with dependencies
+- `.env` for credentials
+- `tsconfig.json`
+- `index.ts` template
 
-**Reuse Existing**: If Chrome is already running on port 9222, it will reuse that instance.
+Edit `index.ts` with your automation logic:
 
-**Minimized Launch**: Chrome opens off-screen (position -9999,-9999) to avoid disrupting workflow.
+```typescript
+import { defineFn } from "@browserbasehq/sdk-functions";
+import { chromium } from "playwright-core";
 
-**Safe Cleanup**: The browser only closes when you explicitly call the `close` command.
+defineFn("my-automation", async (context) => {
+  const { session } = context;
+  const browser = await chromium.connectOverCDP(session.connectUrl);
+  const page = browser.contexts()[0]!.pages()[0]!;
+
+  // Your automation steps here
+  await page.goto("https://example.com");
+  await page.fill('input[name="email"]', context.params.email);
+  await page.click('button[type="submit"]');
+  
+  // Extract and return data
+  const result = await page.textContent('.result');
+  return { success: true, result };
+});
+```
+
+### 7. Test Locally
+
+Start the local development server:
+```bash
+pnpm bb dev index.ts
+```
+
+Then invoke locally via curl:
+```bash
+curl -X POST http://127.0.0.1:14113/v1/functions/my-automation/invoke \
+  -H "Content-Type: application/json" \
+  -d '{"params": {"email": "test@example.com"}}'
+```
+
+### 8. Deploy to Browserbase
+
+When ready for production:
+```bash
+pnpm bb publish index.ts
+```
+
+### 9. Test Production
+
+Invoke the deployed function via API:
+```bash
+curl -X POST https://api.browserbase.com/v1/functions/<function-id>/invoke \
+  -H "Content-Type: application/json" \
+  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -d '{"params": {"email": "test@example.com"}}'
+```
 
 ## Best Practices
 
-1. **Always navigate first**: Before interacting with a page, navigate to the URL
-2. **📸 Always view screenshots**: After each command (navigate, act, extract, observe), use the Read tool to view the screenshot and verify the command worked correctly
-3. **Use natural language**: Describe actions as you would instruct a human
-4. **Extract with clear schemas**: Define field names and types explicitly in JSON
-5. **Handle errors gracefully**: Check the `success` field in JSON output; if an action fails, view the screenshot and try using `observe` to understand the page better
-6. **Close when done**: Always clean up browser resources after completing tasks
-7. **Be specific**: Use precise selectors in natural language ("the blue Submit button" vs "the button")
-8. **Chain commands**: Run multiple commands sequentially without reopening the browser
+### Selectors
+- Prefer data attributes (`data-testid`) over CSS classes
+- Use text content as fallback (`text=Submit`)
+- Avoid fragile selectors like nth-child
 
-## Common Patterns
+### Waiting
+- Always wait for navigation/network after clicks
+- Use `waitForSelector` for dynamic content
+- Set reasonable timeouts
 
-### Simple browsing task
-```bash
-browser navigate https://example.com
-browser act "click the login button"
-browser screenshot
-browser close
-```
+### Error Handling
+- Wrap risky operations in try/catch
+- Return structured error information
+- Log intermediate steps for debugging
 
-### Data extraction task
-```bash
-browser navigate https://example.com/products
-browser act "wait for page to load"
-browser extract "get all products" '{"name": "string", "price": "number"}'
-# Or without schema:
-# browser extract "get the page content"
-browser close
-```
+### Data Extraction
+- Use `page.evaluate()` for complex extraction
+- Validate extracted data before returning
+- Handle missing elements gracefully
 
-### Multi-step interaction
-```bash
-browser navigate https://example.com/login
-browser act "fill in email with user@example.com"
-browser act "fill in password with mypassword"
-browser act "click the submit button"
-browser screenshot
-browser close
-```
+## Example: E-commerce Price Monitor
 
-### Debugging workflow
-```bash
-browser navigate https://example.com
-browser screenshot
-browser observe "find all buttons"
-browser act "click the specific button"
-browser screenshot
-browser close
-```
+```typescript
+defineFn("price-monitor", async (context) => {
+  const { session, params } = context;
+  const browser = await chromium.connectOverCDP(session.connectUrl);
+  const page = browser.contexts()[0]!.pages()[0]!;
 
-## Troubleshooting
+  await page.goto(params.productUrl);
+  await page.waitForSelector('.price');
 
-**Page not loading**: Wait a few seconds after navigation before acting. You can explicitly: `browser act "wait for the page to fully load"`
+  const price = await page.evaluate(() => {
+    const el = document.querySelector('.price');
+    return el?.textContent?.replace(/[^0-9.]/g, '');
+  });
 
-**Element not found**: Use `observe` to discover what elements are actually available on the page
-
-**Action fails**: Be more specific in natural language description. Instead of "click the button", try "click the blue Submit button in the form"
-
-**Screenshots missing**: Check the plugin directory's `agent/browser_screenshots/` folder for saved files
-
-**Chrome not found**: Install Google Chrome or the CLI will show an error with installation instructions
-
-**Port 9222 in use**: Another Chrome debugging session is running. Close it or wait for timeout
-
-For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
-For API reference and technical details, see [REFERENCE.md](REFERENCE.md).
-
-## Dependencies
-
-To use this skill, install these dependencies only if they aren't already present:
-
-```bash
-npm install
-# or
-pnpm install
-# or
-bun install
+  return {
+    url: params.productUrl,
+    price: parseFloat(price || '0'),
+    timestamp: new Date().toISOString(),
+  };
+});
 ```
