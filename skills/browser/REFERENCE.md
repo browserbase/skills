@@ -2,6 +2,22 @@
 
 This document provides detailed technical reference for the CLI browser automation tool.
 
+## Table of Contents
+
+- [Architecture Overview](#architecture-overview)
+- [CLI Command Reference](#cli-command-reference)
+  - [navigate](#navigate)
+  - [act](#act)
+  - [extract](#extract)
+  - [observe](#observe)
+  - [screenshot](#screenshot)
+  - [close](#close)
+- [Configuration Details](#configuration-details)
+- [Error Messages Reference](#error-messages-reference)
+- [Performance Considerations](#performance-considerations)
+- [Security Considerations](#security-considerations)
+- [Debugging Tips](#debugging-tips)
+
 ## Architecture Overview
 
 The browser automation system consists of:

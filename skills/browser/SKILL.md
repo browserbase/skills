@@ -1,7 +1,8 @@
 ---
 name: browser
 description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications.
-compatibility: Requires the Stagehand browser CLI (`npm install -g @browserbasehq/stagehand-cli`). Optional: set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID for remote Browserbase sessions; falls back to local Chrome otherwise.
+compatibility: "Requires the Stagehand browser CLI (`npm install -g @browserbasehq/stagehand-cli`). Optional: set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID for remote Browserbase sessions; falls back to local Chrome otherwise."
+license: Apache-2.0
 allowed-tools: Bash
 ---
 
