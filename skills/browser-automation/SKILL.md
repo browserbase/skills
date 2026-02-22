@@ -1,17 +1,21 @@
 ---
 name: browser
 description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications.
-requires:
-  bins: [browser]
-install:
-  kind: node
-  pkg: "@browserbasehq/stagehand-cli"
+compatibility: Requires the Stagehand browser CLI (`npm install -g @browserbasehq/stagehand-cli`). Optional: set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID for remote Browserbase sessions; falls back to local Chrome otherwise.
 allowed-tools: Bash
 ---
 
 # Browser Automation
 
 Automate browser interactions using Stagehand CLI with Claude.
+
+### Setup check
+
+Before running any browser commands, verify the CLI is available:
+
+```bash
+which browser || npm install -g @browserbasehq/stagehand-cli
+```
 
 ### Environment Selection (Local vs Remote)
 
