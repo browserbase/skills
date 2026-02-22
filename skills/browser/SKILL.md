@@ -9,7 +9,7 @@ allowed-tools: Bash
 
 Automate browser interactions using Stagehand CLI with Claude.
 
-### Setup check
+## Setup check
 
 Before running any browser commands, verify the CLI is available:
 
@@ -17,7 +17,7 @@ Before running any browser commands, verify the CLI is available:
 which browser || npm install -g @browserbasehq/stagehand-cli
 ```
 
-### Environment Selection (Local vs Remote)
+## Environment Selection (Local vs Remote)
 
 The skill automatically selects between local and remote browser environments:
 - **If Browserbase API keys exist** (`BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID`): Uses remote Browserbase environment
