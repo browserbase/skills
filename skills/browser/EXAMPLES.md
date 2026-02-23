@@ -7,9 +7,9 @@ Common browser automation workflows using the CLI tool. Each example demonstrate
 **User request**: "Go to example.com/product/123 and extract the product details"
 
 ```bash
-browser navigate https://example.com/product/123
-browser extract "Extract the product information" '{"productName": "string", "price": "number", "currency": "string", "inStock": "boolean", "rating": "number"}'
-browser close
+browse navigate https://example.com/product/123
+browse extract "Extract the product information" '{"productName": "string", "price": "number", "currency": "string", "inStock": "boolean", "rating": "number"}'
+browse close
 ```
 
 ## Example 2: Fill and Submit a Form
@@ -17,13 +17,13 @@ browser close
 **User request**: "Fill out the contact form on example.com with my information"
 
 ```bash
-browser navigate https://example.com/contact
-browser act "Fill in the name field with 'John Doe'"
-browser act "Fill in the email field with 'john.doe@example.com'"
-browser act "Fill in the message field with 'I would like to inquire about your services'"
-browser act "Click the Submit button"
-browser screenshot
-browser close
+browse navigate https://example.com/contact
+browse act "Fill in the name field with 'John Doe'"
+browse act "Fill in the email field with 'john.doe@example.com'"
+browse act "Fill in the message field with 'I would like to inquire about your services'"
+browse act "Click the Submit button"
+browse screenshot
+browse close
 ```
 
 ## Example 3: Debug a Page Issue
@@ -33,14 +33,14 @@ browser close
 This example shows how to combine `observe` and `screenshot` for page inspection.
 
 ```bash
-browser navigate https://example.com/form
-browser screenshot
-browser observe "Find all buttons and their states"
-browser observe "Find all form input fields and their required status"
-browser act "Fill in all required fields with test data"
-browser screenshot
-browser observe "Check if the submit button is now enabled"
-browser close
+browse navigate https://example.com/form
+browse screenshot
+browse observe "Find all buttons and their states"
+browse observe "Find all form input fields and their required status"
+browse act "Fill in all required fields with test data"
+browse screenshot
+browse observe "Check if the submit button is now enabled"
+browse close
 ```
 
 Analyze the screenshots and observations to determine the issue.
@@ -50,13 +50,13 @@ Analyze the screenshots and observations to determine the issue.
 **User request**: "Extract product information from the first 3 pages of results on example.com/products"
 
 ```bash
-browser navigate https://example.com/products
-browser extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
-browser act "Click the Next Page button"
-browser extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
-browser act "Click the Next Page button"
-browser extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
-browser close
+browse navigate https://example.com/products
+browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
+browse act "Click the Next Page button"
+browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
+browse act "Click the Next Page button"
+browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
+browse close
 ```
 
 Combine and process all extracted data.
