@@ -131,7 +131,7 @@ browse stop
 
 ## Troubleshooting
 
-- **"No active page"**: Run `browse stop` then retry your `browse open` command
+- **"No active page"**: Run `browse stop`, then check `browse status`. If it still says running, kill the zombie daemon with `pkill -f "browse.*daemon"`, then retry `browse open`
 - **Chrome not found**: Install Chrome or use Browserbase mode
 - **Action fails**: Run `browse snapshot` to see available elements and their refs
 - **Browserbase fails**: Verify API key and project ID are set
