@@ -49,37 +49,64 @@ The CLI automatically selects between local and remote browser environments base
 
 ## Commands
 
-All commands work identically in both modes:
+All commands work identically in both modes. The daemon auto-starts on first command.
 
+### Navigation
 ```bash
-browse navigate <url>                    # Go to URL
-browse act "<action>"                    # Natural language action (click, type, scroll, etc.)
-browse extract "<instruction>" ['{}']    # Extract structured data (optional JSON schema)
-browse observe "<query>"                 # Discover interactive elements on the page
-browse snapshot                          # Get page accessibility tree (fast, structured)
-browse screenshot                        # Take visual screenshot (slow, uses vision tokens)
-browse close                             # Close browser
+browse open <url>                        # Go to URL (aliases: goto)
+browse reload                            # Reload current page
+browse back                              # Go back in history
+browse forward                           # Go forward in history
 ```
 
-### Choosing between snapshot and screenshot
+### Page state (prefer snapshot over screenshot)
+```bash
+browse snapshot                          # Get accessibility tree with element refs (fast, structured)
+browse screenshot [path]                 # Take visual screenshot (slow, uses vision tokens)
+browse get url                           # Get current URL
+browse get title                         # Get page title
+browse get text [selector]               # Get text content
+browse get html [selector]               # Get HTML content
+```
 
-- **Use `browse snapshot` as your default** for understanding page state. It returns the accessibility tree with element refs — fast, structured, and gives you everything needed to find and interact with elements.
-- **Use `browse screenshot` only when you need visual context** — verifying layout rendered correctly, reading images/charts, or debugging why an action didn't work as expected.
-- **Do NOT screenshot after every action.** Screenshots are expensive (vision tokens) and slow. Use snapshot to confirm state changes.
+Use `browse snapshot` as your default for understanding page state — it returns the accessibility tree with element refs you can use to interact. Only use `browse screenshot` when you need visual context (layout, images, debugging).
 
-### Choosing between act/observe and low-level commands
+### Interaction
+```bash
+browse click <ref>                       # Click element by ref from snapshot (e.g., @0-5)
+browse type <text>                       # Type text into focused element
+browse fill <selector> <value>           # Fill input and press Enter
+browse select <selector> <values...>     # Select dropdown option(s)
+browse press <key>                       # Press key (Enter, Tab, Escape, Cmd+A, etc.)
+browse scroll <x> <y> <deltaX> <deltaY> # Scroll at coordinates
+browse wait <type> [arg]                 # Wait for: load, selector, timeout
+```
 
-- **Prefer `browse act`** for interactions — it uses natural language so you don't need to find element refs first. Example: `browse act "click the Sign In button"` instead of snapshot → find ref → click ref.
-- **Use `browse observe`** when you need to discover what interactive elements exist on the page before deciding what to do.
-- **Fall back to `browse snapshot` + ref-based commands** only if `act`/`observe` fail to find the right element.
+### Session management
+```bash
+browse stop                              # Stop the browser daemon
+browse status                            # Check daemon status
+browse pages                             # List all open tabs
+browse tab_switch <index>                # Switch to tab by index
+browse tab_close [index]                 # Close tab
+```
+
+### Typical workflow
+1. `browse open <url>` — navigate to the page
+2. `browse snapshot` — read the accessibility tree to understand page structure and get element refs
+3. `browse click <ref>` / `browse type <text>` / `browse fill <selector> <value>` — interact using refs from snapshot
+4. `browse snapshot` — confirm the action worked
+5. Repeat 3-4 as needed
+6. `browse stop` — close the browser when done
 
 ## Quick Example
 
 ```bash
-browse navigate https://example.com
-browse act "click the Sign In button"
-browse extract "get the page title"
-browse close
+browse open https://example.com
+browse snapshot                          # see page structure + element refs
+browse click @0-5                        # click element with ref 0-5
+browse get title
+browse stop
 ```
 
 ## Mode Comparison
@@ -96,17 +123,17 @@ browse close
 
 ## Best Practices
 
-1. **Always `browse navigate` first** before interacting
-2. **Use `browse snapshot`** (not screenshot) to check page state after actions
-3. **Use `browse act`** for interactions — describe what you want in natural language
-4. **Only screenshot when visual context is needed** (layout checks, images, debugging)
-5. **Be specific** in action descriptions — "click the blue Submit button" not "click submit"
-6. **Close browser** when done
+1. **Always `browse open` first** before interacting
+2. **Use `browse snapshot`** to check page state — it's fast and gives you element refs
+3. **Only screenshot when visual context is needed** (layout checks, images, debugging)
+4. **Use refs from snapshot** to click/interact — e.g., `browse click @0-5`
+5. **`browse stop`** when done to clean up the browser session
 
 ## Troubleshooting
 
+- **"No active page"**: Run `browse stop` then retry your `browse open` command
 - **Chrome not found**: Install Chrome or use Browserbase mode
-- **Action fails**: Use `browse observe` to discover available elements
+- **Action fails**: Run `browse snapshot` to see available elements and their refs
 - **Browserbase fails**: Verify API key and project ID are set
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
