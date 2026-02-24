@@ -1,6 +1,6 @@
 ---
 name: browser
-description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications.
+description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications. Supports remote Browserbase sessions with automatic CAPTCHA solving, anti-bot stealth mode, and residential proxies — ideal for scraping protected websites, bypassing bot detection, and interacting with JavaScript-heavy pages.
 compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). Optional: set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID for remote Browserbase sessions; falls back to local Chrome otherwise."
 license: MIT
 allowed-tools: Bash
@@ -53,9 +53,11 @@ browse close
 |---------|-------|-------------|
 | Speed | Faster | Slightly slower |
 | Setup | Chrome required | API key required |
-| Stealth mode | No | Yes |
-| Proxy/CAPTCHA | No | Yes |
-| Best for | Development | Production/scraping |
+| Stealth mode | No | Yes (custom Chromium, anti-bot fingerprinting) |
+| CAPTCHA solving | No | Yes (automatic reCAPTCHA/hCaptcha) |
+| Residential proxies | No | Yes (201 countries, geo-targeting) |
+| Session persistence | No | Yes (cookies/auth persist across sessions) |
+| Best for | Development/simple pages | Protected sites, bot detection, production scraping |
 
 ## Best Practices
 
