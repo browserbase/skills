@@ -4,6 +4,16 @@ description: Automate web browser interactions using natural language via CLI co
 compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). Optional: set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID for remote Browserbase sessions; falls back to local Chrome otherwise."
 license: MIT
 allowed-tools: Bash
+metadata:
+  openclaw:
+    requires:
+      bins:
+        - browse
+    install:
+      - kind: node
+        package: "@browserbasehq/browse-cli"
+        bins: [browse]
+    homepage: https://github.com/browserbase/skills
 ---
 
 # Browser Automation
@@ -20,10 +30,22 @@ which browse || npm install -g @browserbasehq/browse-cli
 
 ## Environment Selection (Local vs Remote)
 
-The skill automatically selects between local and remote browser environments:
-- **If Browserbase API keys exist** (`BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID`): Uses remote Browserbase environment
-- **If no Browserbase API keys**: Falls back to local Chrome browser
-- **No user prompting**: The selection happens automatically based on available configuration
+The CLI automatically selects between local and remote browser environments based on available configuration:
+
+### Local mode (default)
+- Uses local Chrome — no API keys needed
+- Best for: development, simple pages, trusted sites with no bot protection
+
+### Remote mode (Browserbase)
+- Activated when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set
+- Provides: anti-bot stealth, automatic CAPTCHA solving, residential proxies, session persistence
+- **Use remote mode when:** the target site has bot detection, CAPTCHAs, IP rate limiting, Cloudflare protection, or requires geo-specific access
+- Get credentials at https://browserbase.com/settings
+
+### When to choose which
+- **Simple browsing** (docs, wikis, public APIs): local mode is fine
+- **Protected sites** (login walls, CAPTCHAs, anti-scraping): use remote mode
+- **If local mode fails** with bot detection or access denied: switch to remote mode
 
 ## Commands
 
