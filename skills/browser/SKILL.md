@@ -53,12 +53,25 @@ All commands work identically in both modes:
 
 ```bash
 browse navigate <url>                    # Go to URL
-browse act "<action>"                    # Natural language action
-browse extract "<instruction>" ['{}']    # Extract data (optional schema)
-browse observe "<query>"                 # Discover elements
-browse screenshot                        # Take screenshot
+browse act "<action>"                    # Natural language action (click, type, scroll, etc.)
+browse extract "<instruction>" ['{}']    # Extract structured data (optional JSON schema)
+browse observe "<query>"                 # Discover interactive elements on the page
+browse snapshot                          # Get page accessibility tree (fast, structured)
+browse screenshot                        # Take visual screenshot (slow, uses vision tokens)
 browse close                             # Close browser
 ```
+
+### Choosing between snapshot and screenshot
+
+- **Use `browse snapshot` as your default** for understanding page state. It returns the accessibility tree with element refs — fast, structured, and gives you everything needed to find and interact with elements.
+- **Use `browse screenshot` only when you need visual context** — verifying layout rendered correctly, reading images/charts, or debugging why an action didn't work as expected.
+- **Do NOT screenshot after every action.** Screenshots are expensive (vision tokens) and slow. Use snapshot to confirm state changes.
+
+### Choosing between act/observe and low-level commands
+
+- **Prefer `browse act`** for interactions — it uses natural language so you don't need to find element refs first. Example: `browse act "click the Sign In button"` instead of snapshot → find ref → click ref.
+- **Use `browse observe`** when you need to discover what interactive elements exist on the page before deciding what to do.
+- **Fall back to `browse snapshot` + ref-based commands** only if `act`/`observe` fail to find the right element.
 
 ## Quick Example
 
@@ -83,10 +96,12 @@ browse close
 
 ## Best Practices
 
-1. **Always navigate first** before interacting
-2. **View screenshots** after each command to verify
-3. **Be specific** in action descriptions
-4. **Close browser** when done
+1. **Always `browse navigate` first** before interacting
+2. **Use `browse snapshot`** (not screenshot) to check page state after actions
+3. **Use `browse act`** for interactions — describe what you want in natural language
+4. **Only screenshot when visual context is needed** (layout checks, images, debugging)
+5. **Be specific** in action descriptions — "click the blue Submit button" not "click submit"
+6. **Close browser** when done
 
 ## Troubleshooting
 
