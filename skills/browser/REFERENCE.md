@@ -178,10 +178,20 @@ browse stop
 
 #### `status`
 
-Check whether the daemon is running and its connection details.
+Check whether the daemon is running, its connection details, and current mode.
 
 ```bash
 browse status
+```
+
+#### `mode [local|remote]`
+
+Show or switch the daemon's execution mode. Without arguments, prints the current mode. With an argument, stops the running daemon and restarts in the specified mode. The switch is sticky — subsequent commands stay in the chosen mode until you switch again or run `browse stop`.
+
+```bash
+browse mode                              # print current mode
+browse mode local                        # switch to local Chrome
+browse mode remote                       # switch to Browserbase (requires API keys)
 ```
 
 #### `pages`

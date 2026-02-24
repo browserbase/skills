@@ -85,7 +85,10 @@ browse wait <type> [arg]                 # Wait for: load, selector, timeout
 ### Session management
 ```bash
 browse stop                              # Stop the browser daemon
-browse status                            # Check daemon status
+browse status                            # Check daemon status (includes mode)
+browse mode                              # Show current mode (local or remote)
+browse mode local                        # Switch to local Chrome
+browse mode remote                       # Switch to Browserbase (requires API keys)
 browse pages                             # List all open tabs
 browse tab_switch <index>                # Switch to tab by index
 browse tab_close [index]                 # Close tab
@@ -136,54 +139,38 @@ browse stop
 - **Action fails**: Run `browse snapshot` to see available elements and their refs
 - **Browserbase fails**: Verify API key and project ID are set
 
-## Activating Remote Mode
+## Switching Between Local and Remote Mode
 
-The browse CLI automatically uses remote Browserbase sessions when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set in the environment. The Browserbase plugin bridges stored credentials into the environment on startup, so in most cases remote mode "just works" after initial setup.
-
-### Checking current mode
+The browse CLI automatically uses remote Browserbase sessions when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set in the environment. Use `browse mode` to check or switch modes on the fly:
 
 ```bash
-echo $BROWSERBASE_API_KEY | head -c4    # non-empty = remote mode active
-browse status                            # shows connection details
+browse mode                  # check current mode
+browse mode remote           # switch to Browserbase
+browse mode local            # switch to local Chrome
 ```
 
-### When to suggest remote mode
+The switch is sticky — subsequent commands stay in the chosen mode until you switch again or run `browse stop` (which resets to env var detection).
 
-Suggest Browserbase remote mode when you detect ANY of these signals:
+### When to switch to remote mode
+
+Switch to remote mode when you detect ANY of these signals:
 - **CAPTCHA challenges**: reCAPTCHA, hCaptcha, Cloudflare Turnstile on the page
 - **Bot detection pages**: "Checking your browser...", Cloudflare interstitial, Akamai block page
 - **Access denied**: HTTP 403/429 responses, "access denied" or "bot detected" page content
 - **Missing content**: repeated element-not-found on pages that should have content (bot detection may serve empty/different pages)
 - **User request**: user says "use Browserbase", "bypass the CAPTCHA", "use a proxy", "use stealth mode", or similar
 
-Do NOT suggest remote mode for simple sites (docs, wikis, public APIs, localhost).
+Do NOT switch to remote for simple sites (docs, wikis, public APIs, localhost).
 
-### Setting up remote mode
+### Setting up credentials
 
-If remote mode is not active and the situation calls for it, tell the user WHY it would help (anti-bot stealth, CAPTCHA solving, residential proxies) and guide them:
+If `browse mode remote` fails because API keys aren't set, guide the user:
 
 ```bash
 openclaw browserbase setup    # interactive — prompts for API key + project ID
 ```
 
-Credentials are saved to `~/.openclaw/openclaw.json`. On next OpenClaw startup, the plugin loads them into the environment automatically.
-
-### Mid-session activation
-
-If the user runs `openclaw browserbase setup` during an active session, the credentials are set in the environment immediately — no restart needed. Just retry the failed command:
-
-```bash
-browse stop                  # stop any local session
-browse open <url>            # now uses remote mode
-```
-
-If the env vars are not yet visible (e.g., setup was run outside OpenClaw), use the eval bridge for the first command:
-
-```bash
-eval "$(openclaw browserbase env --format shell)" && browse open <url>
-```
-
-The `eval` prefix is only needed once per session. Subsequent `browse` commands in the same shell inherit the exported variables.
+Credentials are saved to `~/.openclaw/openclaw.json`. On next startup, the plugin loads them into the environment automatically.
 
 ### What NOT to do
 
