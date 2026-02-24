@@ -65,7 +65,7 @@ browse snapshot                          # Get accessibility tree with element r
 browse screenshot [path]                 # Take visual screenshot (slow, uses vision tokens)
 browse get url                           # Get current URL
 browse get title                         # Get page title
-browse get text [selector]               # Get text content
+browse get text <selector>               # Get text content (use "body" for all text)
 browse get html [selector]               # Get HTML content
 ```
 
@@ -135,6 +135,61 @@ browse stop
 - **Chrome not found**: Install Chrome or use Browserbase mode
 - **Action fails**: Run `browse snapshot` to see available elements and their refs
 - **Browserbase fails**: Verify API key and project ID are set
+
+## Activating Remote Mode
+
+The browse CLI automatically uses remote Browserbase sessions when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set in the environment. The Browserbase plugin bridges stored credentials into the environment on startup, so in most cases remote mode "just works" after initial setup.
+
+### Checking current mode
+
+```bash
+echo $BROWSERBASE_API_KEY | head -c4    # non-empty = remote mode active
+browse status                            # shows connection details
+```
+
+### When to suggest remote mode
+
+Suggest Browserbase remote mode when you detect ANY of these signals:
+- **CAPTCHA challenges**: reCAPTCHA, hCaptcha, Cloudflare Turnstile on the page
+- **Bot detection pages**: "Checking your browser...", Cloudflare interstitial, Akamai block page
+- **Access denied**: HTTP 403/429 responses, "access denied" or "bot detected" page content
+- **Missing content**: repeated element-not-found on pages that should have content (bot detection may serve empty/different pages)
+- **User request**: user says "use Browserbase", "bypass the CAPTCHA", "use a proxy", "use stealth mode", or similar
+
+Do NOT suggest remote mode for simple sites (docs, wikis, public APIs, localhost).
+
+### Setting up remote mode
+
+If remote mode is not active and the situation calls for it, tell the user WHY it would help (anti-bot stealth, CAPTCHA solving, residential proxies) and guide them:
+
+```bash
+openclaw browserbase setup    # interactive — prompts for API key + project ID
+```
+
+Credentials are saved to `~/.openclaw/openclaw.json`. On next OpenClaw startup, the plugin loads them into the environment automatically.
+
+### Mid-session activation
+
+If the user runs `openclaw browserbase setup` during an active session, the credentials are set in the environment immediately — no restart needed. Just retry the failed command:
+
+```bash
+browse stop                  # stop any local session
+browse open <url>            # now uses remote mode
+```
+
+If the env vars are not yet visible (e.g., setup was run outside OpenClaw), use the eval bridge for the first command:
+
+```bash
+eval "$(openclaw browserbase env --format shell)" && browse open <url>
+```
+
+The `eval` prefix is only needed once per session. Subsequent `browse` commands in the same shell inherit the exported variables.
+
+### What NOT to do
+
+- Don't retry the same URL in remote mode without asking the user first
+- Don't fall back to local silently if remote fails — tell the user what happened
+- Don't suggest remote mode preemptively for simple, unprotected sites
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
 For API reference, see [REFERENCE.md](REFERENCE.md).

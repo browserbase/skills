@@ -1,71 +1,117 @@
 # Browser Automation Examples
 
-Common browser automation workflows using the CLI tool. Each example demonstrates a distinct pattern.
+Common browser automation workflows using the `browse` CLI. Each example demonstrates a distinct pattern using real commands.
 
-## Example 1: Extract Structured Data
+## Example 1: Extract Data from a Page
 
-**User request**: "Go to example.com/product/123 and extract the product details"
+**User request**: "Get the product details from example.com/product/123"
 
 ```bash
-browse navigate https://example.com/product/123
-browse extract "Extract the product information" '{"productName": "string", "price": "number", "currency": "string", "inStock": "boolean", "rating": "number"}'
-browse close
+browse open https://example.com/product/123
+browse snapshot                          # read page structure + element refs
+browse get text "body"                   # extract all visible text content
+browse stop
 ```
+
+Parse the text output to extract structured data (name, price, description, etc.).
+
+For a specific section, use a CSS selector:
+
+```bash
+browse get text ".product-details"       # text from a specific container
+```
+
+**Note**: `browse get text` requires a CSS selector — use `"body"` for all page text.
 
 ## Example 2: Fill and Submit a Form
 
 **User request**: "Fill out the contact form on example.com with my information"
 
 ```bash
-browse navigate https://example.com/contact
-browse act "Fill in the name field with 'John Doe'"
-browse act "Fill in the email field with 'john.doe@example.com'"
-browse act "Fill in the message field with 'I would like to inquire about your services'"
-browse act "Click the Submit button"
-browse screenshot
-browse close
+browse open https://example.com/contact
+browse snapshot                          # find form fields and their refs
+browse click @0-3                        # click the Name input (ref from snapshot)
+browse type "John Doe"
+browse press Tab                         # move to next field
+browse type "john@example.com"
+browse fill "#message" "I would like to inquire about your services"
+browse snapshot                          # verify fields are filled
+browse click @0-8                        # click Submit button (ref from snapshot)
+browse snapshot                          # confirm submission result
+browse stop
 ```
 
-## Example 3: Debug a Page Issue
+**Key pattern**: Use `browse snapshot` before interacting to discover element refs, then `browse click <ref>` and `browse type` to interact.
 
-**User request**: "Check why the submit button isn't working on example.com/form"
+## Example 3: Multi-Step Navigation
 
-This example shows how to combine `observe` and `screenshot` for page inspection.
+**User request**: "Get headlines from the first 3 pages of results on example.com/news"
 
 ```bash
-browse navigate https://example.com/form
-browse screenshot
-browse observe "Find all buttons and their states"
-browse observe "Find all form input fields and their required status"
-browse act "Fill in all required fields with test data"
-browse screenshot
-browse observe "Check if the submit button is now enabled"
-browse close
+browse open https://example.com/news
+browse snapshot                          # read page 1 content
+browse get text ".headline"              # extract headlines
+
+browse snapshot                          # find "Next" button ref
+browse click @0-12                       # click Next (ref from snapshot)
+browse wait load                         # wait for page 2 to load
+browse get text ".headline"              # extract page 2 headlines
+
+browse snapshot                          # find Next again (ref may change)
+browse click @0-15                       # click Next
+browse wait load
+browse get text ".headline"              # extract page 3 headlines
+
+browse stop
 ```
 
-Analyze the screenshots and observations to determine the issue.
+**Key pattern**: Re-run `browse snapshot` after each navigation because element refs change when the page updates.
 
-## Example 4: Multi-Page Data Collection
+## Example 4: Escalate to Remote Mode
 
-**User request**: "Extract product information from the first 3 pages of results on example.com/products"
+**User request**: "Scrape pricing from competitor.com" (a site with Cloudflare protection)
 
 ```bash
-browse navigate https://example.com/products
-browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
-browse act "Click the Next Page button"
-browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
-browse act "Click the Next Page button"
-browse extract "Extract all products on this page" '{"name": "string", "price": "number", "imageUrl": "string"}'
-browse close
+# Attempt 1: local mode
+browse open https://competitor.com/pricing
+browse snapshot
+# Output shows: "Checking your browser..." (Cloudflare interstitial)
+# or: page content is empty / access denied
+browse stop
 ```
 
-Combine and process all extracted data.
+The agent detects bot protection and tells the user:
 
-## Tips for Success
+> This site has Cloudflare bot detection. Browserbase remote mode can bypass this with anti-bot stealth and residential proxies. Want me to set it up?
 
-- **Be specific with natural language**: "Click the blue Submit button in the footer" is better than "click submit". This is **extremely important** because there's much ambiguity in many websites.
-- **Wait when needed**: After navigation or actions that trigger page changes, explicitly wait
-- **Use observe for discovery**: When unsure what elements exist, use observe first
-- **Take screenshots for debugging**: Visual confirmation helps understand what the browser sees
-- **Handle errors gracefully**: If an action fails, try breaking it into smaller steps
-- **Clean up resources**: Always close the browser when done to free up system resources
+If the user agrees:
+
+```bash
+# Set up Browserbase credentials
+openclaw browserbase setup
+# User enters API key + project ID interactively
+
+# Retry — credentials are now in the environment
+browse open https://competitor.com/pricing
+browse snapshot                          # full page content now accessible
+browse get text ".pricing-table"
+browse stop
+```
+
+If the env vars aren't visible yet (setup was run outside OpenClaw):
+
+```bash
+eval "$(openclaw browserbase env --format shell)" && browse open https://competitor.com/pricing
+browse snapshot
+browse get text ".pricing-table"
+browse stop
+```
+
+## Tips
+
+- **Snapshot first**: Always run `browse snapshot` before interacting — it gives you the accessibility tree with element refs
+- **Use refs to click**: `browse click @0-5` is more reliable than trying to describe elements
+- **Re-snapshot after actions**: Element refs change when the page updates
+- **`get text` for data extraction**: Use `browse get text [selector]` to pull text content from specific elements
+- **`stop` when done**: Always `browse stop` to clean up the browser session
+- **Prefer snapshot over screenshot**: Snapshot is fast and structured; screenshot is slow and uses vision tokens. Only screenshot when you need visual context (layout, images, debugging)
