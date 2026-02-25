@@ -77,7 +77,7 @@ browse get value "#email-input"          # value of a form field
 browse get box "#header"                 # bounding box of an element
 ```
 
-**Note**: `get text` requires a CSS selector argument — use `"body"` for full page text. `get html` may error on some browse CLI versions; use `get text` or `snapshot` as alternatives.
+**Note**: `get text` requires a CSS selector argument — use `"body"` for full page text. `get html` may error on some browse-cli versions (v0.1.4); use `get text` or `snapshot` as alternatives.
 
 ---
 
