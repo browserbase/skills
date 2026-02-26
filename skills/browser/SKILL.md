@@ -66,7 +66,7 @@ browse screenshot [path]                 # Take visual screenshot (slow, uses vi
 browse get url                           # Get current URL
 browse get title                         # Get page title
 browse get text <selector>               # Get text content (use "body" for all text)
-browse get html [selector]               # Get HTML content
+browse get value <selector>              # Get form field value
 ```
 
 Use `browse snapshot` as your default for understanding page state — it returns the accessibility tree with element refs you can use to interact. Only use `browse screenshot` when you need visual context (layout, images, debugging).

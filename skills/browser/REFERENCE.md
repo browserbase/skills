@@ -50,9 +50,10 @@ Get the accessibility tree with interactive element refs. This is the primary wa
 
 ```bash
 browse snapshot
+browse snapshot --compact                # tree only, no ref maps
 ```
 
-Returns a text representation of the page with refs like `@0-5` that can be passed to `click`.
+Returns a text representation of the page with refs like `@0-5` that can be passed to `click`. Use `--compact` for shorter output when you only need the tree.
 
 #### `screenshot [path]`
 
@@ -61,23 +62,23 @@ Take a visual screenshot. Slower than snapshot and uses vision tokens.
 ```bash
 browse screenshot                        # auto-generated path
 browse screenshot ./capture.png          # custom path
+browse screenshot --full-page            # capture entire scrollable page
 ```
 
 #### `get <property> [selector]`
 
-Get page properties. Available properties: `url`, `title`, `text`, `html`, `value`, `box`.
+Get page properties. Available properties: `url`, `title`, `text`, `value`, `box`.
 
 ```bash
 browse get url                           # current URL
 browse get title                         # page title
 browse get text "body"                   # all visible text (selector required)
 browse get text ".product-info"          # text within a CSS selector
-browse get html "#main"                  # HTML of an element
 browse get value "#email-input"          # value of a form field
-browse get box "#header"                 # bounding box of an element
+browse get box "#header"                 # bounding box (centroid coordinates)
 ```
 
-**Note**: `get text` requires a CSS selector argument — use `"body"` for full page text. `get html` may error on some browse-cli versions (v0.1.4); use `get text` or `snapshot` as alternatives.
+**Note**: `get text` requires a CSS selector argument — use `"body"` for full page text.
 
 ---
 
@@ -99,12 +100,22 @@ Click at exact viewport coordinates.
 browse click_xy 500 300
 ```
 
+#### `hover <x> <y>`
+
+Hover at viewport coordinates.
+
+```bash
+browse hover 500 300
+```
+
 #### `type <text>`
 
 Type text into the currently focused element.
 
 ```bash
 browse type "Hello, world!"
+browse type "slow typing" --delay 100    # 100ms between keystrokes
+browse type "human-like" --mistakes      # simulate human typing with typos
 ```
 
 #### `fill <selector> <value>`
@@ -114,6 +125,7 @@ Fill an input element matching a CSS selector and press Enter.
 ```bash
 browse fill "#search" "OpenClaw documentation"
 browse fill "input[name=email]" "user@example.com"
+browse fill "#search" "query" --no-press-enter   # fill without pressing Enter
 ```
 
 #### `select <selector> <values...>`
@@ -174,6 +186,7 @@ Stop the browser daemon and close the browser.
 
 ```bash
 browse stop
+browse stop --force                      # force kill if daemon is unresponsive
 ```
 
 #### `status`
@@ -192,6 +205,15 @@ Show or switch the daemon's execution mode. Without arguments, prints the curren
 browse mode                              # print current mode
 browse mode local                        # switch to local Chrome
 browse mode remote                       # switch to Browserbase (requires API keys)
+```
+
+#### `newpage [url]`
+
+Create a new tab, optionally navigating to a URL.
+
+```bash
+browse newpage                           # open blank tab
+browse newpage https://example.com       # open tab with URL
 ```
 
 #### `pages`
@@ -217,6 +239,69 @@ Close a tab. Closes current tab if no index given.
 ```bash
 browse tab_close          # close current tab
 browse tab_close 2        # close tab at index 2
+```
+
+---
+
+### JavaScript Evaluation
+
+#### `eval <expression>`
+
+Evaluate JavaScript in the page context.
+
+```bash
+browse eval "document.title"
+browse eval "document.querySelectorAll('a').length"
+```
+
+---
+
+### Viewport
+
+#### `viewport <width> <height>`
+
+Set the browser viewport size.
+
+```bash
+browse viewport 1920 1080
+```
+
+---
+
+### Network Capture
+
+Capture network requests to the filesystem for inspection.
+
+#### `network on`
+
+Enable network request capture. Creates a temp directory where requests and responses are saved as JSON files.
+
+```bash
+browse network on
+```
+
+#### `network off`
+
+Disable network capture.
+
+```bash
+browse network off
+```
+
+#### `network path`
+
+Show the capture directory path.
+
+```bash
+browse network path
+```
+
+#### `network clear`
+
+Clear all captured requests.
+
+```bash
+browse network clear
 ```
 
 ---
