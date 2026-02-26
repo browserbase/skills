@@ -8,7 +8,7 @@ This plugin includes the following skills (see `skills/` for details):
 
 | Skill | Description |
 |-------|-------------|
-| [browser-automation](skills/browser-automation/SKILL.md) | Browser control using natural language commands (navigate, click, extract data, screenshot) |
+| [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
 
 ## Installation
