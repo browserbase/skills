@@ -144,44 +144,22 @@ browse stop
 - **Action fails**: Run `browse snapshot` to see available elements and their refs
 - **Browserbase fails**: Verify API key and project ID are set
 
-## Switching Between Local and Remote Environment
+## Switching to Remote Mode
 
-The browse CLI automatically uses remote Browserbase sessions when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set in the environment. Use `browse env` to check or switch environments on the fly:
+Switch to remote when you detect: CAPTCHAs (reCAPTCHA, hCaptcha, Turnstile), bot detection pages ("Checking your browser..."), HTTP 403/429, empty pages on sites that should have content, or the user asks for it.
+
+Don't switch for simple sites (docs, wikis, public APIs, localhost).
 
 ```bash
-browse env                   # check current environment
 browse env remote            # switch to Browserbase
-browse env local             # switch to local Chrome
+browse env local             # switch back to local Chrome
 ```
 
-The switch is sticky — subsequent commands stay in the chosen environment until you switch again or run `browse stop` (which resets to env var detection).
-
-### When to switch to remote
-
-Switch to remote mode when you detect ANY of these signals:
-- **CAPTCHA challenges**: reCAPTCHA, hCaptcha, Cloudflare Turnstile on the page
-- **Bot detection pages**: "Checking your browser...", Cloudflare interstitial, Akamai block page
-- **Access denied**: HTTP 403/429 responses, "access denied" or "bot detected" page content
-- **Missing content**: repeated element-not-found on pages that should have content (bot detection may serve empty/different pages)
-- **User request**: user says "use Browserbase", "bypass the CAPTCHA", "use a proxy", "use stealth mode", or similar
-
-Do NOT switch to remote for simple sites (docs, wikis, public APIs, localhost).
-
-### Setting up credentials
-
-If `browse env remote` fails because API keys aren't set, guide the user:
+The switch is sticky until you run `browse stop` or switch again. If API keys aren't set:
 
 ```bash
-openclaw browserbase setup    # interactive — prompts for API key + project ID
+openclaw browserbase setup   # interactive — prompts for API key + project ID
 ```
-
-Credentials are saved to `~/.openclaw/openclaw.json`. On next startup, the plugin loads them into the environment automatically.
-
-### What NOT to do
-
-- Don't retry the same URL in remote mode without asking the user first
-- Don't fall back to local silently if remote fails — tell the user what happened
-- Don't suggest remote mode preemptively for simple, unprotected sites
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
 For API reference, see [REFERENCE.md](REFERENCE.md).

@@ -2,6 +2,22 @@
 
 Technical reference for the `browse` CLI tool.
 
+## Table of Contents
+
+- [Architecture](#architecture)
+- [Command Reference](#command-reference)
+  - [Navigation](#navigation)
+  - [Page State](#page-state)
+  - [Interaction](#interaction)
+  - [Session Management](#session-management)
+  - [JavaScript Evaluation](#javascript-evaluation)
+  - [Viewport](#viewport)
+  - [Network Capture](#network-capture)
+- [Configuration](#configuration)
+  - [Global Flags](#global-flags)
+  - [Environment Variables](#environment-variables)
+- [Error Messages](#error-messages)
+
 ## Architecture
 
 The browse CLI is a **daemon-based** command-line tool:
@@ -418,30 +434,3 @@ export BROWSERBASE_PROJECT_ID="proj_..."
 **Timeout errors**
 - The page took too long to load or an element didn't appear.
 - Fix: Try `browse wait load` before interacting, or increase wait time.
-
----
-
-## Typical Workflow
-
-```
-1. browse open <url>           → navigate to the page
-2. browse snapshot             → read accessibility tree, get element refs
-3. browse click/type/fill      → interact using refs from step 2
-4. browse snapshot             → verify action worked
-5. repeat 3-4 as needed
-6. browse stop                 → clean up
-```
-
----
-
-## Local vs Remote Mode
-
-| Feature | Local | Remote (Browserbase) |
-|---------|-------|----------------------|
-| Speed | Faster | Slightly slower |
-| Setup | Local Chrome required | API key required |
-| Anti-bot stealth | No | Yes |
-| CAPTCHA solving | No | Yes (reCAPTCHA, hCaptcha) |
-| Residential proxies | No | Yes (201 countries) |
-| Session persistence | No | Yes |
-| Best for | Dev, simple pages | Protected sites, production scraping |
