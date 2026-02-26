@@ -21,7 +21,11 @@ Navigate to a URL. Alias: `goto`. Auto-starts the daemon if not running.
 
 ```bash
 browse open https://example.com
+browse open https://example.com --wait networkidle   # wait for all network requests to finish (useful for SPAs)
+browse open https://example.com --wait domcontentloaded
 ```
+
+The `--wait` flag controls when navigation is considered complete. Values: `load` (default), `domcontentloaded`, `networkidle`. Use `networkidle` for JavaScript-heavy pages that fetch data after initial load.
 
 #### `reload`
 
@@ -82,6 +86,14 @@ browse get checked "#agree"              # check if checkbox/radio is checked
 ```
 
 **Note**: `get text` requires a CSS selector argument — use `"body"` for full page text.
+
+#### `refs`
+
+Show the cached ref map from the last `browse snapshot`. Useful for looking up element refs without re-running a full snapshot.
+
+```bash
+browse refs
+```
 
 ---
 
@@ -340,6 +352,19 @@ browse network clear
 ---
 
 ## Configuration
+
+### Global Flags
+
+| Flag | Description |
+|------|-------------|
+| `--json` | Output as JSON for all commands (structured, parseable output) |
+| `--session <name>` | Run commands against a named session (enables multiple concurrent browsers) |
+
+```bash
+browse --json get url                    # returns {"url": "https://..."}
+browse --session work open https://a.com # open in "work" session
+browse --session personal open https://b.com # open in separate "personal" session
+```
 
 ### Environment Variables
 
