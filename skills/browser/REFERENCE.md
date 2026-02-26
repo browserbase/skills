@@ -355,15 +355,22 @@ browse network clear
 
 ### Global Flags
 
-| Flag | Description |
-|------|-------------|
-| `--json` | Output as JSON for all commands (structured, parseable output) |
-| `--session <name>` | Run commands against a named session (enables multiple concurrent browsers) |
+#### `--json`
+
+Output as JSON for all commands. Useful for structured, parseable output.
 
 ```bash
 browse --json get url                    # returns {"url": "https://..."}
-browse --session work open https://a.com # open in "work" session
-browse --session personal open https://b.com # open in separate "personal" session
+browse --json snapshot                   # returns JSON accessibility tree
+```
+
+#### `--session <name>`
+
+Run commands against a named session, enabling multiple concurrent browsers.
+
+```bash
+browse --session work open https://a.com
+browse --session personal open https://b.com
 ```
 
 ### Environment Variables
