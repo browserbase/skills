@@ -85,10 +85,10 @@ browse wait <type> [arg]                 # Wait for: load, selector, timeout
 ### Session management
 ```bash
 browse stop                              # Stop the browser daemon
-browse status                            # Check daemon status (includes mode)
-browse mode                              # Show current mode (local or remote)
-browse mode local                        # Switch to local Chrome
-browse mode remote                       # Switch to Browserbase (requires API keys)
+browse status                            # Check daemon status (includes env)
+browse env                               # Show current environment (local or remote)
+browse env local                         # Switch to local Chrome
+browse env remote                        # Switch to Browserbase (requires API keys)
 browse pages                             # List all open tabs
 browse tab_switch <index>                # Switch to tab by index
 browse tab_close [index]                 # Close tab
@@ -135,23 +135,23 @@ browse stop
 ## Troubleshooting
 
 - **"No active page"**: Run `browse stop`, then check `browse status`. If it still says running, kill the zombie daemon with `pkill -f "browse.*daemon"`, then retry `browse open`
-- **Chrome not found**: Install Chrome or use Browserbase mode
+- **Chrome not found**: Install Chrome or use `browse env remote`
 - **Action fails**: Run `browse snapshot` to see available elements and their refs
 - **Browserbase fails**: Verify API key and project ID are set
 
-## Switching Between Local and Remote Mode
+## Switching Between Local and Remote Environment
 
-The browse CLI automatically uses remote Browserbase sessions when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set in the environment. Use `browse mode` to check or switch modes on the fly:
+The browse CLI automatically uses remote Browserbase sessions when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set in the environment. Use `browse env` to check or switch environments on the fly:
 
 ```bash
-browse mode                  # check current mode
-browse mode remote           # switch to Browserbase
-browse mode local            # switch to local Chrome
+browse env                   # check current environment
+browse env remote            # switch to Browserbase
+browse env local             # switch to local Chrome
 ```
 
-The switch is sticky — subsequent commands stay in the chosen mode until you switch again or run `browse stop` (which resets to env var detection).
+The switch is sticky — subsequent commands stay in the chosen environment until you switch again or run `browse stop` (which resets to env var detection).
 
-### When to switch to remote mode
+### When to switch to remote
 
 Switch to remote mode when you detect ANY of these signals:
 - **CAPTCHA challenges**: reCAPTCHA, hCaptcha, Cloudflare Turnstile on the page
@@ -164,7 +164,7 @@ Do NOT switch to remote for simple sites (docs, wikis, public APIs, localhost).
 
 ### Setting up credentials
 
-If `browse mode remote` fails because API keys aren't set, guide the user:
+If `browse env remote` fails because API keys aren't set, guide the user:
 
 ```bash
 openclaw browserbase setup    # interactive — prompts for API key + project ID

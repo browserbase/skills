@@ -191,20 +191,20 @@ browse stop --force                      # force kill if daemon is unresponsive
 
 #### `status`
 
-Check whether the daemon is running, its connection details, and current mode.
+Check whether the daemon is running, its connection details, and current environment.
 
 ```bash
 browse status
 ```
 
-#### `mode [local|remote]`
+#### `env [local|remote]`
 
-Show or switch the daemon's execution mode. Without arguments, prints the current mode. With an argument, stops the running daemon and restarts in the specified mode. The switch is sticky — subsequent commands stay in the chosen mode until you switch again or run `browse stop`.
+Show or switch the browser environment. Without arguments, prints the current environment. With an argument, stops the running daemon and restarts in the specified environment. The switch is sticky — subsequent commands stay in the chosen environment until you switch again or run `browse stop`.
 
 ```bash
-browse mode                              # print current mode
-browse mode local                        # switch to local Chrome
-browse mode remote                       # switch to Browserbase (requires API keys)
+browse env                               # print current environment
+browse env local                         # switch to local Chrome
+browse env remote                        # switch to Browserbase (requires API keys)
 ```
 
 #### `newpage [url]`
@@ -340,7 +340,7 @@ export BROWSERBASE_PROJECT_ID="proj_..."
 
 **"Chrome not found"** / **"Could not find local Chrome installation"**
 - Chrome/Chromium is not installed or not in a standard location.
-- Fix: Install Chrome, or use Browserbase remote mode (no local browser needed).
+- Fix: Install Chrome, or switch to remote with `browse env remote` (no local browser needed).
 
 **"Daemon not running"**
 - No daemon process is active. Most commands auto-start the daemon, but `snapshot`, `click`, etc. require an active session.
