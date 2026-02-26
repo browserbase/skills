@@ -67,15 +67,18 @@ browse screenshot --full-page            # capture entire scrollable page
 
 #### `get <property> [selector]`
 
-Get page properties. Available properties: `url`, `title`, `text`, `value`, `box`.
+Get page properties. Available properties: `url`, `title`, `text`, `html`, `value`, `box`, `visible`, `checked`.
 
 ```bash
 browse get url                           # current URL
 browse get title                         # page title
 browse get text "body"                   # all visible text (selector required)
 browse get text ".product-info"          # text within a CSS selector
+browse get html "#main"                  # inner HTML of an element
 browse get value "#email-input"          # value of a form field
 browse get box "#header"                 # bounding box (centroid coordinates)
+browse get visible ".modal"              # check if element is visible
+browse get checked "#agree"              # check if checkbox/radio is checked
 ```
 
 **Note**: `get text` requires a CSS selector argument — use `"body"` for full page text.
@@ -156,6 +159,36 @@ Scroll at a given position by a given amount.
 ```bash
 browse scroll 500 300 0 -300             # scroll up at (500, 300)
 browse scroll 500 300 0 500              # scroll down
+```
+
+#### `drag <fromX> <fromY> <toX> <toY>`
+
+Drag from one viewport coordinate to another.
+
+```bash
+browse drag 80 80 310 100                # drag with default 10 steps
+browse drag 80 80 310 100 --steps 20     # more intermediate steps
+browse drag 80 80 310 100 --delay 50     # 50ms between steps
+browse drag 80 80 310 100 --button right # use right mouse button
+browse drag 80 80 310 100 --xpath        # return source/target XPaths
+```
+
+#### `highlight <selector>`
+
+Highlight an element on the page for visual debugging.
+
+```bash
+browse highlight "#submit-btn"           # highlight for 2 seconds (default)
+browse highlight ".nav" -d 5000          # highlight for 5 seconds
+```
+
+#### `is <check> <selector>`
+
+Check element state. Available checks: `visible`, `checked`.
+
+```bash
+browse is visible ".modal"               # returns { visible: true/false }
+browse is checked "#agree"               # returns { checked: true/false }
 ```
 
 #### `wait <type> [arg]`

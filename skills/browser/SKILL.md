@@ -66,6 +66,7 @@ browse screenshot [path]                 # Take visual screenshot (slow, uses vi
 browse get url                           # Get current URL
 browse get title                         # Get page title
 browse get text <selector>               # Get text content (use "body" for all text)
+browse get html <selector>               # Get HTML content of element
 browse get value <selector>              # Get form field value
 ```
 
@@ -78,7 +79,11 @@ browse type <text>                       # Type text into focused element
 browse fill <selector> <value>           # Fill input and press Enter
 browse select <selector> <values...>     # Select dropdown option(s)
 browse press <key>                       # Press key (Enter, Tab, Escape, Cmd+A, etc.)
+browse drag <fromX> <fromY> <toX> <toY>  # Drag from one point to another
 browse scroll <x> <y> <deltaX> <deltaY> # Scroll at coordinates
+browse highlight <selector>              # Highlight element on page
+browse is visible <selector>             # Check if element is visible
+browse is checked <selector>             # Check if element is checked
 browse wait <type> [arg]                 # Wait for: load, selector, timeout
 ```
 
