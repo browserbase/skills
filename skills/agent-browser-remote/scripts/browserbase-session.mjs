@@ -20,6 +20,7 @@ function usage() {
       "",
       "Close options:",
       "  --session-id <id>               Session ID to close (required)",
+      "  --project-id <id>               Browserbase project ID (optional, or BROWSERBASE_PROJECT_ID)",
       "  --api-key <key>                 Browserbase API key (or BROWSERBASE_API_KEY)",
       "  --api-base-url <url>            API base URL",
     ].join("\n"),
@@ -128,24 +129,52 @@ async function createSession(args) {
 async function closeSession(args) {
   const apiKey = args["api-key"] || process.env.BROWSERBASE_API_KEY;
   const sessionId = args["session-id"] || args.sessionId;
+  const projectId = args["project-id"] || process.env.BROWSERBASE_PROJECT_ID;
   const apiBaseUrl = String(args["api-base-url"] || DEFAULT_API_BASE).replace(/\/$/, "");
 
   if (!apiKey) throw new Error("Missing API key. Set --api-key or BROWSERBASE_API_KEY.");
   if (!sessionId) throw new Error("Missing session ID. Set --session-id <id>.");
 
-  const response = await fetch(`${apiBaseUrl}/v1/sessions/${encodeURIComponent(sessionId)}`, {
-    method: "DELETE",
+  // Current Browserbase API supports session release via POST /v1/sessions/{id}.
+  const releasePayload = { status: "REQUEST_RELEASE" };
+  if (projectId) releasePayload.projectId = projectId;
+
+  let response = await fetch(`${apiBaseUrl}/v1/sessions/${encodeURIComponent(sessionId)}`, {
+    method: "POST",
     headers: {
+      "Content-Type": "application/json",
       "X-BB-API-Key": apiKey,
     },
+    body: JSON.stringify(releasePayload),
   });
+
+  // Backward-compat fallback if the API still expects DELETE.
+  if (!response.ok && [404, 405].includes(response.status)) {
+    response = await fetch(`${apiBaseUrl}/v1/sessions/${encodeURIComponent(sessionId)}`, {
+      method: "DELETE",
+      headers: {
+        "X-BB-API-Key": apiKey,
+      },
+    });
+  }
 
   if (!response.ok) {
     const text = await response.text();
     throw new Error(`Failed to close session (${response.status}): ${text || response.statusText}`);
   }
 
-  console.log(JSON.stringify({ closed: true, sessionId }, null, 2));
+  const data = await response.json().catch(() => ({}));
+  console.log(
+    JSON.stringify(
+      {
+        closed: true,
+        sessionId,
+        status: data?.status ?? "REQUESTED",
+      },
+      null,
+      2,
+    ),
+  );
 }
 
 async function main() {
