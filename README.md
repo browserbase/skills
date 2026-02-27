@@ -9,6 +9,8 @@ This plugin includes the following skills (see `skills/` for details):
 | Skill | Description |
 |-------|-------------|
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
+| [agent-browser-remote](skills/agent-browser-remote/SKILL.md) | Use Agent Browser with Browserbase remote CDP sessions when local browsing hits CAPTCHAs, anti-bot checks, or JavaScript-heavy sites |
+| [browser-fleet](skills/browser-fleet/SKILL.md) | Orchestrate high-volume browser work via sub-agent fanout with clear decomposition, retries, and cleanup patterns |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
 
 ## Installation

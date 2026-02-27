@@ -5,6 +5,13 @@ compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-c
 license: MIT
 allowed-tools: Bash
 metadata:
+  capabilities:
+    - remote-browser
+    - stealth
+    - captcha-solving
+    - residential-proxies
+    - parallel-subagents
+    - cdp-interop
   openclaw:
     requires:
       bins:
@@ -61,7 +68,8 @@ browse forward                           # Go forward in history
 
 ### Page state (prefer snapshot over screenshot)
 ```bash
-browse snapshot                          # Get accessibility tree with element refs (fast, structured)
+browse snapshot                          # Full accessibility tree with refs
+browse snapshot -c -i --main-frame      # Focused tree (recommended on large pages)
 browse screenshot [path]                 # Take visual screenshot (slow, uses vision tokens)
 browse get url                           # Get current URL
 browse get title                         # Get page title
@@ -70,7 +78,9 @@ browse get html <selector>               # Get HTML content of element
 browse get value <selector>              # Get form field value
 ```
 
-Use `browse snapshot` as your default for understanding page state — it returns the accessibility tree with element refs you can use to interact. Only use `browse screenshot` when you need visual context (layout, images, debugging).
+Use focused snapshots by default on complex pages: `browse snapshot -c -i --main-frame`.
+Add `--contains "<text>"` and `--max-lines <n>` when output is large.
+Only use `browse screenshot` when you need visual context (layout, images, debugging).
 
 ### Interaction
 ```bash
@@ -101,9 +111,9 @@ browse tab_close [index]                 # Close tab
 
 ### Typical workflow
 1. `browse open <url>` — navigate to the page
-2. `browse snapshot` — read the accessibility tree to understand page structure and get element refs
+2. `browse snapshot -c -i --main-frame` — get focused refs with less output
 3. `browse click <ref>` / `browse type <text>` / `browse fill <selector> <value>` — interact using refs from snapshot
-4. `browse snapshot` — confirm the action worked
+4. `browse snapshot -c --contains "<keyword>" --max-lines 200` — confirm state changes
 5. Repeat 3-4 as needed
 6. `browse stop` — close the browser when done
 
@@ -111,7 +121,7 @@ browse tab_close [index]                 # Close tab
 
 ```bash
 browse open https://example.com
-browse snapshot                          # see page structure + element refs
+browse snapshot -c -i --main-frame       # focused refs
 browse click @0-5                        # click element with ref 0-5
 browse get title
 browse stop
@@ -132,10 +142,12 @@ browse stop
 ## Best Practices
 
 1. **Always `browse open` first** before interacting
-2. **Use `browse snapshot`** to check page state — it's fast and gives you element refs
+2. **Use focused snapshots** first — `browse snapshot -c -i --main-frame`
 3. **Only screenshot when visual context is needed** (layout checks, images, debugging)
 4. **Use refs from snapshot** to click/interact — e.g., `browse click @0-5`
 5. **`browse stop`** when done to clean up the browser session
+6. **For parallel work, use sub-agents** and assign one unit of work per agent
+7. **Quote URLs with query params** — e.g. `browse open "https://site.com/path?a=1&b=2"` to avoid shell globbing
 
 ## Troubleshooting
 

@@ -71,9 +71,13 @@ Get the accessibility tree with interactive element refs. This is the primary wa
 ```bash
 browse snapshot
 browse snapshot --compact                # tree only, no ref maps
+browse snapshot -c -i --main-frame       # focused refs (recommended on large pages)
+browse snapshot -c --contains "price"    # filter tree lines by text
+browse snapshot -c --max-lines 200       # cap output size
 ```
 
 Returns a text representation of the page with refs like `@0-5` that can be passed to `click`. Use `--compact` for shorter output when you only need the tree.
+Use `--interactive` and `--main-frame` to reduce payload size and speed up agent loops on heavy pages.
 
 #### `screenshot [path]`
 
@@ -388,6 +392,18 @@ Run commands against a named session, enabling multiple concurrent browsers.
 browse --session work open https://a.com
 browse --session personal open https://b.com
 ```
+
+#### Parallel orchestration (recommended)
+
+Use sub-agents for parallel browser work. Assign each sub-agent one independent unit and let each sub-agent run a normal `browse` workflow in its own session.
+
+```bash
+# Example session isolation pattern
+browse --session job-1 open https://example.com/a
+browse --session job-2 open https://example.com/b
+```
+
+This improves reliability for multi-step tasks and makes retries/debugging easier than single-command fanout patterns.
 
 ### Environment Variables
 
