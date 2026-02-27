@@ -1,5 +1,5 @@
 ---
-name: browser-fleet
+name: browse-fleet-subagents
 description: Orchestrate high-volume browser tasks by decomposing one objective into many independent units and fanning out execution through sub-agents, each owning its own browser workflow. Use when users need parallel browser work such as competitive monitoring, account sweeps, QA matrix checks, regression checks across many URLs, or load-style deterministic actions.
 compatibility: "Requires the `browse` CLI. For protected targets, set Browserbase credentials (`BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`) to use remote mode."
 license: MIT
