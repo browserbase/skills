@@ -155,11 +155,7 @@ browse env remote            # switch to Browserbase
 browse env local             # switch back to local Chrome
 ```
 
-The switch is sticky until you run `browse stop` or switch again. If API keys aren't set:
-
-```bash
-openclaw browserbase setup   # interactive — prompts for API key + project ID
-```
+The switch is sticky until you run `browse stop` or switch again.
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
 For API reference, see [REFERENCE.md](REFERENCE.md).
