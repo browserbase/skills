@@ -154,7 +154,7 @@ browse type "human-like" --mistakes      # simulate human typing with typos
 Fill an input element matching a CSS selector and press Enter.
 
 ```bash
-browse fill "#search" "OpenClaw documentation"
+browse fill "#search" "browser automation"
 browse fill "input[name=email]" "user@example.com"
 browse fill "#search" "query" --no-press-enter   # fill without pressing Enter
 ```
@@ -398,18 +398,14 @@ browse --session personal open https://b.com
 
 When both are set, the CLI uses Browserbase remote sessions. Otherwise, it falls back to local Chrome.
 
-The Browserbase OpenClaw plugin automatically bridges credentials from `~/.openclaw/openclaw.json` into these environment variables on startup.
-
 ### Setting credentials
 
 ```bash
-# Via OpenClaw plugin (recommended)
-openclaw browserbase setup
-
-# Via environment variables (manual)
 export BROWSERBASE_API_KEY="bb_live_..."
 export BROWSERBASE_PROJECT_ID="proj_..."
 ```
+
+Get these values from https://browserbase.com/settings.
 
 ---
 
