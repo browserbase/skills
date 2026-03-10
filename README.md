@@ -13,6 +13,14 @@ This plugin includes the following skills (see `skills/` for details):
 
 ## Installation
 
+To install the skill to popular coding agents:
+
+```bash
+$ npx skills add browserbase/skills
+```
+
+### Claude Code
+
 On Claude Code, to add the marketplace, simply run:
 
 ```bash
