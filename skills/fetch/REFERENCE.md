@@ -157,7 +157,7 @@ The fetch request timed out. Default timeout is 60 seconds.
 ### Node.js / TypeScript
 
 ```typescript
-import Browserbase from "@browserbasehq/sdk";
+import { Browserbase } from "@browserbasehq/sdk";
 
 const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY });
 
