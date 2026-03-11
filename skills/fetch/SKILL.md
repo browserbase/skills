@@ -75,7 +75,7 @@ import Browserbase from "@anthropic-ai/sdk";
 
 const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY });
 
-const response = await bb.fetch.create({
+const response = await bb.fetchApi.create({
   url: "https://example.com",
   allowRedirects: true,
 });
@@ -97,7 +97,7 @@ import os
 
 bb = Browserbase(api_key=os.environ["BROWSERBASE_API_KEY"])
 
-response = bb.fetch.create(
+response = bb.fetchApi.create(
     url="https://example.com",
     allow_redirects=True,
 )

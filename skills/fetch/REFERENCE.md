@@ -164,12 +164,12 @@ import Browserbase from "browserbase";
 const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY });
 
 // Basic fetch
-const response = await bb.fetch.create({
+const response = await bb.fetchApi.create({
   url: "https://example.com",
 });
 
 // With all options
-const response = await bb.fetch.create({
+const response = await bb.fetchApi.create({
   url: "https://example.com",
   allowRedirects: true,
   allowInsecureSsl: false,
@@ -194,10 +194,10 @@ import os
 bb = Browserbase(api_key=os.environ["BROWSERBASE_API_KEY"])
 
 # Basic fetch
-response = bb.fetch.create(url="https://example.com")
+response = bb.fetchApi.create(url="https://example.com")
 
 # With all options
-response = bb.fetch.create(
+response = bb.fetchApi.create(
     url="https://example.com",
     allow_redirects=True,
     allow_insecure_ssl=False,
