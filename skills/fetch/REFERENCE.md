@@ -20,11 +20,11 @@ Fetch a page and return its content, headers, and metadata.
 
 ## Authentication
 
-All requests require the `x-bb-api-key` header:
+All requests require the `X-BB-API-Key` header:
 
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"url": "https://example.com"}'
 ```
@@ -49,7 +49,7 @@ Get your API key from https://browserbase.com/settings.
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://example.com"}'
 ```
 
@@ -58,7 +58,7 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{
     "url": "https://example.com",
     "allowRedirects": true,
@@ -75,26 +75,20 @@ Successful fetch. Returns:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | `string` | Unique identifier for the fetch request |
-| `statusCode` | `integer` | HTTP status code of the fetched response |
+| `status_code` | `integer` | HTTP status code of the fetched response |
 | `headers` | `object` (string → string) | Response headers as key-value pairs |
 | `content` | `string` | The response body content |
-| `contentType` | `string` | The MIME type of the response |
-| `encoding` | `string` | The character encoding of the response |
 
 **Example response:**
 
 ```json
 {
-  "id": "abc123",
-  "statusCode": 200,
+  "status_code": 200,
   "headers": {
-    "content-type": "text/html; charset=utf-8",
-    "server": "nginx"
+    "Content-Type": "text/html; charset=utf-8",
+    "Server": "nginx"
   },
-  "content": "<!DOCTYPE html><html>...</html>",
-  "contentType": "text/html",
-  "encoding": "utf-8"
+  "content": "<!DOCTYPE html><html>...</html>"
 }
 ```
 
@@ -106,7 +100,7 @@ Invalid request body. Check that `url` is a valid URI and parameters are correct
 
 ```json
 {
-  "statusCode": 400,
+  "status_code": 400,
   "error": "Bad Request",
   "message": "Invalid URL format"
 }
@@ -118,7 +112,7 @@ Concurrent fetch request limit exceeded. Wait and retry.
 
 ```json
 {
-  "statusCode": 429,
+  "status_code": 429,
   "error": "Too Many Requests",
   "message": "Concurrent fetch request limit exceeded"
 }
@@ -130,10 +124,9 @@ The fetched response was too large or TLS certificate verification failed.
 
 ```json
 {
-  "statusCode": 502,
+  "status_code": 502,
   "error": "Bad Gateway",
-  "message": "TLS certificate verification failed",
-  "id": "abc123"
+  "message": "TLS certificate verification failed"
 }
 ```
 
@@ -145,10 +138,9 @@ The fetch request timed out. Default timeout is 60 seconds.
 
 ```json
 {
-  "statusCode": 504,
+  "status_code": 504,
   "error": "Gateway Timeout",
-  "message": "Fetch request timed out",
-  "id": "abc123"
+  "message": "Fetch request timed out"
 }
 ```
 
@@ -177,12 +169,9 @@ const response = await bb.fetchApi.create({
 });
 
 // Access response fields
-response.id;          // string
 response.statusCode;  // number
 response.headers;     // Record<string, string>
 response.content;     // string
-response.contentType; // string
-response.encoding;    // string
 ```
 
 ### Python
@@ -205,12 +194,9 @@ response = bb.fetchApi.create(
 )
 
 # Access response fields
-response.id            # str
 response.status_code   # int
 response.headers       # dict[str, str]
 response.content       # str
-response.content_type  # str
-response.encoding      # str
 ```
 
 ## Configuration

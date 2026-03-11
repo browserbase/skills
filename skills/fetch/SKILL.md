@@ -36,7 +36,7 @@ export BROWSERBASE_API_KEY="your_api_key"
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://example.com"}'
 ```
 
@@ -55,12 +55,9 @@ Returns JSON with:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `id` | string | Unique identifier for the fetch request |
-| `statusCode` | integer | HTTP status code of the fetched response |
+| `status_code` | integer | HTTP status code of the fetched response |
 | `headers` | object | Response headers as key-value pairs |
 | `content` | string | The response body content |
-| `contentType` | string | The MIME type of the response |
-| `encoding` | string | The character encoding of the response |
 
 ## Using with the SDK
 
@@ -80,9 +77,9 @@ const response = await bb.fetchApi.create({
   allowRedirects: true,
 });
 
-console.log(response.statusCode);  // 200
-console.log(response.content);     // page HTML
-console.log(response.headers);     // response headers
+console.log(response.statusCode);   // 200
+console.log(response.content);      // page HTML
+console.log(response.headers);      // response headers
 ```
 
 ### Python
@@ -114,7 +111,7 @@ print(response.headers)      # response headers
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://example.com/redirect", "allowRedirects": true}'
 ```
 
@@ -123,7 +120,7 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://example.com", "proxies": true}'
 ```
 
@@ -132,7 +129,7 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://self-signed.example.com", "allowInsecureSsl": true}'
 ```
 
@@ -150,7 +147,7 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 1. **Start with Fetch** for simple page retrieval — it's faster and cheaper than a browser session
 2. **Enable `allowRedirects`** when fetching URLs that may redirect (shortened URLs, login flows)
 3. **Use `proxies`** when the target site has IP-based rate limiting or geo-restrictions
-4. **Check `statusCode`** before processing `content` to handle errors gracefully
+4. **Check `status_code`** before processing `content` to handle errors gracefully
 5. **Fall back to Browser** if Fetch returns empty content (page requires JavaScript rendering)
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).

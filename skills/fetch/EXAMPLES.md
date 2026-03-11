@@ -11,7 +11,7 @@ Common patterns for using the Browserbase Fetch API. Each example shows both cUR
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://example.com"}'
 ```
 
@@ -40,8 +40,8 @@ print(response.content)  # full HTML
 ```bash
 curl -s -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
-  -d '{"url": "https://example.com/api/health"}' | jq '{statusCode, headers}'
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
+  -d '{"url": "https://example.com/api/health"}' | jq '{status_code, headers}'
 ```
 
 ### Node.js
@@ -66,13 +66,13 @@ console.log(`Server: ${response.headers["server"]}`);
 # Without redirects — see the 301/302 status
 curl -s -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
-  -d '{"url": "https://bit.ly/example"}' | jq '{statusCode, headers}'
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
+  -d '{"url": "https://bit.ly/example"}' | jq '{status_code, headers}'
 
 # With redirects — get the final destination content
 curl -s -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://bit.ly/example", "allowRedirects": true}'
 ```
 
@@ -85,7 +85,7 @@ const response = await bb.fetchApi.create({
   allowRedirects: true,
 });
 
-console.log(response.statusCode);  // 200 (final destination)
+console.log(response.statusCode);   // 200 (final destination)
 console.log(response.content);     // final page content
 ```
 
@@ -98,7 +98,7 @@ console.log(response.content);     // final page content
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://target-site.com/data", "proxies": true}'
 ```
 
@@ -124,7 +124,7 @@ if (response.statusCode === 200) {
 ```bash
 curl -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://staging.internal.example.com", "allowInsecureSsl": true}'
 ```
 
@@ -192,7 +192,7 @@ for url in urls:
 ```bash
 curl -s -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
+  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
   -d '{"url": "https://api.example.com/v1/data"}' | jq '.content | fromjson'
 ```
 
@@ -210,7 +210,7 @@ console.log(data);
 ## Tips
 
 - **Use Fetch for static content**: It's faster and cheaper than spinning up a browser session
-- **Check `contentType`** to determine how to process the response (HTML vs JSON vs other)
+- **Check `status_code`** to determine how to process the response before parsing `content`
 - **Enable `allowRedirects`** by default when scraping — most sites use redirects
 - **Use `proxies`** when you hit rate limits or geo-restrictions
 - **Fall back to Browser skill** when Fetch returns empty `content` — the page likely requires JavaScript rendering
