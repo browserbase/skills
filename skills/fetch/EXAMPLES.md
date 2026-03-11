@@ -18,7 +18,7 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 ### Node.js
 
 ```typescript
-const response = await bb.fetchApi.create({
+const response = await bb.fetchAPI.create({
   url: "https://example.com",
 });
 console.log(response.content);  // full HTML
@@ -27,7 +27,7 @@ console.log(response.content);  // full HTML
 ### Python
 
 ```python
-response = bb.fetchApi.create(url="https://example.com")
+response = bb.fetch_api.create(url="https://example.com")
 print(response.content)  # full HTML
 ```
 
@@ -41,13 +41,13 @@ print(response.content)  # full HTML
 curl -s -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
   -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
-  -d '{"url": "https://example.com/api/health"}' | jq '{status_code, headers}'
+  -d '{"url": "https://example.com/api/health"}' | jq '{statusCode, headers}'
 ```
 
 ### Node.js
 
 ```typescript
-const response = await bb.fetchApi.create({
+const response = await bb.fetchAPI.create({
   url: "https://example.com/api/health",
 });
 
@@ -67,7 +67,7 @@ console.log(`Server: ${response.headers["server"]}`);
 curl -s -X POST "https://api.browserbase.com/v1/fetch" \
   -H "Content-Type: application/json" \
   -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
-  -d '{"url": "https://bit.ly/example"}' | jq '{status_code, headers}'
+  -d '{"url": "https://bit.ly/example"}' | jq '{statusCode, headers}'
 
 # With redirects — get the final destination content
 curl -s -X POST "https://api.browserbase.com/v1/fetch" \
@@ -80,7 +80,7 @@ curl -s -X POST "https://api.browserbase.com/v1/fetch" \
 
 ```typescript
 // Follow redirects to final destination
-const response = await bb.fetchApi.create({
+const response = await bb.fetchAPI.create({
   url: "https://bit.ly/example",
   allowRedirects: true,
 });
@@ -105,7 +105,7 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 ### Node.js
 
 ```typescript
-const response = await bb.fetchApi.create({
+const response = await bb.fetchAPI.create({
   url: "https://target-site.com/data",
   proxies: true,
 });
@@ -131,7 +131,7 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 ### Python
 
 ```python
-response = bb.fetchApi.create(
+response = bb.fetch_api.create(
     url="https://staging.internal.example.com",
     allow_insecure_ssl=True,
 )
@@ -154,7 +154,7 @@ const urls = [
 ];
 
 const results = await Promise.all(
-  urls.map(url => bb.fetchApi.create({ url, allowRedirects: true }))
+  urls.map(url => bb.fetchAPI.create({ url, allowRedirects: true }))
 );
 
 for (const res of results) {
@@ -176,7 +176,7 @@ urls = [
 
 # Sequential (sync SDK)
 for url in urls:
-    response = bb.fetchApi.create(url=url, allow_redirects=True)
+    response = bb.fetch_api.create(url=url, allow_redirects=True)
     # Extract title from HTML
     import re
     match = re.search(r"<title>(.*?)</title>", response.content)
@@ -199,7 +199,7 @@ curl -s -X POST "https://api.browserbase.com/v1/fetch" \
 ### Node.js
 
 ```typescript
-const response = await bb.fetchApi.create({
+const response = await bb.fetchAPI.create({
   url: "https://api.example.com/v1/data",
 });
 
@@ -210,7 +210,7 @@ console.log(data);
 ## Tips
 
 - **Use Fetch for static content**: It's faster and cheaper than spinning up a browser session
-- **Check `status_code`** to determine how to process the response before parsing `content`
+- **Check `statusCode`** to determine how to process the response before parsing `content`
 - **Enable `allowRedirects`** by default when scraping — most sites use redirects
 - **Use `proxies`** when you hit rate limits or geo-restrictions
 - **Fall back to Browser skill** when Fetch returns empty `content` — the page likely requires JavaScript rendering

@@ -55,24 +55,27 @@ Returns JSON with:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `status_code` | integer | HTTP status code of the fetched response |
+| `id` | string | Unique identifier for the fetch request |
+| `statusCode` | integer | HTTP status code of the fetched response |
 | `headers` | object | Response headers as key-value pairs |
 | `content` | string | The response body content |
+| `contentType` | string | The MIME type of the response |
+| `encoding` | string | The character encoding of the response |
 
 ## Using with the SDK
 
 ### Node.js (TypeScript)
 
 ```bash
-npm install @anthropic-ai/sdk browserbase
+npm install @browserbasehq/sdk
 ```
 
 ```typescript
-import Browserbase from "@anthropic-ai/sdk";
+import Browserbase from "@browserbasehq/sdk";
 
 const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY });
 
-const response = await bb.fetchApi.create({
+const response = await bb.fetchAPI.create({
   url: "https://example.com",
   allowRedirects: true,
 });
@@ -94,7 +97,7 @@ import os
 
 bb = Browserbase(api_key=os.environ["BROWSERBASE_API_KEY"])
 
-response = bb.fetchApi.create(
+response = bb.fetch_api.create(
     url="https://example.com",
     allow_redirects=True,
 )
@@ -147,7 +150,7 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 1. **Start with Fetch** for simple page retrieval — it's faster and cheaper than a browser session
 2. **Enable `allowRedirects`** when fetching URLs that may redirect (shortened URLs, login flows)
 3. **Use `proxies`** when the target site has IP-based rate limiting or geo-restrictions
-4. **Check `status_code`** before processing `content` to handle errors gracefully
+4. **Check `statusCode`** before processing `content` to handle errors gracefully
 5. **Fall back to Browser** if Fetch returns empty content (page requires JavaScript rendering)
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).

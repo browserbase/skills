@@ -75,20 +75,26 @@ Successful fetch. Returns:
 
 | Field | Type | Description |
 |-------|------|-------------|
-| `status_code` | `integer` | HTTP status code of the fetched response |
+| `id` | `string` | Unique identifier for the fetch request |
+| `statusCode` | `integer` | HTTP status code of the fetched response |
 | `headers` | `object` (string → string) | Response headers as key-value pairs |
 | `content` | `string` | The response body content |
+| `contentType` | `string` | The MIME type of the response |
+| `encoding` | `string` | The character encoding of the response |
 
 **Example response:**
 
 ```json
 {
-  "status_code": 200,
+  "id": "abc123",
+  "statusCode": 200,
   "headers": {
-    "Content-Type": "text/html; charset=utf-8",
-    "Server": "nginx"
+    "content-type": "text/html; charset=utf-8",
+    "server": "nginx"
   },
-  "content": "<!DOCTYPE html><html>...</html>"
+  "content": "<!DOCTYPE html><html>...</html>",
+  "contentType": "text/html",
+  "encoding": "utf-8"
 }
 ```
 
@@ -100,7 +106,7 @@ Invalid request body. Check that `url` is a valid URI and parameters are correct
 
 ```json
 {
-  "status_code": 400,
+  "statusCode": 400,
   "error": "Bad Request",
   "message": "Invalid URL format"
 }
@@ -112,7 +118,7 @@ Concurrent fetch request limit exceeded. Wait and retry.
 
 ```json
 {
-  "status_code": 429,
+  "statusCode": 429,
   "error": "Too Many Requests",
   "message": "Concurrent fetch request limit exceeded"
 }
@@ -124,7 +130,7 @@ The fetched response was too large or TLS certificate verification failed.
 
 ```json
 {
-  "status_code": 502,
+  "statusCode": 502,
   "error": "Bad Gateway",
   "message": "TLS certificate verification failed"
 }
@@ -138,7 +144,7 @@ The fetch request timed out. Default timeout is 60 seconds.
 
 ```json
 {
-  "status_code": 504,
+  "statusCode": 504,
   "error": "Gateway Timeout",
   "message": "Fetch request timed out"
 }
@@ -151,17 +157,17 @@ The fetch request timed out. Default timeout is 60 seconds.
 ### Node.js / TypeScript
 
 ```typescript
-import Browserbase from "browserbase";
+import Browserbase from "@browserbasehq/sdk";
 
 const bb = new Browserbase({ apiKey: process.env.BROWSERBASE_API_KEY });
 
 // Basic fetch
-const response = await bb.fetchApi.create({
+const response = await bb.fetchAPI.create({
   url: "https://example.com",
 });
 
 // With all options
-const response = await bb.fetchApi.create({
+const response = await bb.fetchAPI.create({
   url: "https://example.com",
   allowRedirects: true,
   allowInsecureSsl: false,
@@ -169,9 +175,12 @@ const response = await bb.fetchApi.create({
 });
 
 // Access response fields
+response.id;          // string
 response.statusCode;  // number
 response.headers;     // Record<string, string>
 response.content;     // string
+response.contentType; // string
+response.encoding;    // string
 ```
 
 ### Python
@@ -183,10 +192,10 @@ import os
 bb = Browserbase(api_key=os.environ["BROWSERBASE_API_KEY"])
 
 # Basic fetch
-response = bb.fetchApi.create(url="https://example.com")
+response = bb.fetch_api.create(url="https://example.com")
 
 # With all options
-response = bb.fetchApi.create(
+response = bb.fetch_api.create(
     url="https://example.com",
     allow_redirects=True,
     allow_insecure_ssl=False,
