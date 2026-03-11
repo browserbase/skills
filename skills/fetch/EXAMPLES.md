@@ -166,8 +166,6 @@ for (const res of results) {
 ### Python
 
 ```python
-import asyncio
-
 urls = [
     "https://example.com/page1",
     "https://example.com/page2",
