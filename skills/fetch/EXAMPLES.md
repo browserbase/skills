@@ -61,40 +61,7 @@ console.log(`Content-Type: ${response.headers["content-type"]}`);
 console.log(`Server: ${response.headers["server"]}`);
 ```
 
-## Example 3: Follow Redirects
-
-**User request**: "Where does this shortened URL redirect to?"
-
-### cURL
-
-```bash
-# Without redirects — see the 301/302 status
-curl -s -X POST "https://api.browserbase.com/v1/fetch" \
-  -H "Content-Type: application/json" \
-  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
-  -d '{"url": "https://httpbingo.org/redirect-to?url=https://example.com"}' | jq '{statusCode, headers}'
-
-# With redirects — get the final destination content
-curl -s -X POST "https://api.browserbase.com/v1/fetch" \
-  -H "Content-Type: application/json" \
-  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
-  -d '{"url": "https://httpbingo.org/redirect-to?url=https://example.com", "allowRedirects": true}'
-```
-
-### Node.js
-
-```typescript
-// Follow redirects to final destination
-const response = await bb.fetchAPI.create({
-  url: "https://httpbingo.org/redirect-to?url=https://example.com",
-  allowRedirects: true,
-});
-
-console.log(response.statusCode);   // 200 (final destination)
-console.log(response.content);     // final page content
-```
-
-## Example 4: Fetch with Proxies
+## Example 3: Fetch with Proxies
 
 **User request**: "Scrape this page but it keeps blocking my IP"
 
@@ -120,7 +87,7 @@ if (response.statusCode === 200) {
 }
 ```
 
-## Example 5: Fetch Self-Signed Test Certificate
+## Example 4: Fetch Self-Signed Test Certificate
 
 **User request**: "Fetch a public test page with a self-signed certificate"
 
@@ -145,7 +112,7 @@ response = bb.fetch_api.create(
 print(response.content)
 ```
 
-## Example 6: Batch Fetch Multiple URLs
+## Example 5: Batch Fetch Multiple URLs
 
 **User request**: "Get the title from these 5 URLs"
 
@@ -188,7 +155,7 @@ for url in urls:
     print(match.group(1) if match else "No title")
 ```
 
-## Example 7: Fetch API Endpoint (JSON)
+## Example 6: Fetch API Endpoint (JSON)
 
 **User request**: "Get data from this JSON API endpoint"
 
