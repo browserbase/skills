@@ -107,6 +107,38 @@ browse get text ".pricing-table"
 browse stop
 ```
 
+## Example 5: Persist Login with Context ID
+
+**User request**: "Log into my dashboard and save the session so I don't have to log in again next time"
+
+This uses Browserbase contexts to persist cookies and storage across sessions. Requires remote mode.
+
+```bash
+# Session 1: Log in and persist state
+browse open https://app.example.com/login --context-id ctx_abc123 --persist
+browse snapshot                          # find login form fields
+browse click @0-3                        # click email input
+browse type "user@example.com"
+browse press Tab
+browse type "my-password"
+browse click @0-7                        # click Sign In button
+browse wait load
+browse snapshot                          # confirm logged-in dashboard
+browse stop                              # state is saved back to ctx_abc123
+```
+
+In a later session, reuse the same context — already authenticated:
+
+```bash
+# Session 2: Resume with saved state (already logged in)
+browse open https://app.example.com/dashboard --context-id ctx_abc123
+browse snapshot                          # dashboard loads — no login needed
+browse get text ".welcome-message"
+browse stop
+```
+
+**Key pattern**: Use `--context-id <id> --persist` on the first session to save auth state. On subsequent sessions, use `--context-id <id>` (with or without `--persist`) to resume where you left off. Omit `--persist` if you don't want changes from that session saved back.
+
 ## Tips
 
 - **Snapshot first**: Always run `browse snapshot` before interacting — it gives you the accessibility tree with element refs
