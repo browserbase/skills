@@ -25,21 +25,23 @@ $ npx skills add browserbase/skills
 On Claude Code, to add the marketplace, simply run:
 
 ```bash
-/plugin marketplace add browserbase/agent-browse
+claude plugin marketplace add browserbase/skills
 ```
 
-Then install the plugin:
+Then install the plugin you want:
 
 ```bash
-/plugin install agent-browse@browserbase
+claude plugin install browse@browserbase
+claude plugin install functions@browserbase
+claude plugin install browserbase-cli@browserbase
 ```
 
 If you prefer the manual interface:
 1. On Claude Code, type `/plugin`
 2. Select option `3. Add marketplace`
-3. Enter the marketplace source: `browserbase/agent-browse`
-4. Press enter to select the `agent-browse` plugin
-5. Hit enter again to `Install now`
+3. Enter the marketplace source: `browserbase/skills`
+4. Choose the plugin you want to install: `browse`, `functions`, or `browserbase-cli`
+5. Hit enter to `Install now`
 6. **Restart Claude Code** for changes to take effect
 
 ## Usage

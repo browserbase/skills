@@ -1,12 +1,12 @@
 {
-  "name": "agent-browse",
+  "name": "browserbase-skills",
   "version": "0.0.1",
   "type": "module",
   "bin": {
     "browser": "./dist/src/cli.js"
   },
   "scripts": {
-    "claude": "tsx agent-browse.ts",
+    "claude": "tsx browser.ts",
     "build": "tsc",
     "postinstall": "npm run build"
   },

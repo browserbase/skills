@@ -7,7 +7,7 @@ import { dirname } from 'path';
 // Resolve plugin root directory
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const PLUGIN_ROOT = __dirname; // agent-browse.ts is in the root
+const PLUGIN_ROOT = __dirname; // browser.ts is in the repo root
 
 // ANSI color codes for prettier output
 const colors = {
