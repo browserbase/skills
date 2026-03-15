@@ -5,7 +5,7 @@
     "email": "support@browserbase.com"
   },
   "metadata": {
-    "description": "Tools for controlling a browser",
+    "description": "Browser automation and Browserbase CLI skills",
     "version": "1.0.0"
   },
   "plugins": [
@@ -37,6 +37,21 @@
       "strict": false,
       "skills": [
         "./skills/functions"
+      ]
+    },
+    {
+      "name": "browserbase-cli",
+      "source": "./",
+      "description": "Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or open the Browserbase dashboard from the command line.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "automation",
+      "keywords": ["browserbase", "cli", "bb", "functions", "sessions", "fetch"],
+      "strict": false,
+      "skills": [
+        "./skills/browserbase-cli"
       ]
     }
   ]

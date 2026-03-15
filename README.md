@@ -1,6 +1,6 @@
 # Browserbase Skills
 
-A set of skills for seamlessly enabling **[Claude Code](https://docs.claude.com/en/docs/claude-code/overview)** to interface with a browser using **[Stagehand](https://github.com/browserbase/stagehand)** (AI browser automation framework).
+A set of skills for enabling **[Claude Code](https://docs.claude.com/en/docs/claude-code/overview)** to work with Browserbase through browser automation and the official `bb` CLI.
 
 ## Skills
 
@@ -9,6 +9,7 @@ This plugin includes the following skills (see `skills/` for details):
 | Skill | Description |
 |-------|-------------|
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
+| [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `bb` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
 
 ## Installation
@@ -43,10 +44,12 @@ If you prefer the manual interface:
 
 ## Usage
 
-Once installed, just ask Claude to browse:
+Once installed, you can ask Claude to browse or use the Browserbase CLI:
 - *"Go to Hacker News, get the top post comments, and summarize them "*
 - *"QA test http://localhost:3000 and fix any bugs you encounter"*
 - *"Order me a pizza, you're already signed in on Doordash"*
+- *"Use `bb` to list my Browserbase projects and show the output as JSON"*
+- *"Initialize a new Browserbase Function with `bb functions init` and explain the next commands"*
 
 Claude will handle the rest.
 
