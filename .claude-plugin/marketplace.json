@@ -42,7 +42,7 @@
     {
       "name": "browserbase-cli",
       "source": "./",
-      "description": "Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or open the Browserbase dashboard from the command line.",
+      "description": "Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user explicitly asks to use the `bb` CLI, run `bb functions` commands, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or open the Browserbase dashboard from the command line.",
       "version": "0.0.1",
       "author": {
         "name": "Browserbase"

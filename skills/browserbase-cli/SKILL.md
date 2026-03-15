@@ -1,6 +1,6 @@
 ---
 name: browserbase-cli
-description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or open the Browserbase dashboard from the command line. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
+description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user explicitly asks to use the `bb` CLI, run `bb functions` commands, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or open the Browserbase dashboard from the command line. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
 compatibility: "Requires the Browserbase CLI (`npm install -g @browserbasehq/cli`). API commands require `BROWSERBASE_API_KEY`; many also require `BROWSERBASE_PROJECT_ID`. `bb browse` additionally requires `npm install -g @browserbasehq/browse-cli`."
 license: MIT
 allowed-tools: Bash
