@@ -32,16 +32,6 @@ yarn-error.log*
 # Chrome automation profile
 .chrome-profile/
 
-# Browser screenshots and custom scripts (ignore contents but keep directory structure)
-agent/browser_screenshots/*
-!agent/browser_screenshots/.gitkeep
-
-agent/custom_scripts/*
-!agent/custom_scripts/.gitkeep
-
-agent/downloads/*
-!agent/downloads/.gitkeep
-
 # Stagehand Cache
 tmp/.cache/.chrome-pid
 
