@@ -28,10 +28,15 @@ bb sessions --help
 
 ## Authentication and flags
 
-Most authenticated commands read:
+All authenticated commands require an API key:
 
 ```bash
 export BROWSERBASE_API_KEY="your_api_key"
+```
+
+Only `bb functions dev` and `bb functions publish` require a project ID:
+
+```bash
 export BROWSERBASE_PROJECT_ID="your_project_id"
 ```
 
@@ -179,7 +184,7 @@ For most interactive browsing tasks, prefer the dedicated `browser` skill instea
 ## Troubleshooting
 
 - Missing API key: set `BROWSERBASE_API_KEY` or pass `--api-key`
-- Missing project ID: set `BROWSERBASE_PROJECT_ID` or pass `--project-id`
+- Missing project ID on `bb functions dev` or `bb functions publish`: set `BROWSERBASE_PROJECT_ID` or pass `--project-id`
 - Wrong base URL flag: use `--api-url` for `bb functions ...`, `--base-url` for the other API commands
 - Invalid JSON input: wrap `--body` and `--params` payloads in single quotes so the shell preserves the JSON string
 - Browse passthrough missing: install `@browserbasehq/browse-cli` or use the `browser` skill directly

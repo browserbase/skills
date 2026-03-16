@@ -1,7 +1,7 @@
 ---
 name: browserbase-cli
 description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or open the Browserbase dashboard from the command line. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
-compatibility: "Requires the Browserbase CLI (`npm install -g @browserbasehq/cli`). API commands require `BROWSERBASE_API_KEY`; many also require `BROWSERBASE_PROJECT_ID`. `bb browse` additionally requires `npm install -g @browserbasehq/browse-cli`."
+compatibility: "Requires the Browserbase CLI (`npm install -g @browserbasehq/cli`). API commands require `BROWSERBASE_API_KEY`. `BROWSERBASE_PROJECT_ID` is only needed for `bb functions dev` and `bb functions publish`. `bb browse` additionally requires `npm install -g @browserbasehq/browse-cli`."
 license: MIT
 allowed-tools: Bash
 ---
@@ -19,10 +19,15 @@ which bb || npm install -g @browserbasehq/cli
 bb --help
 ```
 
-For authenticated commands, prefer environment variables:
+For authenticated commands, set the API key:
 
 ```bash
 export BROWSERBASE_API_KEY="your_api_key"
+```
+
+If using `bb functions dev` or `bb functions publish`, also set:
+
+```bash
 export BROWSERBASE_PROJECT_ID="your_project_id"
 ```
 
@@ -100,7 +105,7 @@ bb dashboard
 ## Troubleshooting
 
 - Missing API key: set `BROWSERBASE_API_KEY` or pass `--api-key`
-- Missing project ID on project-scoped commands: set `BROWSERBASE_PROJECT_ID` or pass `--project-id`
+- Missing project ID on `bb functions dev` or `bb functions publish`: set `BROWSERBASE_PROJECT_ID` or pass `--project-id`
 - Unknown flag: rerun the relevant command with `--help` and use the exact dash-case form
 - `bb browse` install error: run `npm install -g @browserbasehq/browse-cli`
 
