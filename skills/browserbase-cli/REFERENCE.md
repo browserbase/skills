@@ -8,6 +8,7 @@
 - [Platform APIs](#platform-apis)
 - [Fetch API](#fetch-api)
 - [Dashboard and browse passthrough](#dashboard-and-browse-passthrough)
+- [Skills](#skills)
 - [Troubleshooting](#troubleshooting)
 
 ## Setup
@@ -168,18 +169,30 @@ This opens Browserbase Overview in the user's local browser.
 
 ### Browse passthrough
 
+`bb browse ...` forwards arguments to the standalone `browse` binary (`@browserbasehq/browse-cli`). The examples below are `browse-cli` subcommands — they are not native `bb` commands:
+
 ```bash
 bb browse status
 bb browse open https://example.com
 ```
 
-`bb browse ...` forwards arguments to the standalone `browse` binary. If `browse` is not installed, install it with:
+If `browse` is not installed, the CLI will prompt you to install it:
 
 ```bash
 npm install -g @browserbasehq/browse-cli
 ```
 
 For most interactive browsing tasks, prefer the dedicated `browser` skill instead of routing through `bb browse`.
+
+## Skills
+
+Install Browserbase agent skills for Claude Code directly from the CLI:
+
+```bash
+bb skills install
+```
+
+This runs the skill installer non-interactively via npx.
 
 ## Troubleshooting
 

@@ -53,7 +53,8 @@ Use this skill when the user wants to:
 - `bb sessions`, `bb projects`, `bb contexts`, `bb extensions` for Browserbase platform resources
 - `bb fetch <url>` for Fetch API requests
 - `bb dashboard` to open Browserbase Overview locally
-- `bb browse ...` to forward to the standalone `browse` binary
+- `bb browse ...` to forward to the standalone `browse` binary (requires `@browserbasehq/browse-cli`)
+- `bb skills install` to install Browserbase agent skills for Claude Code
 
 ## Common workflows
 
