@@ -114,7 +114,7 @@ bb projects usage <project_id> --json
 
 ```bash
 bb sessions list --json
-bb sessions list --q 'userId:123'
+bb sessions list --q "user_metadata['userId']:'123'"
 bb sessions get <session_id> --json
 bb sessions create --body '{"projectId":"proj_123"}' --json
 bb sessions update <session_id> --status REQUEST_RELEASE --json
