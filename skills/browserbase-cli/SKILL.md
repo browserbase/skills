@@ -78,6 +78,7 @@ Use `bb functions invoke --check-status <invocation_id>` to poll an existing inv
 bb projects list --json
 bb sessions get <session_id> --json
 bb sessions downloads get <session_id> --output session-artifacts.zip
+bb contexts list --json
 bb contexts create --body '{"region":"us-west-2"}' --json
 bb extensions upload ./my-extension.zip --json
 ```

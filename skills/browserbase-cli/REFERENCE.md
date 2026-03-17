@@ -132,6 +132,7 @@ When both `--status` and `--body` are present on `bb sessions update`, the CLI m
 ### Contexts
 
 ```bash
+bb contexts list --json
 bb contexts create --body '{"region":"us-west-2"}' --json
 bb contexts get <context_id> --json
 bb contexts update <context_id> --json
