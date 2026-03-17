@@ -43,6 +43,20 @@ browse open https://example.com --wait domcontentloaded
 
 The `--wait` flag controls when navigation is considered complete. Values: `load` (default), `domcontentloaded`, `networkidle`. Use `networkidle` for JavaScript-heavy pages that fetch data after initial load.
 
+##### Context persistence (remote mode only)
+
+Use `--context-id` to load a Browserbase context, which carries browser state (cookies, localStorage, sessionStorage) across sessions. Add `--persist` to save any state changes back to the context when the session ends.
+
+```bash
+browse open https://example.com --context-id ctx_abc123              # load context (read-only)
+browse open https://example.com --context-id ctx_abc123 --persist    # load + save changes back
+```
+
+- `--context-id <id>` — Browserbase context ID to load. **Remote mode only** — the CLI will error if used in local mode.
+- `--persist` — Save cookies/storage changes back to the context on `browse stop`. Requires `--context-id`.
+- If the daemon is already running with a different context, it automatically restarts with the new one.
+- Calling `browse open` without `--context-id` clears any previously loaded context.
+
 #### `reload`
 
 Reload the current page.
@@ -388,6 +402,14 @@ Run commands against a named session, enabling multiple concurrent browsers.
 browse --session work open https://a.com
 browse --session personal open https://b.com
 ```
+
+#### `--context-id <id>`
+
+Load a Browserbase context to persist browser state (cookies, localStorage, sessionStorage) across sessions. Remote mode only. See [`open`](#open-url) for details.
+
+#### `--persist`
+
+Save browser state changes back to the Browserbase context when the session ends. Must be used with `--context-id`.
 
 ### Environment Variables
 

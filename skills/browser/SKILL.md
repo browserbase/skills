@@ -54,6 +54,8 @@ All commands work identically in both modes. The daemon auto-starts on first com
 ### Navigation
 ```bash
 browse open <url>                        # Go to URL (aliases: goto)
+browse open <url> --context-id <id>      # Load Browserbase context (remote only)
+browse open <url> --context-id <id> --persist  # Load context + save changes back
 browse reload                            # Reload current page
 browse back                              # Go back in history
 browse forward                           # Go forward in history
@@ -126,7 +128,7 @@ browse stop
 | Stealth mode | No | Yes (custom Chromium, anti-bot fingerprinting) |
 | CAPTCHA solving | No | Yes (automatic reCAPTCHA/hCaptcha) |
 | Residential proxies | No | Yes (201 countries, geo-targeting) |
-| Session persistence | No | Yes (cookies/auth persist across sessions) |
+| Session persistence | No | Yes (cookies/auth persist via contexts) |
 | Best for | Development/simple pages | Protected sites, bot detection, production scraping |
 
 ## Best Practices
