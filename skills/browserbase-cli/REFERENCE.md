@@ -7,6 +7,7 @@
 - [Functions](#functions)
 - [Platform APIs](#platform-apis)
 - [Fetch API](#fetch-api)
+- [Search API](#search-api)
 - [Dashboard and browse passthrough](#dashboard-and-browse-passthrough)
 - [Skills](#skills)
 - [Troubleshooting](#troubleshooting)
@@ -50,6 +51,7 @@ These command groups share a common flag shape:
 - `bb contexts`
 - `bb extensions`
 - `bb fetch`
+- `bb search`
 
 Common flags:
 
@@ -156,6 +158,20 @@ bb fetch https://example.com --proxies --output page.html
 ```
 
 Prefer the `browser` skill when the target page requires JavaScript execution or page interaction.
+
+## Search API
+
+Use `bb search` to find web pages by query without opening a browser session.
+
+```bash
+bb search "browser automation" --json
+bb search "web scraping best practices" --num-results 5 --json
+bb search "AI agents" --output results.json
+```
+
+Returns structured results with titles, URLs, and optional metadata (author, published date). Use `--num-results` to control how many results are returned (1-25, default 10).
+
+Prefer the `fetch` skill to retrieve page content after finding URLs via search. Prefer the `browser` skill when you need to interact with pages.
 
 ## Dashboard and browse passthrough
 

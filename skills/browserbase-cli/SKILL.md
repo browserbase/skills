@@ -1,6 +1,6 @@
 ---
 name: browserbase-cli
-description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or open the Browserbase dashboard from the command line. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
+description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, search the web through the Browserbase Search API, or open the Browserbase dashboard from the command line. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
 compatibility: "Requires the Browserbase CLI (`npm install -g @browserbasehq/cli`). API commands require `BROWSERBASE_API_KEY`. `BROWSERBASE_PROJECT_ID` is only needed for `bb functions dev` and `bb functions publish`. `bb browse` additionally requires `npm install -g @browserbasehq/browse-cli`."
 license: MIT
 allowed-tools: Bash
@@ -39,6 +39,7 @@ Use this skill when the user wants to:
 - scaffold, develop, publish, or invoke Browserbase Functions
 - inspect or manage Browserbase sessions, projects, contexts, or extensions
 - fetch a page through Browserbase without opening a browser session
+- search the web through Browserbase without opening a browser session
 - open the Browserbase dashboard from the terminal
 
 ## When not to use this skill
@@ -52,6 +53,7 @@ Use this skill when the user wants to:
 - `bb functions` for local dev, packaging, publishing, and invocation
 - `bb sessions`, `bb projects`, `bb contexts`, `bb extensions` for Browserbase platform resources
 - `bb fetch <url>` for Fetch API requests
+- `bb search "<query>"` for Search API requests
 - `bb dashboard` to open Browserbase Overview locally
 - `bb browse ...` to forward to the standalone `browse` binary (requires `@browserbasehq/browse-cli`)
 - `bb skills install` to install Browserbase agent skills for Claude Code
@@ -85,6 +87,14 @@ bb extensions upload ./my-extension.zip --json
 ```bash
 bb fetch https://example.com --json
 bb fetch https://example.com --allow-redirects --output page.html
+```
+
+### Search API
+
+```bash
+bb search "browser automation" --json
+bb search "web scraping" --num-results 5 --json
+bb search "AI agents" --output results.json
 ```
 
 ### Dashboard
