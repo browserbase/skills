@@ -30,6 +30,7 @@ Local Chrome (CDP) → cookie-sync.mjs → Browserbase API → Cloud Browser (CD
 | `BROWSERBASE_API_KEY` | Yes | API key from https://browserbase.com/settings |
 | `BROWSERBASE_PROJECT_ID` | Yes | Project ID from Browserbase dashboard |
 | `BROWSERBASE_CONTEXT_ID` | No | Reuse an existing context instead of creating a new one |
+| `CDP_URL` | No | Direct WebSocket URL to Chrome (e.g. `ws://127.0.0.1:9222`). Use when Chrome is launched with `--remote-debugging-port` and no `DevToolsActivePort` file exists |
 | `CDP_PORT_FILE` | No | Custom path to DevToolsActivePort file |
 | `CDP_HOST` | No | Custom host for local Chrome connection (default: `127.0.0.1`) |
 
@@ -99,17 +100,22 @@ BROWSERBASE_CONTEXT_ID=ctx_abc123 node cookie-sync.mjs
 2. Set to "Enabled"
 3. Restart Chrome
 
-**Any Chrome version**:
+**Any Chrome version** (requires `--user-data-dir` and `CDP_URL`):
 ```bash
 # macOS
-/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222
+/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
+export CDP_URL=ws://127.0.0.1:9222
 
 # Linux
-google-chrome --remote-debugging-port=9222
+google-chrome --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug
+export CDP_URL=ws://127.0.0.1:9222
 
 # Windows
-chrome.exe --remote-debugging-port=9222
+chrome.exe --remote-debugging-port=9222 --user-data-dir=%TEMP%\chrome-debug
+set CDP_URL=ws://127.0.0.1:9222
 ```
+
+Note: `--user-data-dir` is required because Chrome won't open the debugging port with an existing profile. This means the debug instance starts with a fresh profile — your real cookies are not available. The `chrome://flags` method (Chrome 146+) does not have this limitation.
 
 ## Security Considerations
 

@@ -104,7 +104,7 @@ Do NOT use the `browse` CLI to navigate — it cannot reconnect to existing keep
 
 | Error | Fix |
 |-------|-----|
-| "No DevToolsActivePort found" | Enable remote debugging in `chrome://flags/#allow-remote-debugging` (Chrome 146+) and restart Chrome, or relaunch with `--remote-debugging-port=9222` |
+| "No DevToolsActivePort found" | Enable remote debugging in `chrome://flags/#allow-remote-debugging` (Chrome 146+) and restart Chrome, or relaunch with `--remote-debugging-port=9222` and set `CDP_URL=ws://127.0.0.1:9222` |
 | "No open page targets found" | Open at least one non-chrome:// tab in Chrome |
 | "WebSocket error" | Chrome may be hung — force quit and reopen |
 | "Timed out waiting for session" | Check your API key and project ID, and that you have available session capacity |

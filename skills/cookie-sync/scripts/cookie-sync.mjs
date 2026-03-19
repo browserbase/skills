@@ -9,6 +9,7 @@
 //   BROWSERBASE_API_KEY    — required
 //   BROWSERBASE_PROJECT_ID — required
 //   CDP_PORT_FILE          — optional, path to DevToolsActivePort if non-standard
+//   CDP_URL                — optional, direct WebSocket URL (e.g. ws://127.0.0.1:9222)
 //   BROWSERBASE_CONTEXT_ID — optional, reuse an existing context
 
 import { readFileSync, existsSync } from 'fs';
@@ -38,7 +39,14 @@ if (!PROJECT_ID) {
 // Find local Chrome DevTools WebSocket URL
 // ---------------------------------------------------------------------------
 
-function getLocalWsUrl() {
+async function getLocalWsUrl() {
+  // If CDP_URL is set, discover the browser WS endpoint from it
+  if (process.env.CDP_URL) {
+    const base = process.env.CDP_URL.replace(/^ws/, 'http').replace(/\/+$/, '');
+    const info = await fetch(`${base}/json/version`).then(r => r.json());
+    return info.webSocketDebuggerUrl;
+  }
+
   const home = homedir();
   const IS_WINDOWS = process.platform === 'win32';
 
@@ -191,7 +199,7 @@ async function waitForSessionRunning(sessionId, maxWaitMs = 30000) {
 
 async function main() {
   // Step 1: Connect to local Chrome and export cookies
-  const localWsUrl = getLocalWsUrl();
+  const localWsUrl = await getLocalWsUrl();
   const localCdp = new CDP();
   await localCdp.connect(localWsUrl);
   console.log('Connected to local Chrome');
