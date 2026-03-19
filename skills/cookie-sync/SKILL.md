@@ -1,6 +1,6 @@
 ---
 name: cookie-sync
-description: "[Experimental] Sync cookies from local Chrome to a Browserbase cloud session so it's authenticated as you. Use when the user wants to browse as themselves in the cloud, sync cookies, create an authenticated Browserbase session, or log into sites without manual credentials. Requires Chrome 146+ with remote debugging enabled, or any Chrome launched with --remote-debugging-port=9222."
+description: "[Experimental] Sync cookies from local Chrome to a Browserbase cloud session so it's authenticated as you. Use when the user wants to browse as themselves in the cloud, sync cookies, create an authenticated Browserbase session, or log into sites without manual credentials. Requires Chrome 146+ with the allow-remote-debugging flag enabled in chrome://flags — this flag is NOT available in Chrome stable yet, so the user may need Chrome Beta or Canary."
 license: MIT
 allowed-tools: Bash
 ---
@@ -9,14 +9,15 @@ allowed-tools: Bash
 
 Exports all cookies from your local Chrome browser and injects them into a new Browserbase cloud session. After syncing, the cloud browser is logged into all the same sites as your local Chrome — with full session replay and observability.
 
-> **Experimental**: This skill requires Chrome 146+ or a Chrome instance launched with remote debugging. Cookie lifetime depends on the target site's session policies.
+> **Experimental**: This skill requires Chrome 146+ with the `allow-remote-debugging` flag enabled in `chrome://flags`. This flag is **not yet available in Chrome stable** — users need Chrome Beta, Dev, or Canary. Cookie lifetime depends on the target site's session policies.
 
 ## Prerequisites
 
-1. **Chrome with remote debugging enabled** (one of):
-   - Chrome 146+: enable `chrome://flags/#allow-remote-debugging`, then restart Chrome
-   - Any Chrome: quit Chrome, then relaunch with `google-chrome --remote-debugging-port=9222` (or `/Applications/Google\ Chrome.app/Contents/MacOS/Google\ Chrome --remote-debugging-port=9222` on macOS)
-   - Also works with Chromium, Brave, and Edge
+1. **Chrome 146+ with remote debugging enabled**:
+   - Navigate to `chrome://flags/#allow-remote-debugging` and set to **Enabled**, then restart Chrome
+   - This flag is only available in Chrome Beta/Dev/Canary as of March 2026 — it is **not in Chrome stable yet**
+   - Also works with Chromium, Brave, and Edge (if they have the flag)
+   - Fallback: launch Chrome with `--remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug` and set `CDP_URL=ws://127.0.0.1:9222`, but this uses a fresh profile without your real cookies
 
 2. **At least one non-chrome:// tab open** in the browser
 
