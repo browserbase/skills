@@ -1,6 +1,6 @@
 ---
 name: browserbase-cli
-description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, search the web through the Browserbase Search API, or open the Browserbase dashboard from the command line. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
+description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or search the web through the Browserbase Search API. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
 compatibility: "Requires the Browserbase CLI (`npm install -g @browserbasehq/cli`). API commands require `BROWSERBASE_API_KEY`. `BROWSERBASE_PROJECT_ID` is only needed for `bb functions dev` and `bb functions publish`. `bb browse` additionally requires `npm install -g @browserbasehq/browse-cli`."
 license: MIT
 allowed-tools: Bash
@@ -40,7 +40,6 @@ Use this skill when the user wants to:
 - inspect or manage Browserbase sessions, projects, contexts, or extensions
 - fetch a page through Browserbase without opening a browser session
 - search the web through Browserbase without opening a browser session
-- open the Browserbase dashboard from the terminal
 
 ## When not to use this skill
 
@@ -54,7 +53,6 @@ Use this skill when the user wants to:
 - `bb sessions`, `bb projects`, `bb contexts`, `bb extensions` for Browserbase platform resources
 - `bb fetch <url>` for Fetch API requests
 - `bb search "<query>"` for Search API requests
-- `bb dashboard` to open Browserbase Overview locally
 - `bb browse ...` to forward to the standalone `browse` binary (requires `@browserbasehq/browse-cli`)
 - `bb skills install` to install Browserbase agent skills for Claude Code
 
@@ -75,43 +73,36 @@ Use `bb functions invoke --check-status <invocation_id>` to poll an existing inv
 ### Platform APIs
 
 ```bash
-bb projects list --json
-bb sessions get <session_id> --json
+bb projects list
+bb sessions get <session_id>
 bb sessions downloads get <session_id> --output session-artifacts.zip
-bb contexts create --body '{"region":"us-west-2"}' --json
-bb extensions upload ./my-extension.zip --json
+bb contexts create --body '{"region":"us-west-2"}'
+bb extensions upload ./my-extension.zip
 ```
 
 ### Fetch API
 
 ```bash
-bb fetch https://example.com --json
+bb fetch https://example.com
 bb fetch https://example.com --allow-redirects --output page.html
 ```
 
 ### Search API
 
 ```bash
-bb search "browser automation" --json
-bb search "web scraping" --num-results 5 --json
+bb search "browser automation"
+bb search "web scraping" --num-results 5
 bb search "AI agents" --output results.json
-```
-
-### Dashboard
-
-```bash
-bb dashboard
 ```
 
 ## Best practices
 
 1. Prefer `bb --help` and subgroup `--help` before guessing flags.
 2. Use dash-case flags exactly as shown in CLI help.
-3. Prefer `--json` when the result may need follow-up parsing.
-4. Use environment variables for auth unless the user explicitly wants one-off overrides.
-5. Pass structured request bodies with JSON strings in `--body` or `--params`.
-6. Remember that `bb functions ...` uses `--api-url`, while platform API commands use `--base-url`.
-7. If `bb browse` fails because `browse` is missing, either install `@browserbasehq/browse-cli` or switch to the `browser` skill.
+3. Use environment variables for auth unless the user explicitly wants one-off overrides.
+4. Pass structured request bodies with JSON strings in `--body` or `--params`.
+5. Remember that `bb functions ...` uses `--api-url`, while platform API commands use `--base-url`.
+6. If `bb browse` fails because `browse` is missing, either install `@browserbasehq/browse-cli` or switch to the `browser` skill.
 
 ## Troubleshooting
 
