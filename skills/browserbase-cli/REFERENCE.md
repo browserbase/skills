@@ -8,7 +8,7 @@
 - [Platform APIs](#platform-apis)
 - [Fetch API](#fetch-api)
 - [Search API](#search-api)
-- [Dashboard and browse passthrough](#dashboard-and-browse-passthrough)
+- [Browse passthrough](#browse-passthrough)
 - [Skills](#skills)
 - [Troubleshooting](#troubleshooting)
 
@@ -56,10 +56,7 @@ These command groups share a common flag shape:
 Common flags:
 
 - `--api-key <apiKey>`
-- `--project-id <projectId>`
 - `--base-url <baseUrl>`
-- `--json`
-- `--verbose`
 
 ### Functions commands
 
@@ -107,24 +104,24 @@ bb functions invoke --check-status <invocation_id>
 ### Projects
 
 ```bash
-bb projects list --json
-bb projects get <project_id> --json
-bb projects usage <project_id> --json
+bb projects list
+bb projects get <project_id>
+bb projects usage <project_id>
 ```
 
 ### Sessions
 
 ```bash
-bb sessions list --json
+bb sessions list
 bb sessions list --q "user_metadata['userId']:'123'"
-bb sessions get <session_id> --json
-bb sessions create --body '{"projectId":"proj_123"}' --json
-bb sessions update <session_id> --status REQUEST_RELEASE --json
-bb sessions debug <session_id> --json
-bb sessions logs <session_id> --json
-bb sessions recording <session_id> --json
+bb sessions get <session_id>
+bb sessions create --body '{"projectId":"proj_123"}'
+bb sessions update <session_id> --status REQUEST_RELEASE
+bb sessions debug <session_id>
+bb sessions logs <session_id>
+bb sessions recording <session_id>
 bb sessions downloads get <session_id> --output session-artifacts.zip
-bb sessions uploads create <session_id> ./file.txt --json
+bb sessions uploads create <session_id> ./file.txt
 ```
 
 When both `--status` and `--body` are present on `bb sessions update`, the CLI merges them.
@@ -132,18 +129,18 @@ When both `--status` and `--body` are present on `bb sessions update`, the CLI m
 ### Contexts
 
 ```bash
-bb contexts create --body '{"region":"us-west-2"}' --json
-bb contexts get <context_id> --json
-bb contexts update <context_id> --json
-bb contexts delete <context_id> --json
+bb contexts create --body '{"region":"us-west-2"}'
+bb contexts get <context_id>
+bb contexts update <context_id>
+bb contexts delete <context_id>
 ```
 
 ### Extensions
 
 ```bash
-bb extensions upload ./my-extension.zip --json
-bb extensions get <extension_id> --json
-bb extensions delete <extension_id> --json
+bb extensions upload ./my-extension.zip
+bb extensions get <extension_id>
+bb extensions delete <extension_id>
 ```
 
 ## Fetch API
@@ -151,9 +148,9 @@ bb extensions delete <extension_id> --json
 Use `bb fetch` when the user wants Browserbase Fetch specifically or wants the request to stay inside the CLI workflow.
 
 ```bash
-bb fetch https://example.com --json
-bb fetch https://example.com --allow-redirects --json
-bb fetch https://self-signed.example.com --allow-insecure-ssl --json
+bb fetch https://example.com
+bb fetch https://example.com --allow-redirects
+bb fetch https://self-signed.example.com --allow-insecure-ssl
 bb fetch https://example.com --proxies --output page.html
 ```
 
@@ -164,8 +161,8 @@ Prefer the `browser` skill when the target page requires JavaScript execution or
 Use `bb search` to find web pages by query without opening a browser session.
 
 ```bash
-bb search "browser automation" --json
-bb search "web scraping best practices" --num-results 5 --json
+bb search "browser automation"
+bb search "web scraping best practices" --num-results 5
 bb search "AI agents" --output results.json
 ```
 
@@ -173,17 +170,7 @@ Returns structured results with titles, URLs, and optional metadata (author, pub
 
 Prefer the `fetch` skill to retrieve page content after finding URLs via search. Prefer the `browser` skill when you need to interact with pages.
 
-## Dashboard and browse passthrough
-
-### Dashboard
-
-```bash
-bb dashboard
-```
-
-This opens Browserbase Overview in the user's local browser.
-
-### Browse passthrough
+## Browse passthrough
 
 `bb browse ...` forwards arguments to the standalone `browse` binary (`@browserbasehq/browse-cli`). The examples below are `browse-cli` subcommands — they are not native `bb` commands:
 
