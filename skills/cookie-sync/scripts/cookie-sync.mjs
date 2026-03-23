@@ -74,6 +74,10 @@ if (!PROJECT_ID) {
 // ---------------------------------------------------------------------------
 
 function getLocalWsUrl() {
+  if (process.env.CDP_URL) {
+    return process.env.CDP_URL;
+  }
+
   const home = homedir();
   const IS_WINDOWS = process.platform === 'win32';
 
@@ -249,10 +253,6 @@ async function createSession(contextId) {
   });
 }
 
-async function getDebugUrl(sessionId) {
-  return bbFetch(`/sessions/${sessionId}/debug`);
-}
-
 async function waitForSessionRunning(sessionId, maxWaitMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < maxWaitMs) {
@@ -268,6 +268,10 @@ async function waitForSessionRunning(sessionId, maxWaitMs = 30000) {
 // ---------------------------------------------------------------------------
 
 function checkChromeVersion() {
+  if (process.env.CDP_URL || process.env.CDP_PORT_FILE) {
+    return;
+  }
+
   const chromePaths = [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta',
@@ -331,7 +335,7 @@ async function main() {
   }
 
   // Step 3: Set up context (create new, reuse existing, or skip)
-  let contextId = CLI.contextId;
+  let contextId = CLI.contextId || process.env.BROWSERBASE_CONTEXT_ID;
 
   if (!contextId && CLI.persist) {
     const ctx = await createContext();
