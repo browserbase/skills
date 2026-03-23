@@ -1,75 +1,95 @@
 ---
 name: cookie-sync
-description: "[Experimental] Sync cookies from local Chrome to a Browserbase cloud session so it's authenticated as you. Use when the user wants to browse as themselves in the cloud, sync cookies, create an authenticated Browserbase session, or log into sites without manual credentials. Requires Chrome 146+ with the allow-remote-debugging flag enabled in chrome://flags — this flag is NOT available in Chrome stable yet, so the user may need Chrome Beta or Canary."
-license: MIT
-allowed-tools: Bash
+description: Sync cookies from local Chrome to a new Browserbase cloud session so it's authenticated as you. Use when the user wants to create an authenticated cloud browser, sync cookies, or log into Browserbase as themselves.
 ---
 
 # Cookie Sync — Local Chrome → Browserbase
 
-Exports all cookies from your local Chrome browser and injects them into a new Browserbase cloud session. After syncing, the cloud browser is logged into all the same sites as your local Chrome — with full session replay and observability.
+Exports cookies from your local Chrome and injects them into a Browserbase cloud session. After running, the cloud browser is logged into the same sites as your local Chrome.
 
-> **Experimental**: This skill requires Chrome 146+ with the `allow-remote-debugging` flag enabled in `chrome://flags`. This flag is **not yet available in Chrome stable** — users need Chrome Beta, Dev, or Canary. Cookie lifetime depends on the target site's session policies.
+Supports **domain filtering** (only sync cookies you need) and **persistent contexts** (reuse auth across sessions without re-syncing).
 
 ## Prerequisites
 
-1. **Chrome 146+ with remote debugging enabled**:
-   - Navigate to `chrome://flags/#allow-remote-debugging` and set to **Enabled**, then restart Chrome
-   - This flag is only available in Chrome Beta/Dev/Canary as of March 2026 — it is **not in Chrome stable yet**
-   - Also works with Chromium, Brave, and Edge (if they have the flag)
-   - Fallback: launch Chrome with `--remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug` and set `CDP_URL=ws://127.0.0.1:9222`, but this uses a fresh profile without your real cookies
-
-2. **At least one non-chrome:// tab open** in the browser
-
-3. **Node.js 22+** (uses built-in WebSocket and fetch)
-
-4. **Environment variables**:
-   ```bash
-   export BROWSERBASE_API_KEY="your_api_key"
-   export BROWSERBASE_PROJECT_ID="your_project_id"
-   ```
+- Chrome (or Chromium, Brave, Edge) with remote debugging enabled: `chrome://flags/#allow-remote-debugging`
+- At least one tab open in Chrome
+- Node.js 22+
+- Environment variables: `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`
 
 ## Usage
 
-Run the sync script:
+### Basic — sync all cookies (ephemeral session)
 
 ```bash
 node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
 ```
 
-Output:
-
-```
-Connected to local Chrome
-Exported 296 cookies
-Created context: ctx_abc123
-Created Browserbase session: sess_xyz789
-Live view: https://www.browserbase.com/sessions/sess_xyz789
-Session is running
-Injected 296 cookies into cloud browser
-
-Cookie sync complete.
-  Session ID: sess_xyz789
-  Context ID: ctx_abc123
-  Live view:  https://www.browserbase.com/sessions/sess_xyz789
-```
-
-## Reusing Cookies Across Sessions (Contexts)
-
-Cookie sync creates a Browserbase **Context** that persists browser state. To reuse cookies without re-syncing:
+### Filter by domain — only sync specific sites
 
 ```bash
-export BROWSERBASE_CONTEXT_ID=ctx_abc123
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains google.com,github.com
 ```
 
-When `BROWSERBASE_CONTEXT_ID` is set, the script skips context creation and attaches the session to the existing context. Because sessions are created with `persist: true`, any new cookies or state changes are saved back to the context when the session ends.
+Matches the domain and all subdomains (e.g. `google.com` matches `accounts.google.com`, `mail.google.com`, etc.)
 
-**When to re-sync**: Website sessions expire based on the site's cookie policies (hours to weeks). If you get logged out, just run cookie-sync again without `BROWSERBASE_CONTEXT_ID` to create a fresh context.
+### Persistent context — reuse auth across sessions
 
-## Navigating in the Synced Session
+```bash
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --persist
+```
 
-After syncing, use this Node one-liner to navigate within the session. Replace `SESSION_ID` and `TARGET_URL`:
+This creates a Browserbase **Context** and sets `persist: true`. The context stores the browser state (cookies, localStorage, etc.) so future sessions start pre-authenticated — even from scheduled jobs with no local Chrome.
+
+### Reuse an existing context
+
+```bash
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --context ctx_abc123
+```
+
+Attaches to a previously created context and re-injects fresh cookies into it.
+
+### Advanced stealth mode
+
+```bash
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --stealth
+```
+
+Enables Browserbase's advanced stealth mode to reduce bot detection. Recommended for sites like Google that fingerprint browsers.
+
+### Residential proxy with geolocation
+
+```bash
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --proxy "San Francisco,CA,US"
+```
+
+Routes the cloud browser through a residential proxy in the specified location. Format: `"City,ST,Country"` (state is 2-letter code). Helps match your local IP's geolocation so auth cookies aren't rejected.
+
+### Combine flags
+
+```bash
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --persist --domains github.com,google.com --stealth --proxy "San Francisco,CA,US"
+```
+
+## Persistent Contexts for Scheduled Jobs
+
+The `--persist` flag is designed for use with scheduled/recurring tasks (like Claude Code's `/schedule`). The workflow:
+
+1. **Once (laptop open):** Run `cookie-sync --persist --domains github.com` → get a context ID
+2. **Scheduled jobs:** Create sessions using that context ID — no local Chrome needed
+   ```json
+   POST /v1/sessions
+   {
+     "projectId": "...",
+     "browserSettings": {
+       "context": { "id": "ctx_abc123", "persist": true }
+     }
+   }
+   ```
+3. **Re-sync as needed:** When cookies expire, run cookie-sync again with `--context ctx_abc123` to refresh
+
+## Navigating in the Cookie-Synced Session
+
+**IMPORTANT:** After syncing, use this Node one-liner to navigate to a URL within the session. Do NOT use the `browse` CLI — it cannot reconnect to existing keepAlive sessions.
 
 ```bash
 node -e "
@@ -92,24 +112,18 @@ ws.onmessage = (ev) => {
     send('Page.navigate', { url: 'TARGET_URL' }, msg.result.sessionId);
   }
   if (msg.id === 3) {
-    console.log('Navigated');
+    console.log('Navigated to TARGET_URL');
     setTimeout(() => process.exit(0), 1000);
   }
 };
 "
 ```
 
-Do NOT use the `browse` CLI to navigate — it cannot reconnect to existing keepAlive sessions. Use the CDP one-liner above or connect via Playwright/Stagehand with the session ID.
+Replace `SESSION_ID` with the session ID from cookie-sync output, and `TARGET_URL` with the destination URL.
 
 ## Troubleshooting
 
-| Error | Fix |
-|-------|-----|
-| "No DevToolsActivePort found" | Enable remote debugging in `chrome://flags/#allow-remote-debugging` (Chrome 146+) and restart Chrome, or relaunch with `--remote-debugging-port=9222` and set `CDP_URL=ws://127.0.0.1:9222` |
-| "No open page targets found" | Open at least one non-chrome:// tab in Chrome |
-| "WebSocket error" | Chrome may be hung — force quit and reopen |
-| "Timed out waiting for session" | Check your API key and project ID, and that you have available session capacity |
-| Logged out after syncing | Cookies expired — run cookie-sync again to re-sync |
-
-For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
-For technical reference, see [REFERENCE.md](REFERENCE.md).
+- **"No DevToolsActivePort found"** → Enable remote debugging in `chrome://flags/#allow-remote-debugging` and restart Chrome
+- **"No open page targets found"** → Open at least one tab in Chrome
+- **"WebSocket error"** → Chrome may be hung; force quit and reopen it
+- **Cookies expired in context** → Re-run cookie-sync with `--context <id>` to refresh
