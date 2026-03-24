@@ -24,7 +24,7 @@ The browse CLI is a **daemon-based** command-line tool:
 
 - **Daemon process**: A background process manages the browser instance. Auto-starts on the first command (e.g., `browse open`), persists across commands, and stops with `browse stop`.
 - **Local mode** (default): Launches a local Chrome/Chromium instance.
-- **Remote mode** (Browserbase): Connects to a Browserbase cloud browser session when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set.
+- **Remote mode** (Browserbase): Connects to a Browserbase cloud browser session when `BROWSERBASE_API_KEY` is set.
 - **Accessibility-first**: Use `browse snapshot` to get the page's accessibility tree with element refs, then interact using those refs.
 
 ## Command Reference
@@ -416,15 +416,13 @@ Save browser state changes back to the Browserbase context when the session ends
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `BROWSERBASE_API_KEY` | For remote mode | API key from https://browserbase.com/settings |
-| `BROWSERBASE_PROJECT_ID` | For remote mode | Project ID from Browserbase dashboard |
 
-When both are set, the CLI uses Browserbase remote sessions. Otherwise, it falls back to local Chrome.
+When set, the CLI uses Browserbase remote sessions. Otherwise, it falls back to local Chrome.
 
 ### Setting credentials
 
 ```bash
 export BROWSERBASE_API_KEY="bb_live_..."
-export BROWSERBASE_PROJECT_ID="proj_..."
 ```
 
 Get these values from https://browserbase.com/settings.

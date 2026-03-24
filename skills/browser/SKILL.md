@@ -1,7 +1,7 @@
 ---
 name: browser
 description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications. Supports remote Browserbase sessions with automatic CAPTCHA solving, anti-bot stealth mode, and residential proxies — ideal for scraping protected websites, bypassing bot detection, and interacting with JavaScript-heavy pages.
-compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). Optional: set BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID for remote Browserbase sessions; falls back to local Chrome otherwise."
+compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). Optional: set BROWSERBASE_API_KEY for remote Browserbase sessions; falls back to local Chrome otherwise."
 license: MIT
 allowed-tools: Bash
 metadata:
@@ -37,7 +37,7 @@ The CLI automatically selects between local and remote browser environments base
 - Best for: development, simple pages, trusted sites with no bot protection
 
 ### Remote mode (Browserbase)
-- Activated when `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID` are set
+- Activated when `BROWSERBASE_API_KEY` is set
 - Provides: anti-bot stealth, automatic CAPTCHA solving, residential proxies, session persistence
 - **Use remote mode when:** the target site has bot detection, CAPTCHAs, IP rate limiting, Cloudflare protection, or requires geo-specific access
 - Get credentials at https://browserbase.com/settings
@@ -144,7 +144,7 @@ browse stop
 - **"No active page"**: Run `browse stop`, then check `browse status`. If it still says running, kill the zombie daemon with `pkill -f "browse.*daemon"`, then retry `browse open`
 - **Chrome not found**: Install Chrome or use `browse env remote`
 - **Action fails**: Run `browse snapshot` to see available elements and their refs
-- **Browserbase fails**: Verify API key and project ID are set
+- **Browserbase fails**: Verify API key is set
 
 ## Switching to Remote Mode
 
