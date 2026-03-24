@@ -87,22 +87,13 @@ The agent detects bot protection and tells the user:
 If the user agrees:
 
 ```bash
-# Set up Browserbase credentials
-openclaw browserbase setup
-# User enters API key + project ID interactively
+# Set Browserbase credentials
+export BROWSERBASE_API_KEY="bb_live_..."
 
-# Retry — credentials are now in the environment
+# Retry in remote mode
+browse env remote
 browse open https://competitor.com/pricing
 browse snapshot                          # full page content now accessible
-browse get text ".pricing-table"
-browse stop
-```
-
-If the env vars aren't visible yet (setup was run outside OpenClaw):
-
-```bash
-eval "$(openclaw browserbase env --format shell)" && browse open https://competitor.com/pricing
-browse snapshot
 browse get text ".pricing-table"
 browse stop
 ```
