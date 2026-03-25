@@ -15,7 +15,6 @@
 //
 // Env vars:
 //   BROWSERBASE_API_KEY    — required
-//   BROWSERBASE_PROJECT_ID — required
 //   BROWSERBASE_CONTEXT_ID — optional, reuse an existing context
 //   CDP_URL                — optional, Chrome debugging endpoint or browser WS URL
 //   CDP_PORT_FILE          — optional, path to DevToolsActivePort if non-standard
@@ -65,14 +64,9 @@ const CLI = parseArgs();
 // ---------------------------------------------------------------------------
 
 const API_KEY = process.env.BROWSERBASE_API_KEY;
-const PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID;
 
 if (!API_KEY) {
   console.error('Error: BROWSERBASE_API_KEY is required');
-  process.exit(1);
-}
-if (!PROJECT_ID) {
-  console.error('Error: BROWSERBASE_PROJECT_ID is required');
   process.exit(1);
 }
 
@@ -261,7 +255,7 @@ async function main() {
   let contextId = CLI.contextId || process.env.BROWSERBASE_CONTEXT_ID;
 
   if (!contextId && CLI.persist) {
-    const ctx = await bb.contexts.create({ projectId: PROJECT_ID });
+    const ctx = await bb.contexts.create({});
     contextId = ctx.id;
     console.log(`Created persistent context: ${contextId}`);
   }
@@ -277,7 +271,6 @@ async function main() {
   const cloud = new Stagehand({
     env: 'BROWSERBASE',
     apiKey: API_KEY,
-    projectId: PROJECT_ID,
     keepAlive: true,
     disableAPI: true,
     browserbaseSessionCreateParams: {

@@ -16,7 +16,7 @@ Supports **domain filtering** (only sync cookies you need) and **persistent cont
 - Otherwise, launch with `--remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug` and set `CDP_URL=ws://127.0.0.1:9222`
 - At least one tab open in Chrome
 - Node.js 22+
-- Environment variables: `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`
+- Environment variable: `BROWSERBASE_API_KEY`
 
 ## Setup
 
@@ -89,7 +89,6 @@ The `--persist` flag is designed for use with scheduled/recurring tasks (like Cl
    ```json
    POST /v1/sessions
    {
-     "projectId": "...",
      "browserSettings": {
        "context": { "id": "ctx_abc123", "persist": true }
      }

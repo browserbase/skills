@@ -27,7 +27,6 @@ Local Chrome (Stagehand) → cookie-sync.mjs → Stagehand (Browserbase) → Clo
 | Variable | Required | Description |
 |----------|----------|-------------|
 | `BROWSERBASE_API_KEY` | Yes | API key from https://browserbase.com/settings |
-| `BROWSERBASE_PROJECT_ID` | Yes | Project ID from Browserbase dashboard |
 | `BROWSERBASE_CONTEXT_ID` | No | Reuse an existing context instead of creating a new one |
 | `CDP_URL` | No | Direct WebSocket URL to Chrome (e.g. `ws://127.0.0.1:9222`). Use when Chrome is launched with `--remote-debugging-port` and no `DevToolsActivePort` file exists |
 | `CDP_PORT_FILE` | No | Custom path to DevToolsActivePort file |

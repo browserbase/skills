@@ -6,7 +6,6 @@
 
 ```bash
 export BROWSERBASE_API_KEY="bb_live_xxx"
-export BROWSERBASE_PROJECT_ID="proj_xxx"
 node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
 ```
 
