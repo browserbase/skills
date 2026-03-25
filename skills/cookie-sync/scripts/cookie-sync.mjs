@@ -81,7 +81,7 @@ async function resolveCdpUrl(cdpUrl) {
     return cdpUrl;
   }
 
-  const base = cdpUrl.replace(/^ws/i, 'http').replace(/\/+$/, '');
+  const base = cdpUrl.replace(/^wss?/i, m => m.length === 3 ? 'https' : 'http').replace(/\/+$/, '');
   const versionUrl = base.endsWith('/json/version') ? base : `${base}/json/version`;
   const res = await fetch(versionUrl);
 
