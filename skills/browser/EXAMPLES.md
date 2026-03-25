@@ -130,6 +130,22 @@ browse stop
 
 **Key pattern**: Use `--context-id <id> --persist` on the first session to save auth state. On subsequent sessions, use `--context-id <id>` (with or without `--persist`) to resume where you left off. Omit `--persist` if you don't want changes from that session saved back.
 
+## Example 6: Attach to an Existing Browserbase Session
+
+**User request**: "Connect to this running Browserbase session and check its state"
+
+Use `--connect` to attach the CLI to a Browserbase session that was created outside the CLI (via the API, dashboard, or another tool). The CLI connects without creating a new session, and `browse stop` disconnects without killing it.
+
+```bash
+# Attach to the existing session
+browse --connect bb_sess_abc123 open https://app.example.com/dashboard
+browse snapshot                          # inspect the page
+browse get text ".status"                # extract data
+browse stop                              # disconnect — session stays alive on Browserbase
+```
+
+**Key pattern**: `--connect` is for sessions you don't own — the CLI is a guest. `browse stop` only disconnects, it does not terminate the remote session. Cannot be combined with `--context-id`.
+
 ## Tips
 
 - **Snapshot first**: Always run `browse snapshot` before interacting — it gives you the accessibility tree with element refs
