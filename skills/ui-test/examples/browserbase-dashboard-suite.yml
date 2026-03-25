@@ -1,0 +1,223 @@
+version: 1
+base_url: http://localhost:3000
+generated_from: /Users/shubhankar/browserbase/core/apps/core/src
+generated_at: 2026-03-24T16:30:00Z
+notes: >
+  Example test suite generated against the Browserbase dashboard.
+  Demonstrates what the skill generates that traditional Playwright tests DON'T cover.
+  The existing Playwright suite covers functional flows (sign-in, settings CRUD,
+  routing permissions, playground, billing). This suite covers the visual, accessibility,
+  and UX layers on top.
+
+auth:
+  login:
+    url: /sign-in
+    note: Requires Clerk test credentials or persistent context
+
+tests:
+  # ============================================================
+  # ACCESSIBILITY — what their Playwright tests never check
+  # ============================================================
+
+  - name: Accessibility audit — org dashboard
+    category: accessibility
+    priority: critical
+    target: /orgs/:slug
+    intent: >
+      Inject axe-core and run a full WCAG 2.1 AA audit on the organization dashboard.
+      Check all project cards, navigation elements, and the org switcher for proper
+      ARIA labels, roles, and keyboard accessibility. Verify the "Create Project"
+      button is reachable via Tab and activated via Enter.
+
+  - name: Accessibility audit — session replay page
+    category: accessibility
+    priority: critical
+    target: /orgs/:slug/:projectId/sessions/:sessionId
+    intent: >
+      The session replay page has complex interactive elements (video player,
+      devtools panel, timeline scrubber). Verify these have proper ARIA roles,
+      keyboard controls, and screen reader announcements. Check that the devtools
+      tabs are navigable via arrow keys.
+
+  - name: Keyboard navigation — full app traversal
+    category: accessibility
+    priority: high
+    target: /orgs/:slug/:projectId/overview
+    intent: >
+      Starting from the overview page, navigate the entire app using only keyboard.
+      Tab through the sidebar navigation, verify focus indicators are visible on
+      every interactive element. Check that modals trap focus and Escape closes them.
+      Verify the sidebar collapse/expand works via keyboard.
+
+  # ============================================================
+  # VISUAL QUALITY — no existing test checks "does it look right"
+  # ============================================================
+
+  - name: Visual hierarchy — project overview
+    category: visual
+    priority: high
+    target: /orgs/:slug/:projectId/overview
+    intent: >
+      Evaluate the project overview page for visual hierarchy. Is there a clear
+      information architecture? Are the "getting started" boxes visually grouped?
+      Do analytics charts have proper labels and legends? Is the page balanced
+      or does it feel lopsided? Check typography consistency across all card titles,
+      descriptions, and metric values.
+
+  - name: Visual coherence — sessions list
+    category: visual
+    priority: high
+    target: /orgs/:slug/:projectId/sessions
+    intent: >
+      The sessions table is the most-used page. Check that table columns are
+      properly aligned, row heights are consistent, status badges use a coherent
+      color system, timestamps are formatted consistently, and the pagination
+      controls are clearly visible. Evaluate empty state if no sessions exist.
+
+  - name: Empty states throughout app
+    category: visual
+    priority: medium
+    target: "*"
+    intent: >
+      Navigate to each major section as a new user with no data. Check that
+      empty states exist and are helpful — not just blank pages. Verify that
+      empty states include: a clear message, an illustration or icon, and a
+      CTA to create the first item. Check: sessions list (no sessions),
+      functions list (no functions), overview (no analytics data).
+
+  - name: Dark mode / light mode consistency
+    category: visual
+    priority: medium
+    target: /orgs/:slug/:projectId/overview
+    intent: >
+      If the dashboard supports theme switching, toggle between light and dark
+      mode. Check that all components render correctly in both modes — no
+      invisible text, no lost borders, no broken contrast. Pay special attention
+      to charts, code blocks, and status badges.
+
+  # ============================================================
+  # RESPONSIVE — their tests only run Desktop Chrome
+  # ============================================================
+
+  - name: Mobile responsiveness — navigation
+    category: responsive
+    priority: high
+    target: /orgs/:slug/:projectId/overview
+    viewports: [375, 768, 1440]
+    intent: >
+      Check the sidebar navigation at all three breakpoints. On mobile, does it
+      collapse to a hamburger menu? Is the hamburger tappable (44px+ target)?
+      On tablet, does the sidebar overlay or push content? On desktop, is the
+      content area width reasonable? Verify the org switcher and project switcher
+      are usable on mobile.
+
+  - name: Mobile responsiveness — sessions table
+    category: responsive
+    priority: high
+    target: /orgs/:slug/:projectId/sessions
+    viewports: [375, 768]
+    intent: >
+      Data tables are notoriously bad on mobile. Check if the sessions table
+      scrolls horizontally, collapses columns, or uses a card layout on mobile.
+      Are filter controls accessible? Can a user tap into a specific session
+      from the mobile view? Is any critical information hidden?
+
+  - name: Mobile responsiveness — settings forms
+    category: responsive
+    priority: medium
+    target: /orgs/:slug/:projectId/settings/general
+    viewports: [375]
+    intent: >
+      Check that all form inputs are full-width on mobile. Verify copy buttons
+      for API keys are tappable. Check that the tab navigation (General / Usage)
+      is horizontally scrollable or stacked appropriately. Ensure the "Save"
+      buttons are visible without scrolling or have sticky positioning.
+
+  # ============================================================
+  # CONSOLE HEALTH — trivial to check, nobody does it
+  # ============================================================
+
+  - name: Console errors — all routes
+    category: console
+    priority: critical
+    target: "*"
+    intent: >
+      Visit every major route in the application and capture console output.
+      Flag: uncaught exceptions, React hydration mismatches, failed fetch
+      requests (4xx/5xx), missing resources (images, fonts, scripts), and
+      any deprecation warnings. Report the URL and exact error for each finding.
+    routes:
+      - /orgs/:slug
+      - /orgs/:slug/:projectId/overview
+      - /orgs/:slug/:projectId/sessions
+      - /orgs/:slug/:projectId/playground
+      - /orgs/:slug/:projectId/settings/general
+      - /orgs/:slug/:projectId/settings/usage
+      - /orgs/:slug/settings
+      - /orgs/:slug/plans
+
+  # ============================================================
+  # UX HEURISTICS — the "taste" layer no unit test captures
+  # ============================================================
+
+  - name: Fitts's Law — primary actions
+    category: ux-heuristics
+    priority: medium
+    target: /orgs/:slug/:projectId/overview
+    intent: >
+      Check that primary CTAs (Create Session, View Sessions, Open Playground)
+      are the most prominent clickable elements in their section. Destructive
+      actions (delete project, regenerate API key) should be smaller and
+      require confirmation. On the settings page, verify the "Save" button
+      is large and easy to find, not small and hidden at the bottom.
+
+  - name: Hick's Law — cognitive overload check
+    category: ux-heuristics
+    priority: medium
+    target: /orgs/:slug/settings
+    intent: >
+      Evaluate the org settings page for cognitive overload. Are there too
+      many options presented at once? Is information organized into clear
+      sections? Does the billing/usage section overwhelm with numbers?
+      Check the plans page — are plan comparisons easy to parse or
+      overwhelming with feature checkmarks?
+
+  - name: Loading states and perceived performance
+    category: ux-heuristics
+    priority: medium
+    target: /orgs/:slug/:projectId/sessions
+    intent: >
+      Navigate to the sessions page and observe loading behavior. Does content
+      appear via skeleton screens or does it pop in all at once? Is there a
+      loading indicator while sessions are fetched? When filtering/paginating,
+      is there visual feedback? Measure perceived time from navigation to
+      content-ready state. Check the Doherty Threshold — does the UI respond
+      within 400ms to user actions?
+
+  # ============================================================
+  # EXPLORATORY — the "find what I missed" pass
+  # ============================================================
+
+  - name: Exploratory — use the app like a new user
+    category: exploratory
+    priority: high
+    target: /orgs/:slug/:projectId/overview
+    intent: >
+      Pretend you are a developer who just signed up for Browserbase and
+      landed on the dashboard for the first time. Navigate around the app
+      freely. Try to: understand what Browserbase does from the UI alone,
+      find where to get your API key, figure out how to create a session,
+      locate documentation links. Report anything that is confusing, broken,
+      or could be improved. Note any dead ends, missing tooltips, or
+      unclear labels.
+
+  - name: Exploratory — stress test forms
+    category: exploratory
+    priority: medium
+    target: /orgs/:slug/:projectId/settings/general
+    intent: >
+      Try to break the settings forms. Enter extremely long project names,
+      special characters, empty strings. Try to submit without required fields.
+      Double-click save buttons. Navigate away with unsaved changes — is there
+      a confirmation dialog? Try pasting into read-only fields. Check what
+      happens when you rapidly toggle the API key visibility.
