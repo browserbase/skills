@@ -1,28 +1,32 @@
 #!/usr/bin/env node
 // cookie-sync — Export cookies from local Chrome and inject into a Browserbase session.
-// Zero npm dependencies. Node 22+ only (built-in WebSocket, fetch).
+// Uses Stagehand for browser connections and @browserbasehq/sdk for API calls.
+//
+// Setup:
+//   cd skills/cookie-sync && npm install
 //
 // Usage:
-//   node cookie-sync.mjs                                                # sync all cookies, ephemeral session
-//   node cookie-sync.mjs --domains google.com,github.com                # only sync cookies for these domains
-//   node cookie-sync.mjs --persist                                      # create a persistent context (reusable)
-//   node cookie-sync.mjs --context ctx_abc123                           # reuse an existing context
-//   node cookie-sync.mjs --stealth                                      # enable advanced stealth mode
-//   node cookie-sync.mjs --proxy "San Francisco,CA,US"                  # use residential proxy with geolocation
-//   node cookie-sync.mjs --persist --domains github.com --stealth --proxy "San Francisco,CA,US"
+//   node scripts/cookie-sync.mjs                                        # sync all cookies, ephemeral session
+//   node scripts/cookie-sync.mjs --domains google.com,github.com        # only sync cookies for these domains
+//   node scripts/cookie-sync.mjs --persist                              # create a persistent context (reusable)
+//   node scripts/cookie-sync.mjs --context ctx_abc123                   # reuse an existing context
+//   node scripts/cookie-sync.mjs --stealth                              # enable advanced stealth mode
+//   node scripts/cookie-sync.mjs --proxy "San Francisco,CA,US"          # use residential proxy with geolocation
 //
 // Env vars:
 //   BROWSERBASE_API_KEY    — required
 //   BROWSERBASE_PROJECT_ID — required
+//   BROWSERBASE_CONTEXT_ID — optional, reuse an existing context
+//   CDP_URL                — optional, Chrome debugging endpoint or browser WS URL
 //   CDP_PORT_FILE          — optional, path to DevToolsActivePort if non-standard
+//   CDP_HOST               — optional, host for DevToolsActivePort-based connections
 
+import { Stagehand } from '@browserbasehq/stagehand';
+import Browserbase from '@browserbasehq/sdk';
 import { readFileSync, existsSync } from 'fs';
 import { execSync } from 'child_process';
 import { homedir } from 'os';
 import { resolve } from 'path';
-
-const BROWSERBASE_API = 'https://api.browserbase.com/v1';
-const TIMEOUT = 15000;
 
 // ---------------------------------------------------------------------------
 // CLI args
@@ -42,7 +46,6 @@ function parseArgs() {
     } else if (args[i] === '--stealth') {
       result.stealth = true;
     } else if (args[i] === '--proxy' && args[i + 1]) {
-      // Format: "City,ST,US" e.g. "San Francisco,CA,US"
       const parts = args[++i].split(',').map(s => s.trim());
       result.proxy = { city: parts[0], state: parts[1], country: parts[2] || 'US' };
     }
@@ -70,12 +73,33 @@ if (!PROJECT_ID) {
 }
 
 // ---------------------------------------------------------------------------
-// Find local Chrome DevTools WebSocket URL (replicates cdp.mjs logic)
+// Find local Chrome DevTools WebSocket URL
 // ---------------------------------------------------------------------------
 
-function getLocalWsUrl() {
+async function resolveCdpUrl(cdpUrl) {
+  if (/^wss?:\/\/.+\/devtools\/browser\//.test(cdpUrl)) {
+    return cdpUrl;
+  }
+
+  const base = cdpUrl.replace(/^ws/i, 'http').replace(/\/+$/, '');
+  const versionUrl = base.endsWith('/json/version') ? base : `${base}/json/version`;
+  const res = await fetch(versionUrl);
+
+  if (!res.ok) {
+    throw new Error(`Could not resolve CDP_URL via ${versionUrl} (${res.status})`);
+  }
+
+  const info = await res.json();
+  if (!info.webSocketDebuggerUrl) {
+    throw new Error(`CDP_URL did not expose webSocketDebuggerUrl at ${versionUrl}`);
+  }
+
+  return info.webSocketDebuggerUrl;
+}
+
+async function getLocalCdpUrl() {
   if (process.env.CDP_URL) {
-    return process.env.CDP_URL;
+    return resolveCdpUrl(process.env.CDP_URL);
   }
 
   const home = homedir();
@@ -115,7 +139,7 @@ function getLocalWsUrl() {
     throw new Error(
       'No DevToolsActivePort found.\n' +
       'Enable remote debugging: chrome://flags/#allow-remote-debugging (Chrome 146+)\n' +
-      'Or launch Chrome with --remote-debugging-port=9222'
+      'Or launch Chrome with --remote-debugging-port=9222 and set CDP_URL=ws://127.0.0.1:9222'
     );
   }
 
@@ -129,155 +153,11 @@ function getLocalWsUrl() {
 }
 
 // ---------------------------------------------------------------------------
-// Minimal CDP WebSocket client (same pattern as cdp.mjs)
-// ---------------------------------------------------------------------------
-
-class CDP {
-  #ws; #id = 0; #pending = new Map();
-
-  connect(wsUrl) {
-    return new Promise((res, rej) => {
-      this.#ws = new WebSocket(wsUrl);
-      this.#ws.onopen = () => res();
-      this.#ws.onerror = (e) => rej(new Error('WebSocket error: ' + (e.message || e.type)));
-      this.#ws.onmessage = (ev) => {
-        const msg = JSON.parse(ev.data);
-        if (msg.id && this.#pending.has(msg.id)) {
-          const { resolve, reject } = this.#pending.get(msg.id);
-          this.#pending.delete(msg.id);
-          if (msg.error) reject(new Error(msg.error.message));
-          else resolve(msg.result);
-        }
-      };
-    });
-  }
-
-  send(method, params = {}, sessionId) {
-    const id = ++this.#id;
-    return new Promise((resolve, reject) => {
-      const timer = setTimeout(() => {
-        if (this.#pending.has(id)) {
-          this.#pending.delete(id);
-          reject(new Error(`Timeout: ${method}`));
-        }
-      }, TIMEOUT);
-      this.#pending.set(id, {
-        resolve: (v) => { clearTimeout(timer); resolve(v); },
-        reject: (e) => { clearTimeout(timer); reject(e); },
-      });
-      const msg = { id, method, params };
-      if (sessionId) msg.sessionId = sessionId;
-      this.#ws.send(JSON.stringify(msg));
-    });
-  }
-
-  close() { this.#ws.close(); }
-}
-
-// ---------------------------------------------------------------------------
-// Cookie filtering
-// ---------------------------------------------------------------------------
-
-function filterCookies(cookies, domains) {
-  if (domains.length === 0) return cookies;
-
-  return cookies.filter(cookie => {
-    // Cookie domain may have a leading dot (e.g. ".google.com")
-    const cookieDomain = cookie.domain.replace(/^\./, '').toLowerCase();
-    return domains.some(d => cookieDomain === d || cookieDomain.endsWith('.' + d));
-  });
-}
-
-// Network.setCookies silently drops secure cookies unless each cookie has a
-// `url` field that tells CDP which origin to associate it with. We derive the
-// URL from domain + path + secure flag so every cookie lands correctly.
-function addUrlsToCookies(cookies) {
-  return cookies.map(cookie => {
-    const scheme = cookie.secure ? 'https' : 'http';
-    const domain = cookie.domain.replace(/^\./, '');
-    const path = cookie.path || '/';
-    return { ...cookie, url: `${scheme}://${domain}${path}` };
-  });
-}
-
-// ---------------------------------------------------------------------------
-// Browserbase API helpers
-// ---------------------------------------------------------------------------
-
-async function bbFetch(path, options = {}) {
-  const res = await fetch(`${BROWSERBASE_API}${path}`, {
-    ...options,
-    headers: {
-      'x-bb-api-key': API_KEY,
-      'Content-Type': 'application/json',
-      ...options.headers,
-    },
-  });
-  if (!res.ok) {
-    const body = await res.text().catch(() => '');
-    throw new Error(`Browserbase API ${res.status}: ${body}`);
-  }
-  return res.json();
-}
-
-async function createContext() {
-  return bbFetch('/contexts', {
-    method: 'POST',
-    body: JSON.stringify({ projectId: PROJECT_ID }),
-  });
-}
-
-async function createSession(contextId) {
-  const body = {
-    projectId: PROJECT_ID,
-    keepAlive: true,
-  };
-
-  body.browserSettings = {};
-
-  if (CLI.stealth) {
-    body.browserSettings.advancedStealth = true;
-  }
-
-  if (CLI.proxy) {
-    body.proxies = [{ type: 'browserbase', geolocation: CLI.proxy }];
-  }
-
-  if (contextId) {
-    body.browserSettings.context = {
-      id: contextId,
-      persist: true,
-    };
-  }
-
-  return bbFetch('/sessions', {
-    method: 'POST',
-    body: JSON.stringify(body),
-  });
-}
-
-async function waitForSessionRunning(sessionId, maxWaitMs = 30000) {
-  const terminalStates = new Set(['ERROR', 'TIMED_OUT', 'FAILED']);
-  const start = Date.now();
-  while (Date.now() - start < maxWaitMs) {
-    const session = await bbFetch(`/sessions/${sessionId}`);
-    if (session.status === 'RUNNING') return session;
-    if (terminalStates.has(session.status)) {
-      throw new Error(`Browserbase session entered terminal state: ${session.status}`);
-    }
-    await new Promise(r => setTimeout(r, 1000));
-  }
-  throw new Error('Timed out waiting for Browserbase session to start');
-}
-
-// ---------------------------------------------------------------------------
-// Main
+// Chrome version check
 // ---------------------------------------------------------------------------
 
 function checkChromeVersion() {
-  if (process.env.CDP_URL || process.env.CDP_PORT_FILE) {
-    return;
-  }
+  if (process.env.CDP_URL || process.env.CDP_PORT_FILE) return;
 
   const chromePaths = [
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
@@ -292,9 +172,9 @@ function checkChromeVersion() {
         if (match) {
           const major = parseInt(match[1], 10);
           if (major < 146) {
-            console.error(`Chrome ${major} detected. Version 146+ is required for cookie sync.`);
-            console.error('Update Chrome or install Chrome Beta: https://www.google.com/chrome/beta/');
-            process.exit(1);
+            console.warn(`Chrome ${major} detected. Chrome 146+ supports the allow-remote-debugging flag.`);
+            console.warn('For older Chrome, launch with --remote-debugging-port=9222 and set CDP_URL=ws://127.0.0.1:9222.');
+            return;
           }
           console.log(`Chrome ${major} detected`);
           return;
@@ -302,86 +182,114 @@ function checkChromeVersion() {
       } catch { /* try next */ }
     }
   }
-  // If we can't detect version, continue and let CDP connection fail with a clear error if needed
 }
 
+// ---------------------------------------------------------------------------
+// Cookie helpers
+// ---------------------------------------------------------------------------
+
+function filterCookies(cookies, domains) {
+  if (domains.length === 0) return cookies;
+  return cookies.filter(cookie => {
+    const cookieDomain = cookie.domain.replace(/^\./, '').toLowerCase();
+    return domains.some(d => cookieDomain === d || cookieDomain.endsWith('.' + d));
+  });
+}
+
+function toCookieParams(cookies) {
+  return cookies.map(c => {
+    const param = {
+      name: c.name,
+      value: c.value,
+      domain: c.domain,
+      path: c.path,
+      httpOnly: c.httpOnly,
+      secure: c.secure,
+    };
+    if (c.expires > 0) param.expires = c.expires;
+    if (c.sameSite === 'Strict' || c.sameSite === 'Lax') {
+      param.sameSite = c.sameSite;
+    } else if (c.sameSite === 'None' && c.secure) {
+      param.sameSite = 'None';
+    }
+    return param;
+  });
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
 async function main() {
-  // Step 0: Verify Chrome version supports remote debugging
   checkChromeVersion();
 
-  // Step 1: Connect to local Chrome and export cookies
-  const localWsUrl = getLocalWsUrl();
-  const localCdp = new CDP();
-  await localCdp.connect(localWsUrl);
+  // Step 1: Connect to local Chrome via Stagehand and export cookies
+  const cdpUrl = await getLocalCdpUrl();
+  const local = new Stagehand({
+    env: 'LOCAL',
+    localBrowserLaunchOptions: { cdpUrl },
+    verbose: 0,
+    disablePino: true,
+  });
+  await local.init();
   console.log('Connected to local Chrome');
 
-  // Need to attach to a page target to access Network domain
-  const { targetInfos } = await localCdp.send('Target.getTargets');
-  const page = targetInfos.find(t => t.type === 'page' && !t.url.startsWith('chrome://'));
-  if (!page) {
-    throw new Error('No open page targets found. Open at least one tab in Chrome.');
-  }
-  const { sessionId: localSession } = await localCdp.send('Target.attachToTarget', {
-    targetId: page.targetId, flatten: true,
-  });
-
-  const { cookies: allCookies } = await localCdp.send('Network.getAllCookies', {}, localSession);
+  const allCookies = await local.context.cookies();
   console.log(`Exported ${allCookies.length} cookies from local Chrome`);
-  localCdp.close();
+  await local.close();
 
   // Step 2: Filter cookies by domain if requested
   const cookies = filterCookies(allCookies, CLI.domains);
-
   if (CLI.domains.length > 0) {
     console.log(`Filtered to ${cookies.length} cookies matching: ${CLI.domains.join(', ')}`);
   }
-
   if (cookies.length === 0) {
     console.warn('Warning: No cookies to sync. Check your domain filters or Chrome login state.');
     process.exit(0);
   }
 
   // Step 3: Set up context (create new, reuse existing, or skip)
+  const bb = new Browserbase({ apiKey: API_KEY });
   let contextId = CLI.contextId || process.env.BROWSERBASE_CONTEXT_ID;
 
   if (!contextId && CLI.persist) {
-    const ctx = await createContext();
+    const ctx = await bb.contexts.create({ projectId: PROJECT_ID });
     contextId = ctx.id;
     console.log(`Created persistent context: ${contextId}`);
   }
-
   if (contextId) {
     console.log(`Using context: ${contextId} (persist: true)`);
   }
 
-  // Step 4: Create Browserbase session (with context if available)
-  const session = await createSession(contextId);
-  const sessionId = session.id;
-  console.log(`Created Browserbase session: ${sessionId}`);
+  // Step 4: Create Browserbase session via Stagehand
+  const browserSettings = {};
+  if (CLI.stealth) browserSettings.advancedStealth = true;
+  if (contextId) browserSettings.context = { id: contextId, persist: true };
 
-  const viewerUrl = `https://www.browserbase.com/sessions/${sessionId}`;
-  console.log(`Live view: ${viewerUrl}`);
-
-  // Wait for session to be ready
-  await waitForSessionRunning(sessionId);
-  console.log('Session is running');
-
-  // Step 5: Connect to cloud browser and inject cookies
-  const connectUrl = `wss://connect.browserbase.com?apiKey=${API_KEY}&sessionId=${sessionId}`;
-  const cloudCdp = new CDP();
-  await cloudCdp.connect(connectUrl);
-
-  const { targetInfos: cloudTargets } = await cloudCdp.send('Target.getTargets');
-  const cloudPage = cloudTargets.find(t => t.type === 'page');
-  if (!cloudPage) throw new Error('No page target found in Browserbase session');
-  const { sessionId: cloudSession } = await cloudCdp.send('Target.attachToTarget', {
-    targetId: cloudPage.targetId, flatten: true,
+  const cloud = new Stagehand({
+    env: 'BROWSERBASE',
+    apiKey: API_KEY,
+    projectId: PROJECT_ID,
+    keepAlive: true,
+    browserbaseSessionCreateParams: {
+      browserSettings,
+      ...(CLI.proxy && {
+        proxies: [{ type: 'browserbase', geolocation: CLI.proxy }],
+      }),
+    },
+    verbose: 0,
+    disablePino: true,
   });
+  await cloud.init();
 
-  const cookiesWithUrls = addUrlsToCookies(cookies);
-  await cloudCdp.send('Network.setCookies', { cookies: cookiesWithUrls }, cloudSession);
+  const sessionId = cloud.browserbaseSessionID;
+  console.log(`Created Browserbase session: ${sessionId}`);
+  console.log(`Live view: ${cloud.browserbaseSessionURL}`);
+
+  // Step 5: Inject cookies into cloud browser
+  const cookieParams = toCookieParams(cookies);
+  await cloud.context.addCookies(cookieParams);
   console.log(`Injected ${cookies.length} cookies into cloud browser`);
-  cloudCdp.close();
 
   // Step 6: Summary
   console.log('');
@@ -400,6 +308,8 @@ async function main() {
     console.log('Session has keepAlive: true — it will stay open until explicitly closed.');
     console.log('Tip: use --persist to save auth across sessions.');
   }
+
+  process.exit(0);
 }
 
 main().catch(e => {

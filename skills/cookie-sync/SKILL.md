@@ -11,10 +11,20 @@ Supports **domain filtering** (only sync cookies you need) and **persistent cont
 
 ## Prerequisites
 
-- Chrome (or Chromium, Brave, Edge) with remote debugging enabled: `chrome://flags/#allow-remote-debugging`
+- Chrome (or Chromium, Brave, Edge) with remote debugging enabled
+- If your browser build exposes `chrome://flags/#allow-remote-debugging`, enable it and restart the browser
+- Otherwise, launch with `--remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug` and set `CDP_URL=ws://127.0.0.1:9222`
 - At least one tab open in Chrome
 - Node.js 22+
 - Environment variables: `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`
+
+## Setup
+
+Install dependencies before first use:
+
+```bash
+cd .claude/skills/cookie-sync && npm install
+```
 
 ## Usage
 
@@ -123,7 +133,7 @@ Replace `SESSION_ID` with the session ID from cookie-sync output, and `TARGET_UR
 
 ## Troubleshooting
 
-- **"No DevToolsActivePort found"** → Enable remote debugging in `chrome://flags/#allow-remote-debugging` and restart Chrome
+- **"No DevToolsActivePort found"** → Enable `chrome://flags/#allow-remote-debugging` if your browser build exposes it, or launch with `--remote-debugging-port=9222` and set `CDP_URL=ws://127.0.0.1:9222`
 - **"No open page targets found"** → Open at least one tab in Chrome
 - **"WebSocket error"** → Chrome may be hung; force quit and reopen it
 - **Cookies expired in context** → Re-run cookie-sync with `--context <id>` to refresh

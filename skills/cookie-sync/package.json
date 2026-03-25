@@ -1,0 +1,10 @@
+{
+  "name": "cookie-sync",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@browserbasehq/stagehand": "^3.2.0",
+    "@browserbasehq/sdk": "^2.7.0"
+  }
+}

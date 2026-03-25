@@ -11,16 +11,15 @@
 
 ## Architecture
 
-Cookie sync is a single Node.js script with zero npm dependencies. It uses:
+Cookie sync is a Node.js script that uses:
 
-- **CDP (Chrome DevTools Protocol)** over WebSocket to extract cookies from local Chrome and inject them into the cloud browser
-- **Browserbase REST API** to create sessions and contexts
-- **Node 22+ built-ins** only: `WebSocket`, `fetch`, `fs`, `os`, `path`
+- **[Stagehand](https://github.com/browserbase/stagehand)** (`@browserbasehq/stagehand`) for CDP connections to both local Chrome and the cloud browser, including cookie get/set operations
+- **[Browserbase SDK](https://github.com/browserbase/sdk-node)** (`@browserbasehq/sdk`) for API calls (context creation)
 
 ```
-Local Chrome (CDP) → cookie-sync.mjs → Browserbase API → Cloud Browser (CDP)
-     ↓                                       ↓                    ↓
- getAllCookies              createContext + createSession    setCookies
+Local Chrome (Stagehand) → cookie-sync.mjs → Stagehand (Browserbase) → Cloud Browser
+        ↓                                          ↓                        ↓
+  context.cookies()              init() creates session           context.addCookies()
 ```
 
 ## Environment Variables
@@ -38,22 +37,25 @@ Local Chrome (CDP) → cookie-sync.mjs → Browserbase API → Cloud Browser (CD
 
 ### Step 1: Connect to Local Chrome
 
-The script finds Chrome's DevTools WebSocket URL by reading the `DevToolsActivePort` file. This file is created when Chrome starts with remote debugging enabled and contains the port number and WebSocket path.
+The script finds Chrome's DevTools WebSocket URL in one of two ways:
+
+- If `CDP_URL` is set, it resolves the browser WebSocket endpoint from that debugging endpoint (or uses the full browser WebSocket URL directly)
+- Otherwise, it reads the `DevToolsActivePort` file created by browsers that expose remote debugging through their normal profile
 
 ### Step 2: Export Cookies
 
-Attaches to the first non-chrome:// page target and calls `Network.getAllCookies` via CDP. This returns all cookies from all domains stored in the browser — not just the active tab.
+Calls `context.cookies()` via Stagehand's Understudy layer (which uses `Storage.getCookies` over CDP). This returns all cookies from all domains stored in the browser — not just the active tab.
 
 ### Step 3: Create Context and Session
 
-Creates a Browserbase Context (persistent state container) and a session attached to that context with `persist: true`. This means:
+Creates a Browserbase Context via the SDK (persistent state container) and a Stagehand session attached to that context with `persist: true`. This means:
 - Cookies injected during this session are saved to the context
 - Future sessions using the same context ID start with those cookies
 - The session uses `keepAlive: true` so it stays open until explicitly closed
 
 ### Step 4: Inject Cookies
 
-Connects to the cloud browser via `wss://connect.browserbase.com` and calls `Network.setCookies` to inject all exported cookies.
+Calls `context.addCookies()` via Stagehand's Understudy layer (which uses `Storage.setCookies` over CDP) to inject all exported cookies into the cloud browser.
 
 ## Browserbase Context Integration
 
