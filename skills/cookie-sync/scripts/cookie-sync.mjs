@@ -271,6 +271,7 @@ async function main() {
     apiKey: API_KEY,
     projectId: PROJECT_ID,
     keepAlive: true,
+    model: { modelName: 'anthropic/claude-sonnet-4-20250514', apiKey: 'unused' },
     browserbaseSessionCreateParams: {
       browserSettings,
       ...(CLI.proxy && {
