@@ -1,6 +1,6 @@
 # Browserbase Search API Examples
 
-Common patterns for using the Browserbase Search API. The SDK does not yet have a search method, so all examples use cURL.
+Common patterns for using the Browserbase Search API. Examples show CLI and cURL usage.
 
 ## Safety Notes
 
@@ -10,6 +10,12 @@ Common patterns for using the Browserbase Search API. The SDK does not yet have 
 
 **User request**: "Find pages about browser automation"
 
+### CLI
+```bash
+bb search "browser automation"
+```
+
+### cURL
 ```bash
 curl -s -X POST "https://api.browserbase.com/v1/search" \
   -H "Content-Type: application/json" \
@@ -21,6 +27,12 @@ curl -s -X POST "https://api.browserbase.com/v1/search" \
 
 **User request**: "Find the top 3 results for web scraping tools"
 
+### CLI
+```bash
+bb search "web scraping tools" --num-results 3
+```
+
+### cURL
 ```bash
 curl -s -X POST "https://api.browserbase.com/v1/search" \
   -H "Content-Type: application/json" \
@@ -28,10 +40,16 @@ curl -s -X POST "https://api.browserbase.com/v1/search" \
   -d '{"query": "web scraping tools", "numResults": 3}' | jq '.results[] | {title, url}'
 ```
 
-## Example 3: Search and Extract URLs
+## Example 3: Search and Save Results
 
 **User request**: "Get me a list of URLs about AI agents"
 
+### CLI
+```bash
+bb search "AI agents" --output ai-agents.json
+```
+
+### cURL
 ```bash
 curl -s -X POST "https://api.browserbase.com/v1/search" \
   -H "Content-Type: application/json" \
@@ -43,6 +61,17 @@ curl -s -X POST "https://api.browserbase.com/v1/search" \
 
 **User request**: "Find articles about web scraping and get the content of the first result"
 
+### CLI
+```bash
+# Step 1: Search and save results
+bb search "web scraping tutorial" --num-results 1 --output results.json
+
+# Step 2: Extract URL and fetch it
+URL=$(jq -r '.results[0].url' results.json)
+bb fetch "$URL" --output page.html
+```
+
+### cURL
 ```bash
 # Step 1: Search
 URL=$(curl -s -X POST "https://api.browserbase.com/v1/search" \
@@ -61,6 +90,20 @@ curl -s -X POST "https://api.browserbase.com/v1/fetch" \
 
 **User request**: "Search for the top 5 results about headless browsers and save each page"
 
+### CLI
+```bash
+# Search and save results
+bb search "headless browser comparison" --num-results 5 --output results.json
+
+# Fetch each result
+jq -r '.results[].url' results.json | while read -r url; do
+  filename=$(echo "$url" | sed 's|https\?://||;s|/|_|g').html
+  bb fetch "$url" --output "$filename"
+  echo "Saved: $filename"
+done
+```
+
+### cURL
 ```bash
 # Search and iterate over results
 curl -s -X POST "https://api.browserbase.com/v1/search" \
@@ -79,8 +122,7 @@ curl -s -X POST "https://api.browserbase.com/v1/search" \
 
 ## Tips
 
-- **Use Search to discover URLs** before fetching or browsing them
-- **Pipe through `jq`** to extract specific fields from the JSON response
-- **Chain Search + Fetch** for a two-step research workflow: find URLs, then get content
-- **Limit results** with `numResults` when you only need a few top hits
+- **Chain `bb search` + `bb fetch`** for a simple search-then-read workflow
+- **Use `--output`** to save results to a file for further processing
+- **Limit results** with `--num-results` when you only need a few top hits
 - **Fall back to Browser skill** when you need to interact with pages or render JavaScript

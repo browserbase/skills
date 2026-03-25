@@ -1,6 +1,6 @@
 # Browserbase Fetch API Examples
 
-Common patterns for using the Browserbase Fetch API. Each example shows both cURL and SDK usage.
+Common patterns for using the Browserbase Fetch API. Examples show CLI, cURL, and SDK usage.
 
 ## Safety Notes
 
@@ -9,6 +9,13 @@ Common patterns for using the Browserbase Fetch API. Each example shows both cUR
 ## Example 1: Get Page Content
 
 **User request**: "Get the HTML content of example.com"
+
+### CLI
+
+```bash
+bb fetch https://example.com
+bb fetch https://example.com --output page.html
+```
 
 ### cURL
 
@@ -39,6 +46,12 @@ print(response.content)  # full HTML
 
 **User request**: "Check if example.com/api/health is responding and what headers it returns"
 
+### CLI
+
+```bash
+bb fetch https://example.com/api/health
+```
+
 ### cURL
 
 ```bash
@@ -63,6 +76,12 @@ console.log(`Server: ${response.headers["server"]}`);
 ## Example 3: Fetch with Proxies
 
 **User request**: "Scrape this page but it keeps blocking my IP"
+
+### CLI
+
+```bash
+bb fetch https://target-site.com/data --proxies
+```
 
 ### cURL
 
@@ -155,9 +174,9 @@ console.log(data);
 
 ## Tips
 
-- **Use Fetch for static content**: It's faster and cheaper than spinning up a browser session
+- **Use Fetch for static content** — it's faster and cheaper than spinning up a browser session
 - **Check `statusCode`** to determine how to process the response before parsing `content`
-- **Enable `allowRedirects`** by default when scraping — most sites use redirects
-- **Use `proxies`** when you hit rate limits or geo-restrictions
+- **Enable redirects** with `--allow-redirects` (CLI) or `allowRedirects` (API) — most sites use redirects
+- **Use proxies** with `--proxies` (CLI) or `proxies` (API) when you hit rate limits or geo-restrictions
 - **Fall back to Browser skill** when Fetch returns empty `content` — the page likely requires JavaScript rendering
 - **Batch requests** with `Promise.all` (Node.js) for concurrent fetching of multiple URLs

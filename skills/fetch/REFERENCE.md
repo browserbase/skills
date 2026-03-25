@@ -2,6 +2,7 @@
 
 ## Table of Contents
 
+- [CLI](#cli)
 - [Endpoint](#endpoint)
 - [Authentication](#authentication)
 - [Request](#request)
@@ -9,6 +10,15 @@
 - [Error Responses](#error-responses)
 - [SDK Reference](#sdk-reference)
 - [Configuration](#configuration)
+
+## CLI
+
+```bash
+bb fetch https://example.com
+bb fetch https://example.com --allow-redirects --output page.html
+bb fetch https://example.com --proxies
+bb fetch https://self-signed.example.com --allow-insecure-ssl
+```
 
 ## Endpoint
 

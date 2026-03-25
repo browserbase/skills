@@ -2,12 +2,21 @@
 
 ## Table of Contents
 
+- [CLI](#cli)
 - [Endpoint](#endpoint)
 - [Authentication](#authentication)
 - [Request](#request)
 - [Response](#response)
 - [Error Responses](#error-responses)
 - [Configuration](#configuration)
+
+## CLI
+
+```bash
+bb search "example search"
+bb search "browser automation" --num-results 5
+bb search "AI agents" --output results.json
+```
 
 ## Endpoint
 
@@ -191,4 +200,4 @@ Search requests are rate-limited per account. If you hit 429 errors, reduce requ
 
 ### SDK Support
 
-The `@browserbasehq/sdk` does not yet include a search method. Use cURL or direct HTTP calls with the `X-BB-API-Key` header for now.
+The `@browserbasehq/sdk` does not yet include a search method. Use `bb search` or cURL.

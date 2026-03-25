@@ -8,6 +8,16 @@
 
 ## Invoking Deployed Functions
 
+### Via CLI
+
+```bash
+bb functions invoke FUNCTION_ID --params '{"url": "https://example.com"}'
+bb functions invoke FUNCTION_ID --params '{"url": "https://example.com"}' --no-wait
+bb functions invoke --check-status INVOCATION_ID
+```
+
+If `bb` is not installed: `npm install -g @browserbasehq/cli`
+
 ### Via curl
 
 ```bash
