@@ -143,7 +143,7 @@ async function getLocalCdpUrl() {
     );
   }
 
-  const lines = readFileSync(portFile, 'utf8').trim().split('\n');
+  const lines = readFileSync(portFile, 'utf8').trim().split(/\r?\n/);
   if (lines.length < 2 || !lines[0] || !lines[1]) {
     throw new Error(`Invalid DevToolsActivePort file: ${portFile}`);
   }
@@ -160,27 +160,31 @@ function checkChromeVersion() {
   if (process.env.CDP_URL || process.env.CDP_PORT_FILE) return;
 
   const chromePaths = [
+    // macOS
     '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome',
     '/Applications/Google Chrome Beta.app/Contents/MacOS/Google Chrome Beta',
     '/Applications/Chromium.app/Contents/MacOS/Chromium',
+    // Linux (resolved via PATH)
+    'google-chrome',
+    'google-chrome-stable',
+    'chromium-browser',
+    'chromium',
   ];
   for (const p of chromePaths) {
-    if (existsSync(p)) {
-      try {
-        const out = execSync(`"${p}" --version`, { encoding: 'utf8' }).trim();
-        const match = out.match(/(\d+)\./);
-        if (match) {
-          const major = parseInt(match[1], 10);
-          if (major < 146) {
-            console.warn(`Chrome ${major} detected. Chrome 146+ supports the allow-remote-debugging flag.`);
-            console.warn('For older Chrome, launch with --remote-debugging-port=9222 and set CDP_URL=ws://127.0.0.1:9222.');
-            return;
-          }
-          console.log(`Chrome ${major} detected`);
+    try {
+      const out = execSync(`"${p}" --version`, { encoding: 'utf8', stdio: ['pipe', 'pipe', 'pipe'] }).trim();
+      const match = out.match(/(\d+)\./);
+      if (match) {
+        const major = parseInt(match[1], 10);
+        if (major < 146) {
+          console.warn(`Chrome ${major} detected. Chrome 146+ supports the allow-remote-debugging flag.`);
+          console.warn('For older Chrome, launch with --remote-debugging-port=9222 and set CDP_URL=ws://127.0.0.1:9222.');
           return;
         }
-      } catch { /* try next */ }
-    }
+        console.log(`Chrome ${major} detected`);
+        return;
+      }
+    } catch { /* try next */ }
   }
 }
 
