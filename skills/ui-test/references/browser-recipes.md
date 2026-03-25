@@ -82,10 +82,11 @@ browse eval "
 "
 ```
 
-For comprehensive console capture, inject a console override early:
+For comprehensive console capture, inject a console override on the target page:
 
 ```bash
-browse open "about:blank"
+browse open "TARGET_URL"
+browse wait load
 browse eval "
   window.__logs = [];
   const orig = { error: console.error, warn: console.warn };
@@ -94,8 +95,7 @@ browse eval "
   window.addEventListener('error', e => window.__logs.push({type:'uncaught', text: e.message}));
   window.addEventListener('unhandledrejection', e => window.__logs.push({type:'rejection', text: String(e.reason)}));
 "
-browse open "TARGET_URL"
-browse wait load
+# Perform the actions you want to test while capture is active, then read logs:
 browse eval "JSON.stringify(window.__logs)"
 ```
 
@@ -110,7 +110,7 @@ browse wait load
 
 # Tab through elements one at a time
 browse press Tab
-browse eval "JSON.stringify({tag: document.activeElement?.tagName, text: document.activeElement?.textContent?.trim().slice(0,40), role: document.activeElement?.getAttribute('role'), ariaLabel: document.activeElement?.getAttribute('aria-label'), hasFocus: window.getComputedStyle(document.activeElement).outlineStyle !== 'none'})"
+browse eval "JSON.stringify({tag: document.activeElement?.tagName, text: document.activeElement?.textContent?.trim().slice(0,40), role: document.activeElement?.getAttribute('role'), ariaLabel: document.activeElement?.getAttribute('aria-label'), hasFocus: (() => { const s = window.getComputedStyle(document.activeElement); const hasOutline = s.outlineStyle !== 'none' && s.outlineWidth !== '0px'; const hasRing = s.boxShadow && s.boxShadow !== 'none'; return hasOutline || hasRing; })()})"
 
 # Repeat browse press Tab + eval to build the full tab order
 # Stop when activeElement returns BODY (looped back)
@@ -119,7 +119,7 @@ browse eval "JSON.stringify({tag: document.activeElement?.tagName, text: documen
 What to check in the results:
 - Every interactive element should appear in the tab order
 - Order should follow visual layout (top-to-bottom, left-to-right)
-- `hasFocus` should be true for every element (visible focus ring)
+- `hasFocus` should be true for every element (visible outline or focus ring)
 - No elements should be skipped or appear out of order
 
 ## Responsive Screenshot Sweep

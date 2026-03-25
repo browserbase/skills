@@ -1,6 +1,6 @@
 version: 1
 base_url: http://localhost:3000
-generated_from: /Users/shubhankar/browserbase/core/apps/core/src
+generated_from: ./src
 generated_at: 2026-03-24T16:30:00Z
 notes: >
   Example test suite generated against the Browserbase dashboard.
