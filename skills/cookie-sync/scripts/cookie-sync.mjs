@@ -1,17 +1,19 @@
 #!/usr/bin/env node
-// cookie-sync — Export cookies from local Chrome and inject into a Browserbase session.
+// cookie-sync — Export cookies from local Chrome into a Browserbase persistent context.
 // Uses Stagehand for browser connections and @browserbasehq/sdk for API calls.
 //
 // Setup:
 //   cd skills/cookie-sync && npm install
 //
 // Usage:
-//   node scripts/cookie-sync.mjs                                        # sync all cookies, ephemeral session
+//   node scripts/cookie-sync.mjs                                        # sync all cookies into a new context
 //   node scripts/cookie-sync.mjs --domains google.com,github.com        # only sync cookies for these domains
-//   node scripts/cookie-sync.mjs --persist                              # create a persistent context (reusable)
-//   node scripts/cookie-sync.mjs --context ctx_abc123                   # reuse an existing context
+//   node scripts/cookie-sync.mjs --context ctx_abc123                   # refresh cookies in an existing context
 //   node scripts/cookie-sync.mjs --stealth                              # enable advanced stealth mode
 //   node scripts/cookie-sync.mjs --proxy "San Francisco,CA,US"          # use residential proxy with geolocation
+//
+// After syncing, use the browse CLI to open an authenticated session:
+//   browse open https://example.com --context-id <ctx-id> --persist
 //
 // Env vars:
 //   BROWSERBASE_API_KEY    — required
@@ -33,13 +35,11 @@ import { resolve } from 'path';
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const result = { domains: [], persist: false, contextId: null, stealth: false, proxy: null };
+  const result = { domains: [], contextId: null, stealth: false, proxy: null };
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--domains' && args[i + 1]) {
       result.domains = args[++i].split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
-    } else if (args[i] === '--persist') {
-      result.persist = true;
     } else if (args[i] === '--context' && args[i + 1]) {
       result.contextId = args[++i];
     } else if (args[i] === '--stealth') {
@@ -250,28 +250,25 @@ async function main() {
     process.exit(0);
   }
 
-  // Step 3: Set up context (create new, reuse existing, or skip)
+  // Step 3: Set up context (create new or reuse existing)
   const bb = new Browserbase({ apiKey: API_KEY });
   let contextId = CLI.contextId || process.env.BROWSERBASE_CONTEXT_ID;
 
-  if (!contextId && CLI.persist) {
+  if (!contextId) {
     const ctx = await bb.contexts.create({});
     contextId = ctx.id;
-    console.log(`Created persistent context: ${contextId}`);
-  }
-  if (contextId) {
-    console.log(`Using context: ${contextId} (persist: true)`);
+    console.log(`Created context: ${contextId}`);
+  } else {
+    console.log(`Using existing context: ${contextId}`);
   }
 
-  // Step 4: Create Browserbase session via Stagehand
-  const browserSettings = {};
+  // Step 4: Create a temporary Browserbase session to inject cookies
+  const browserSettings = { context: { id: contextId, persist: true } };
   if (CLI.stealth) browserSettings.advancedStealth = true;
-  if (contextId) browserSettings.context = { id: contextId, persist: true };
 
   const cloud = new Stagehand({
     env: 'BROWSERBASE',
     apiKey: API_KEY,
-    keepAlive: true,
     disableAPI: true,
     browserbaseSessionCreateParams: {
       browserSettings,
@@ -283,33 +280,24 @@ async function main() {
     disablePino: true,
   });
   await cloud.init();
+  console.log(`Injecting cookies via session: ${cloud.browserbaseSessionID}`);
 
-  const sessionId = cloud.browserbaseSessionID;
-  console.log(`Created Browserbase session: ${sessionId}`);
-  console.log(`Live view: ${cloud.browserbaseSessionURL}`);
-
-  // Step 5: Inject cookies into cloud browser
+  // Step 5: Inject cookies and close the session (context persists independently)
   const cookieParams = toCookieParams(cookies);
   await cloud.context.addCookies(cookieParams);
-  console.log(`Injected ${cookies.length} cookies into cloud browser`);
+  console.log(`Injected ${cookies.length} cookies into context`);
+  await cloud.close();
 
   // Step 6: Summary
   console.log('');
-  console.log('Cloud browser is now authenticated.');
-  console.log(`Session ID: ${sessionId}`);
-
-  if (contextId) {
-    console.log(`Context ID: ${contextId}`);
-    console.log('');
-    console.log('To reuse this auth in future sessions:');
-    console.log(`  node cookie-sync.mjs --context ${contextId}`);
-    console.log('');
-    console.log('Or create a session directly via API with this context:');
-    console.log('  POST /v1/sessions { browserSettings: { context: { id: "' + contextId + '", persist: true } } }');
-  } else {
-    console.log('Session has keepAlive: true — it will stay open until explicitly closed.');
-    console.log('Tip: use --persist to save auth across sessions.');
-  }
+  console.log('Cookies synced to context.');
+  console.log(`Context ID: ${contextId}`);
+  console.log('');
+  console.log('Browse authenticated sites with:');
+  console.log(`  browse open <url> --context-id ${contextId} --persist`);
+  console.log('');
+  console.log('To refresh cookies later:');
+  console.log(`  node cookie-sync.mjs --context ${contextId}`);
 
   process.exit(0);
 }
