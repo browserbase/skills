@@ -47,6 +47,10 @@ function parseArgs() {
       result.stealth = true;
     } else if (args[i] === '--proxy' && args[i + 1]) {
       const parts = args[++i].split(',').map(s => s.trim());
+      if (!parts[0] || !parts[1]) {
+        console.error('Error: --proxy requires "City,State,Country" (e.g. "San Francisco,CA,US")');
+        process.exit(1);
+      }
       result.proxy = { city: parts[0], state: parts[1], country: parts[2] || 'US' };
     }
   }
