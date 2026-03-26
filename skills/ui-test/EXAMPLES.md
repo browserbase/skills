@@ -511,6 +511,118 @@ EVIDENCE: Navigated to non-existent route, got default "404 | This page could no
 RECOMMENDATION: Add a custom not-found.tsx with navigation back to the app
 ```
 
+## Example 9: Parallel Testing on a Deployed Site (Browserbase)
+
+**User request**: "QA the staging site — test signup, dashboard, and accessibility in parallel."
+
+The key insight: each test group gets its own `BROWSE_SESSION`, which spins up an independent Browserbase browser. Groups run concurrently via the Agent tool.
+
+**Step 1: Plan parallel groups**
+
+```
+Parallel Groups
+===============
+Group 1 (session: signup)     → /signup form tests (happy path + adversarial)
+Group 2 (session: dashboard)  → /dashboard content + empty state
+Group 3 (session: a11y)       → /settings axe-core + keyboard nav
+```
+
+**Step 2: Cookie-sync (if auth needed)**
+
+```bash
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains staging.myapp.com
+# Output: Context ID: ctx_7f3a9b2c
+```
+
+**Step 3: Launch agents in parallel**
+
+Use the Agent tool — send all three in a single message so they run concurrently:
+
+```
+Agent 1 prompt:
+  "You are running UI tests on https://staging.myapp.com/signup.
+   Use BROWSE_SESSION=signup for every browse command.
+   Start with: BROWSE_SESSION=signup browse env remote
+   Then: BROWSE_SESSION=signup browse open https://staging.myapp.com/signup --context-id ctx_7f3a9b2c
+
+   Run these tests using the before/after snapshot pattern:
+   1. [happy] Fill valid email, submit, verify success
+   2. [adversarial] Submit empty form, verify error
+   3. [adversarial] Fill XSS payload, verify rejected
+   4. [adversarial] Double-click submit, verify no duplicate
+
+   For each test: snapshot BEFORE, act, snapshot AFTER, compare, emit:
+     STEP_PASS|<id>|<evidence>  or  STEP_FAIL|<id>|<expected> → <actual>
+
+   When done: BROWSE_SESSION=signup browse stop"
+
+Agent 2 prompt:
+  "You are running UI tests on https://staging.myapp.com/dashboard.
+   Use BROWSE_SESSION=dashboard for every browse command.
+   Start with: BROWSE_SESSION=dashboard browse env remote
+   Then: BROWSE_SESSION=dashboard browse open https://staging.myapp.com/dashboard --context-id ctx_7f3a9b2c
+
+   Run these tests:
+   1. Check empty state — is there a message and CTA, or blank?
+   2. Check data display — table columns, row count, formatting
+   3. Check console errors — inject capture, interact, check __logs
+
+   Emit STEP_PASS/STEP_FAIL markers. When done: BROWSE_SESSION=dashboard browse stop"
+
+Agent 3 prompt:
+  "You are running accessibility tests on https://staging.myapp.com/settings.
+   Use BROWSE_SESSION=a11y for every browse command.
+   Start with: BROWSE_SESSION=a11y browse env remote
+   Then: BROWSE_SESSION=a11y browse open https://staging.myapp.com/settings --context-id ctx_7f3a9b2c
+
+   Run these tests:
+   1. axe-core audit — load script, run, check violations
+   2. Form labels — every input has an associated label
+   3. Keyboard nav — Tab through all elements, verify focus order
+   4. Broken images — check naturalWidth on all img elements
+
+   Emit STEP_PASS/STEP_FAIL markers. When done: BROWSE_SESSION=a11y browse stop"
+```
+
+**Step 4: Merge results**
+
+As each agent returns, collect markers into a unified report:
+
+```
+## UI Test Results (Parallel Run — 3 Browserbase sessions)
+
+### Group: signup (session: signup)
+STEP_PASS|valid-email|heading "Welcome!" appeared at @0-15 after submit
+STEP_PASS|empty-submit|alert "Email required" appeared at @0-9
+STEP_PASS|xss-email|XSS payload rejected by validation
+STEP_FAIL|double-submit|expected single submission → two success toasts
+
+### Group: dashboard (session: dashboard)
+STEP_PASS|empty-state|"No items yet" with CTA "Create first item"
+STEP_PASS|data-display|table: 5 rows, 4 columns, dates formatted
+STEP_PASS|console-health|0 errors during interaction
+
+### Group: a11y (session: a11y)
+STEP_FAIL|axe-audit|expected 0 violations → 2: color-contrast (serious, 3 nodes), label (critical, 1 node)
+STEP_PASS|form-labels|all 4 inputs have associated labels
+STEP_PASS|keyboard-nav|10 elements reachable, logical order
+STEP_PASS|images|0 broken images
+
+---
+**Summary: 9/11 passed, 2 failed (3 parallel sessions)**
+Failed: double-submit (signup), axe-audit (a11y)
+**Wall-clock time: ~45s (vs ~2min sequential)**
+```
+
+**Step 5: Cleanup**
+
+```bash
+# Safety net — stop any lingering sessions
+BROWSE_SESSION=signup browse stop 2>/dev/null
+BROWSE_SESSION=dashboard browse stop 2>/dev/null
+BROWSE_SESSION=a11y browse stop 2>/dev/null
+```
+
 ## Tips
 
 - **Before/after for every interaction** — never assert without comparing state change
@@ -518,5 +630,6 @@ RECOMMENDATION: Add a custom not-found.tsx with navigation back to the app
 - **Try to break it** — empty input, long input, special chars, rapid clicks, keyboard-only
 - **Use structured markers** — `STEP_PASS|id|evidence` or `STEP_FAIL|id|expected → actual`
 - **Local for localhost** — never send localhost traffic through Browserbase
-- **Always `browse stop` when done**
+- **Always `browse stop` when done** — for parallel runs, stop every named session
 - **`.then()` not `await`** — browse eval doesn't support top-level await
+- **Parallelize with `BROWSE_SESSION`** — each named session gets its own Browserbase browser; fan out via Agent tool
