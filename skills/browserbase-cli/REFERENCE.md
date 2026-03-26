@@ -115,7 +115,9 @@ bb projects usage <project_id>
 bb sessions list
 bb sessions list --q "user_metadata['userId']:'123'"
 bb sessions get <session_id>
+bb sessions create
 bb sessions create --body '{"projectId":"proj_123"}'
+echo '{"proxies":true}' | bb sessions create --stdin
 bb sessions update <session_id> --status REQUEST_RELEASE
 bb sessions debug <session_id>
 bb sessions logs <session_id>
@@ -124,12 +126,16 @@ bb sessions downloads get <session_id> --output session-artifacts.zip
 bb sessions uploads create <session_id> ./file.txt
 ```
 
+Use `--stdin` to pipe JSON from a file or another command instead of `--body`. Cannot use both together.
+
 When both `--status` and `--body` are present on `bb sessions update`, the CLI merges them.
 
 ### Contexts
 
 ```bash
-bb contexts create --body '{"region":"us-west-2"}'
+bb contexts create
+bb contexts create --body '{"projectId":"proj_123"}'
+echo '{"projectId":"proj_123"}' | bb contexts create --stdin
 bb contexts get <context_id>
 bb contexts update <context_id>
 bb contexts delete <context_id>
@@ -179,7 +185,13 @@ bb browse status
 bb browse open https://example.com
 ```
 
-If `browse` is not installed, the CLI will prompt you to install it:
+If `browse` is not installed, the CLI will prompt you to install it. Pass `--yes` to auto-accept the prompt (recommended for agents):
+
+```bash
+bb browse --yes status
+```
+
+Or install manually:
 
 ```bash
 npm install -g @browserbasehq/browse-cli
@@ -192,15 +204,15 @@ For most interactive browsing tasks, prefer the dedicated `browser` skill instea
 Install Browserbase agent skills for Claude Code directly from the CLI:
 
 ```bash
-bb skills install
+bb skills install       # non-interactive
+bb skills --yes         # auto-accept prompt
 ```
-
-This runs the skill installer non-interactively via npx.
 
 ## Troubleshooting
 
 - Missing API key: set `BROWSERBASE_API_KEY` or pass `--api-key`
 - Missing project ID on `bb functions dev` or `bb functions publish`: set `BROWSERBASE_PROJECT_ID` or pass `--project-id`
 - Wrong base URL flag: use `--api-url` for `bb functions ...`, `--base-url` for the other API commands
-- Invalid JSON input: wrap `--body` and `--params` payloads in single quotes so the shell preserves the JSON string
-- Browse passthrough missing: install `@browserbasehq/browse-cli` or use the `browser` skill directly
+- Invalid JSON input: wrap `--body` and `--params` payloads in single quotes so the shell preserves the JSON string, or use `--stdin` to pipe from a file
+- Browse passthrough missing: pass `--yes` to auto-install, or install `@browserbasehq/browse-cli` manually, or use the `browser` skill directly
+- Interactive prompt hanging: pass `--yes` to `bb browse` or `bb skills` to skip install prompts

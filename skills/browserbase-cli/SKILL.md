@@ -95,15 +95,36 @@ bb search "web scraping" --num-results 5
 bb search "AI agents" --output results.json
 ```
 
+## Agent-friendly flags
+
+The CLI is designed for non-interactive use. Key flags for agents:
+
+- `--yes` / `-y` on `bb browse` and `bb skills` to skip interactive install prompts
+- `--stdin` on `bb sessions create`, `bb sessions update`, and `bb contexts create` to pipe JSON input instead of using `--body`
+- `--help` on every subcommand includes usage examples — run it to discover flags
+
+```bash
+# Skip install prompts (agents should always pass --yes)
+bb browse --yes --url https://example.com
+bb skills --yes
+
+# Pipe JSON via stdin instead of --body
+echo '{"proxies":true}' | bb sessions create --stdin
+cat config.json | bb contexts create --stdin
+
+# Cannot use both --body and --stdin together
+```
+
 ## Best practices
 
-1. Prefer `bb --help` and subgroup `--help` before guessing flags.
+1. Prefer `bb --help` and subgroup `--help` before guessing flags — every subcommand includes examples.
 2. Use dash-case flags exactly as shown in CLI help.
 3. Use `--output <file>` on `bb fetch` and `bb search` to save results to a file.
 4. Use environment variables for auth unless the user explicitly wants one-off overrides.
-5. Pass structured request bodies with JSON strings in `--body` or `--params`.
+5. Pass structured request bodies with JSON strings in `--body`, `--params`, or `--stdin`.
 6. Remember that `bb functions ...` uses `--api-url`, while platform API commands use `--base-url`.
-7. If `bb browse` fails because `browse` is missing, either install `@browserbasehq/browse-cli` or switch to the `browser` skill.
+7. Use `--yes` when invoking `bb browse` or `bb skills` non-interactively to avoid hanging on install prompts.
+8. If `bb browse` fails because `browse` is missing, pass `--yes` to auto-install, or install `@browserbasehq/browse-cli` manually.
 
 ## Troubleshooting
 
