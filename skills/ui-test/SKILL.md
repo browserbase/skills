@@ -80,6 +80,34 @@ browse snapshot
 which browse || npm install -g @browserbasehq/browse-cli
 ```
 
+### Avoid permission fatigue
+
+This skill runs many `browse` commands (snapshots, clicks, evals). To avoid approving each one, add `browse` to your allowed commands:
+
+**Project-level** (`.claude/settings.json` in repo root — shared with team):
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(browse:*)"
+    ]
+  }
+}
+```
+
+**User-level** (`~/.claude/settings.json` — just you):
+```json
+{
+  "permissions": {
+    "allow": [
+      "Bash(browse:*)"
+    ]
+  }
+}
+```
+
+This allows all `browse` subcommands (`browse open`, `browse snapshot`, `browse eval`, etc.) without prompts. The `BROWSE_SESSION` env var prefix is handled automatically.
+
 ## Mode Selection
 
 | Target | Mode | Command | Auth |
