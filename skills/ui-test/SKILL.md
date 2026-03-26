@@ -116,7 +116,10 @@ This allows all `browse` subcommands (`browse open`, `browse snapshot`, `browse 
 | `localhost` / `127.0.0.1` | Local | `browse env local` | None needed |
 | Deployed/staging site | Remote | `browse env remote` | cookie-sync → `--context-id` |
 
-**Rule: If the URL is localhost, always use local mode.**
+**Auto-select rule — apply this BEFORE every `browse env` call:**
+- If the target URL contains `localhost` or `127.0.0.1` → run `browse env local`
+- Otherwise → run `browse env remote`
+- This applies in all workflows, including parallel sessions
 
 ### Local Mode (default for localhost)
 
@@ -220,7 +223,8 @@ Changed: src/components/SignupForm.tsx (added email validation)
 
 ```bash
 browse stop 2>/dev/null
-browse env local
+# Auto-select: localhost/127.0.0.1 → local, otherwise → remote
+browse env local   # or: browse env remote (for deployed URLs)
 ```
 
 For each test, follow the **before/after pattern**:
@@ -476,12 +480,13 @@ The `--session` flag (or `BROWSE_SESSION` env var) gives each `browse` command i
 
 ```bash
 # Session "signup" gets its own browser
-BROWSE_SESSION=signup browse env remote
-BROWSE_SESSION=signup browse open https://app.com/signup
+# Use env local for localhost URLs, env remote for deployed URLs
+BROWSE_SESSION=signup browse env local
+BROWSE_SESSION=signup browse open http://localhost:3000/signup
 
 # Session "dashboard" gets a completely separate browser
-BROWSE_SESSION=dashboard browse env remote
-BROWSE_SESSION=dashboard browse open https://app.com/dashboard
+BROWSE_SESSION=dashboard browse env local
+BROWSE_SESSION=dashboard browse open http://localhost:3000/dashboard
 
 # They don't share state — each has its own page, cookies, refs
 ```
@@ -517,19 +522,19 @@ Use the Agent tool to fan out. Each agent gets a unique session name and runs it
 Launch agents in parallel (use Agent tool with multiple invocations in one message):
 
 Agent 1 — prompt: "Run signup form tests using BROWSE_SESSION=signup.
-  Use `browse env remote` first. Run these tests: [list tests].
+  Use `browse env local` first (localhost URL). Run these tests: [list tests].
   Follow the before/after assertion protocol.
   Return structured STEP_PASS/STEP_FAIL markers.
   Run `BROWSE_SESSION=signup browse stop` when done."
 
 Agent 2 — prompt: "Run dashboard tests using BROWSE_SESSION=dashboard.
-  Use `browse env remote` first. Run these tests: [list tests].
+  Use `browse env local` first (localhost URL). Run these tests: [list tests].
   Follow the before/after assertion protocol.
   Return structured STEP_PASS/STEP_FAIL markers.
   Run `BROWSE_SESSION=dashboard browse stop` when done."
 
 Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
-  Use `browse env remote` first. Run these tests: [list tests].
+  Use `browse env local` first (localhost URL). Run these tests: [list tests].
   Follow the before/after assertion protocol.
   Return structured STEP_PASS/STEP_FAIL markers.
   Run `BROWSE_SESSION=a11y browse stop` when done."
@@ -537,7 +542,7 @@ Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
 
 **Critical rules for parallel agents:**
 - Every `browse` command in the agent MUST be prefixed with `BROWSE_SESSION=<name>`
-- Each agent must call `browse env remote` before any other browse command
+- Each agent must auto-select env: `browse env local` for localhost/127.0.0.1, `browse env remote` otherwise
 - Each agent must call `browse stop` when done (with its session name)
 - Pass the full test steps and assertion protocol to each agent — they don't have the skill context
 - Include the before/after snapshot pattern in each agent's prompt
