@@ -1,11 +1,14 @@
 ---
 name: cookie-sync
 description: Sync cookies from local Chrome to a Browserbase persistent context so the browse CLI can access authenticated sites. Use when the user wants to browse as themselves, sync cookies, or log into sites via Browserbase.
+compatibility: "Requires the Browserbase CLI (`npm install -g @browserbasehq/cli`). Requires `BROWSERBASE_API_KEY`. Requires Chrome (or Chromium, Brave, Edge) with remote debugging enabled. Requires Node.js 22+ or Bun."
+license: MIT
+allowed-tools: Bash
 ---
 
 # Cookie Sync — Local Chrome → Browserbase Context
 
-Exports cookies from your local Chrome and saves them into a Browserbase **persistent context**. After syncing, use the `browse` CLI to open authenticated sessions with that context.
+Exports cookies from your local Chrome and saves them into a Browserbase **persistent context** using the `bb sync` command. After syncing, use the `browse` CLI to open authenticated sessions with that context.
 
 Supports **domain filtering** (only sync cookies you need) and **context reuse** (refresh cookies without creating a new context).
 
@@ -13,17 +16,16 @@ Supports **domain filtering** (only sync cookies you need) and **context reuse**
 
 - Chrome (or Chromium, Brave, Edge) with remote debugging enabled
 - If your browser build exposes `chrome://flags/#allow-remote-debugging`, enable it and restart the browser
-- Otherwise, launch with `--remote-debugging-port=9222 --user-data-dir=/tmp/chrome-debug` and set `CDP_URL=ws://127.0.0.1:9222`
+- Otherwise, launch with `--remote-debugging-port=9222` and set `CDP_URL=ws://127.0.0.1:9222`
 - At least one tab open in Chrome
-- Node.js 22+
+- Browserbase CLI installed: `npm install -g @browserbasehq/cli`
 - Environment variable: `BROWSERBASE_API_KEY`
 
-## Setup
-
-Install dependencies before first use:
+## Setup check
 
 ```bash
-cd .claude/skills/cookie-sync && npm install
+which bb || npm install -g @browserbasehq/cli
+bb sync --help
 ```
 
 ## Usage
@@ -31,15 +33,15 @@ cd .claude/skills/cookie-sync && npm install
 ### Basic — sync all cookies
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
+bb sync
 ```
 
-Creates a persistent context with all your Chrome cookies. Outputs a context ID.
+Creates a persistent context with all your Chrome cookies. Outputs JSON with the context ID.
 
 ### Filter by domain — only sync specific sites
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains google.com,github.com
+bb sync --domains google.com,github.com
 ```
 
 Matches the domain and all subdomains (e.g. `google.com` matches `accounts.google.com`, `mail.google.com`, etc.)
@@ -47,7 +49,7 @@ Matches the domain and all subdomains (e.g. `google.com` matches `accounts.googl
 ### Refresh cookies in an existing context
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --context ctx_abc123
+bb sync --context-id ctx_abc123
 ```
 
 Re-injects fresh cookies into a previously created context. Use this when cookies have expired.
@@ -55,7 +57,7 @@ Re-injects fresh cookies into a previously created context. Use this when cookie
 ### Advanced stealth mode
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --stealth
+bb sync --stealth
 ```
 
 Enables Browserbase's advanced stealth mode to reduce bot detection. Recommended for sites like Google that fingerprint browsers.
@@ -63,7 +65,7 @@ Enables Browserbase's advanced stealth mode to reduce bot detection. Recommended
 ### Residential proxy with geolocation
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --proxy "San Francisco,CA,US"
+bb sync --proxy "San Francisco,CA,US"
 ```
 
 Routes through a residential proxy in the specified location. Format: `"City,ST,Country"` (state is 2-letter code). Helps match your local IP's geolocation so auth cookies aren't rejected.
@@ -71,7 +73,7 @@ Routes through a residential proxy in the specified location. Format: `"City,ST,
 ### Combine flags
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains github.com,google.com --stealth --proxy "San Francisco,CA,US"
+bb sync --domains github.com,google.com --stealth --proxy "San Francisco,CA,US"
 ```
 
 ## Browsing Authenticated Sites
@@ -88,8 +90,8 @@ The `--persist` flag saves any new cookies or state changes back to the context,
 
 ```bash
 # Step 1: Sync cookies for Twitter
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains x.com,twitter.com
-# Output: Context ID: ctx_abc123
+bb sync --domains x.com,twitter.com
+# Output includes: "contextId": "ctx_abc123"
 
 # Step 2: Browse authenticated Twitter
 browse open https://x.com/messages --context-id ctx_abc123 --persist
@@ -102,14 +104,15 @@ browse stop
 
 Contexts persist across sessions, making them ideal for scheduled/recurring tasks:
 
-1. **Once (laptop open):** Run cookie-sync → get a context ID
+1. **Once (laptop open):** Run `bb sync` → get a context ID
 2. **Scheduled jobs:** Use `browse open <url> --context-id <ctx-id> --persist` — no local Chrome needed
-3. **Re-sync as needed:** When cookies expire, run cookie-sync again with `--context <ctx-id>` to refresh
+3. **Re-sync as needed:** When cookies expire, run `bb sync --context-id <ctx-id>` to refresh
 
 ## Troubleshooting
 
 - **"No DevToolsActivePort found"** → Enable `chrome://flags/#allow-remote-debugging` if your browser build exposes it, or launch with `--remote-debugging-port=9222` and set `CDP_URL=ws://127.0.0.1:9222`
-- **"No open page targets found"** → Open at least one tab in Chrome
-- **"WebSocket error"** → Chrome may be hung; force quit and reopen it
-- **Cookies expired in context** → Re-run cookie-sync with `--context <id>` to refresh
+- **"Chrome debugging port is not reachable"** → Chrome may have restarted since debugging was enabled. Restart Chrome or re-enable the flag.
+- **"No page target found"** → Open at least one tab in Chrome
+- **Cookies expired in context** → Re-run `bb sync --context-id <id>` to refresh
 - **Auth rejected by site** → Try adding `--stealth` and/or `--proxy` with a location near you
+- **"Missing Browserbase API key"** → Set `BROWSERBASE_API_KEY` or pass `--api-key`

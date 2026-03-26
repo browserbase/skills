@@ -5,92 +5,76 @@
 **User request**: "Sync my Chrome cookies to a cloud browser"
 
 ```bash
-export BROWSERBASE_API_KEY="bb_live_xxx"
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
+bb sync
 ```
 
-After syncing, navigate to a site:
+Output:
+```json
+{
+  "contextId": "5d780360-7c8d-445c-ab22-509225a694b6",
+  "cookiesSynced": 6154
+}
+```
+
+Then browse an authenticated site:
 
 ```bash
-node -e "
-const WS_URL = 'wss://connect.browserbase.com?apiKey=' + process.env.BROWSERBASE_API_KEY + '&sessionId=SESSION_ID';
-const ws = new WebSocket(WS_URL);
-let id = 0;
-const send = (method, params = {}, sid) => {
-  const msg = { id: ++id, method, params };
-  if (sid) msg.sessionId = sid;
-  ws.send(JSON.stringify(msg));
-};
-ws.onopen = () => send('Target.getTargets');
-ws.onmessage = (ev) => {
-  const msg = JSON.parse(ev.data);
-  if (msg.id === 1) {
-    const page = msg.result.targetInfos.find(t => t.type === 'page');
-    send('Target.attachToTarget', { targetId: page.targetId, flatten: true });
-  }
-  if (msg.id === 2) {
-    send('Page.navigate', { url: 'https://mail.google.com' }, msg.result.sessionId);
-  }
-  if (msg.id === 3) {
-    console.log('Navigated to Gmail');
-    setTimeout(() => process.exit(0), 1000);
-  }
-};
-"
+browse open https://mail.google.com --context-id 5d780360-7c8d-445c-ab22-509225a694b6 --persist
 ```
 
-## Example 2: Reuse Context Across Sessions
+## Example 2: Sync Specific Domains
+
+**User request**: "Sync my GitHub and Google cookies"
+
+```bash
+bb sync --domains google.com,github.com
+```
+
+Output:
+```json
+{
+  "contextId": "ctx_abc123",
+  "cookiesSynced": 119,
+  "domains": ["google.com", "github.com"]
+}
+```
+
+## Example 3: Reuse Context Across Sessions
 
 **User request**: "I already synced my cookies earlier, start a new session with them"
 
 ```bash
-export BROWSERBASE_CONTEXT_ID="ctx_abc123"
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
+bb sync --context-id ctx_abc123
 ```
 
-This creates a new session using the saved context — no need to re-export cookies from Chrome (though the script still does to ensure freshness).
+This re-exports fresh cookies from local Chrome into the existing context — keeping it up to date without creating a new one.
 
-## Example 3: Take a Screenshot of an Authenticated Page
+## Example 4: Take a Screenshot of an Authenticated Page
 
 **User request**: "Go to my GitHub notifications and screenshot them"
 
-After cookie sync, navigate and screenshot:
-
 ```bash
-node -e "
-const fs = require('fs');
-const WS_URL = 'wss://connect.browserbase.com?apiKey=' + process.env.BROWSERBASE_API_KEY + '&sessionId=SESSION_ID';
-const ws = new WebSocket(WS_URL);
-let id = 0, sid;
-const send = (method, params = {}) => {
-  const msg = { id: ++id, method, params };
-  if (sid) msg.sessionId = sid;
-  ws.send(JSON.stringify(msg));
-};
-ws.onopen = () => send('Target.getTargets');
-ws.onmessage = (ev) => {
-  const msg = JSON.parse(ev.data);
-  if (msg.id === 1) {
-    const page = msg.result.targetInfos.find(t => t.type === 'page');
-    send('Target.attachToTarget', { targetId: page.targetId, flatten: true });
-  }
-  if (msg.id === 2) {
-    sid = msg.result.sessionId;
-    send('Page.navigate', { url: 'https://github.com/notifications' });
-  }
-  if (msg.id === 3) {
-    setTimeout(() => send('Page.captureScreenshot', { format: 'png' }), 3000);
-  }
-  if (msg.id === 4) {
-    fs.writeFileSync('/tmp/screenshot.png', Buffer.from(msg.result.data, 'base64'));
-    console.log('Screenshot saved to /tmp/screenshot.png');
-    process.exit(0);
-  }
-};
-"
+# Step 1: Sync cookies
+bb sync --domains github.com
+# Note the contextId from the output
+
+# Step 2: Browse and screenshot
+browse open https://github.com/notifications --context-id <ctx-id> --persist
+browse screenshot --output /tmp/notifications.png
+browse stop
 ```
 
-## Example 4: Using with a Custom Browser
+## Example 5: Stealth Mode with Proxy
+
+**User request**: "Sync my Google cookies but avoid bot detection"
+
+```bash
+bb sync --domains google.com --stealth --proxy "San Francisco,CA,US"
+```
+
+The `--stealth` flag enables advanced bot detection evasion, and `--proxy` routes through a residential IP near your location so Google doesn't flag the session as suspicious.
+
+## Example 6: Using with a Custom Browser
 
 **User request**: "Sync cookies from Brave instead of Chrome"
 
@@ -98,13 +82,26 @@ Brave is auto-detected. If your browser stores DevToolsActivePort in a non-stand
 
 ```bash
 export CDP_PORT_FILE="$HOME/Library/Application Support/MyBrowser/DevToolsActivePort"
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
+bb sync
 ```
+
+## Example 7: Scripting with JSON Output
+
+**User request**: "Sync cookies and use the context ID in a script"
+
+```bash
+# Capture the context ID from bb sync's JSON output
+CONTEXT_ID=$(bb sync --domains github.com 2>/dev/null | jq -r '.contextId')
+
+# Use it downstream
+browse open https://github.com --context-id "$CONTEXT_ID" --persist
+```
+
+The JSON output goes to stdout and progress messages go to stderr, so `2>/dev/null` suppresses progress while preserving the parseable output.
 
 ## Tips
 
 - **First time?** Enable remote debugging in `chrome://flags/#allow-remote-debugging` and restart Chrome before running
 - **Save your context ID** after the first sync to skip context creation in future sessions
 - **One context per identity** — don't mix personal and work browser cookies in the same context
-- **Close sessions when done** — keepAlive sessions persist until explicitly closed and consume resources
-- **Watch the live view** — open the viewer URL to see the cloud browser in real time
+- **Pipe-friendly** — JSON on stdout, progress on stderr. Use `jq` to extract fields.
