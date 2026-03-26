@@ -33,9 +33,7 @@ which browse || npm install -g @browserbasehq/browse-cli
 The CLI automatically selects between local and remote browser environments based on available configuration:
 
 ### Local mode (default)
-- Auto-discovers an already-running Chrome with remote debugging enabled and attaches to it
-- Falls back to launching an isolated Chrome if no debuggable browser is found
-- No API keys needed
+- Uses local Chrome — no API keys needed
 - Best for: development, simple pages, trusted sites with no bot protection
 
 ### Remote mode (Browserbase)
@@ -94,11 +92,9 @@ browse wait <type> [arg]                 # Wait for: load, selector, timeout
 ### Session management
 ```bash
 browse stop                              # Stop the browser daemon
-browse status                            # Check daemon status (includes env and local strategy)
+browse status                            # Check daemon status (includes env)
 browse env                               # Show current environment (local or remote)
-browse env local                         # Auto-discover local Chrome, fallback to isolated
-browse env local --isolated              # Force clean isolated browser (skip auto-discovery)
-browse env local <port|url>              # Attach to specific CDP target
+browse env local                         # Switch to local Chrome
 browse env remote                        # Switch to Browserbase (requires API keys)
 browse pages                             # List all open tabs
 browse tab_switch <index>                # Switch to tab by index
@@ -158,14 +154,10 @@ Don't switch for simple sites (docs, wikis, public APIs, localhost).
 
 ```bash
 browse env remote            # switch to Browserbase
-browse env local             # switch back to local (auto-discovers existing Chrome)
-browse env local --isolated  # force a clean isolated browser
-browse env local 9222        # attach to Chrome on specific port
+browse env local             # switch back to local Chrome
 ```
 
 The switch is sticky until you run `browse stop` or switch again.
-
-`browse env local` auto-discovers a running Chrome with remote debugging enabled (via `DevToolsActivePort` files and common port probing). If no debuggable Chrome is found, it falls back to launching an isolated browser. Use `--isolated` to skip auto-discovery and always get a clean browser.
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
 For API reference, see [REFERENCE.md](REFERENCE.md).

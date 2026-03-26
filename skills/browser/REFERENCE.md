@@ -272,22 +272,15 @@ Check whether the daemon is running, its connection details, and current environ
 browse status
 ```
 
-#### `env [local|remote] [cdpTarget] [--isolated]`
+#### `env [local|remote]`
 
 Show or switch the browser environment. Without arguments, prints the current environment. With an argument, stops the running daemon and restarts in the specified environment. The switch is sticky — subsequent commands stay in the chosen environment until you switch again or run `browse stop`.
 
-`browse env local` auto-discovers an already-running Chrome with remote debugging enabled (scans `DevToolsActivePort` files and probes common ports like 9222). Falls back to launching an isolated browser if no debuggable Chrome is found.
-
 ```bash
 browse env                               # print current environment
-browse env local                         # auto-discover local Chrome, fallback to isolated
-browse env local --isolated              # force clean isolated browser (skip discovery)
-browse env local 9222                    # attach to CDP target on port 9222
-browse env local ws://host:port/path     # attach to explicit CDP WebSocket URL
+browse env local                         # switch to local Chrome
 browse env remote                        # switch to Browserbase (requires API keys)
 ```
-
-`browse status` reports `localStrategy`, `localSource`, `resolvedCdpUrl`, and `fallbackReason` when in local mode.
 
 #### `newpage [url]`
 
