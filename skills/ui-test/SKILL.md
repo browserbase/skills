@@ -1,11 +1,11 @@
 ---
 name: ui-test
-description: "AI-powered UI testing that catches what Playwright can't — visual quality, accessibility, UX heuristics, responsive design, and exploratory bug finding. Reads code diffs or the full codebase to generate targeted tests, then runs them via the browse CLI. Use when the user asks to test UI changes, verify a feature works, QA a pull request, audit accessibility, or run exploratory testing. Supports both local browser (localhost) and remote Browserbase (deployed sites via cookie-sync)."
+description: "AI-powered adversarial UI testing via the browse CLI. Analyzes git diffs to test only what changed, or explores the full app to find bugs. Use when the user asks to test UI changes, QA a pull request, audit accessibility, or run exploratory testing. Supports local browser (localhost) and remote Browserbase (deployed sites)."
 license: MIT
 metadata:
   author: browserbase
   version: "0.3.0"
-allowed-tools: Bash, Read, Write, Glob, Grep, Agent, TaskCreate, TaskUpdate, TaskGet
+allowed-tools: Bash, Read, Glob, Grep, Agent
 compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). For remote testing: BROWSERBASE_API_KEY and cookie-sync skill."
 ---
 
@@ -13,9 +13,10 @@ compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-c
 
 Test UI changes in a real browser. Your job is to **try to break things**, not confirm they work.
 
-Two workflows:
-- **Diff-driven** — analyze a git diff, generate targeted tests, run them
-- **Full QA suite** — read the codebase, generate comprehensive tests, run against local or remote
+Three workflows:
+- **Diff-driven** — analyze a git diff, test only what changed
+- **Exploratory** — navigate the app, find bugs the developer didn't think about
+- **Parallel** — fan out independent test groups across multiple Browserbase browsers
 
 ## Testing Philosophy
 
@@ -440,9 +441,28 @@ Assert: every input has `hasLabel: true`. Any `false` = accessibility FAIL.
 
 See [references/browser-recipes.md](references/browser-recipes.md) for more recipes.
 
-## Workflow B: Full QA Suite
+## Workflow B: Exploratory Testing
 
-For full codebase analysis and suite generation, follow [references/codebase-analysis.md](references/codebase-analysis.md).
+No diff, no plan — just open the app and try to break it. Use this when the user says "test my app", "find bugs", or "QA this site."
+
+### Approach
+
+1. **Discover the app** — read `package.json` to detect the framework, then open the root URL and snapshot to see what's there
+2. **Navigate everything** — click through nav links, visit every reachable page, note what exists
+3. **Test what you find** — for each page, apply the adversarial patterns below (forms, modals, navigation, keyboard, error states)
+4. **Run deterministic checks** — axe-core, console errors, broken images, form labels on every page
+5. **Report findings** — use STEP_PASS/STEP_FAIL markers, include reproduction steps for failures
+
+Don't try to be systematic about coverage. Just explore like a user would, but with the intent to break things. The agent is good at this — let it roam.
+
+### Tips for exploratory runs
+
+- Start with the homepage, then follow the navigation naturally
+- Try the 404 page (`/does-not-exist`) — is it custom or default?
+- Look for empty states (pages with no data)
+- Test forms with garbage input before valid input
+- Check mobile viewport (375px) on every page — does it overflow?
+- If the app has auth, use cookie-sync first
 
 ## Workflow C: Parallel Testing (Browserbase)
 
@@ -477,7 +497,7 @@ BROWSE_SESSION=dashboard browse open https://app.com/dashboard
 
 ### Phase 1: Group tests by independence
 
-After generating your test plan (from Workflow A or B), group tests that can run in parallel:
+After generating your test plan (from Workflow A), or identifying pages to test (Workflow B), group tests that can run in parallel:
 
 ```
 Parallel Groups (from diff-driven test plan)
@@ -588,32 +608,6 @@ BROWSE_SESSION=a11y browse stop 2>/dev/null
 | Exploratory | Free navigation + adversarial testing | Before/after + judgment |
 
 Reference guides: [rules/ux-heuristics.md](rules/ux-heuristics.md), [references/exploratory-testing.md](references/exploratory-testing.md)
-
-## Test Suite Format
-
-Tests stored in `.ui-tests/suite.yml`:
-
-```yaml
-version: 1
-base_url: https://my-app.vercel.app
-generated_from: ./src
-generated_at: 2026-03-24T12:00:00Z
-
-tests:
-  - name: Settings page — keyboard accessibility
-    category: accessibility
-    priority: high
-    target: /settings
-    auth_required: true
-    intent: >
-      Tab through all interactive elements on the settings page.
-      Verify focus rings are visible, tab order is logical,
-      and axe-core reports zero critical violations.
-    pass_criteria:
-      - "All elements reachable via Tab"
-      - "Zero critical axe-core violations"
-      - "Focus rings visible on all interactive elements"
-```
 
 ## Best Practices
 

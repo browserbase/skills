@@ -1,6 +1,6 @@
 # ui-test — Agentic UI Testing Skill
 
-AI-powered UI testing that catches what Playwright can't. Reads your codebase to generate an evolving test suite, runs tests in Browserbase cloud browsers, and autonomously updates as your app changes.
+Adversarial UI testing that catches what Playwright can't. Analyzes git diffs to test only what changed, or explores the full app to find bugs. Runs in a real browser via the `browse` CLI.
 
 ## Install
 
@@ -10,70 +10,65 @@ npx skills add browserbase/ui-test
 
 ## Quick Start
 
-```bash
-/ui-test generate --url https://my-app.vercel.app   # generate test suite from codebase
-/ui-test run                                          # run the suite
-/ui-test explore --url https://my-app.vercel.app      # exploratory testing (no suite needed)
+```
+"Test the UI changes in my PR"         → diff-driven (Workflow A)
+"Explore my app and find bugs"         → exploratory (Workflow B)
+"QA the staging site in parallel"      → parallel Browserbase sessions (Workflow C)
 ```
 
 ## How It Works
 
-1. **Reads your codebase** — routes, components, forms, modals, tables, docs
-2. **Maps existing test coverage** — finds what Playwright/Jest already covers and what's missing
-3. **Generates a test suite** — `.ui-tests/suite.yml` with tests that fill the gaps
-4. **Runs tests via Browserbase** — `browse` CLI against cloud browsers with session recording
-5. **Evolves autonomously** — diffs codebase on re-runs, proposes new/updated tests
+1. **Analyzes the diff** (or explores the app) to decide what to test
+2. **Opens a real browser** — local Chrome for localhost, Browserbase for deployed sites
+3. **Tries to break things** — adversarial inputs, rapid clicks, keyboard-only, empty states, XSS
+4. **Runs deterministic checks** — axe-core, console errors, broken images, form labels
+5. **Reports structured results** — `STEP_PASS|id|evidence` or `STEP_FAIL|id|expected → actual`
 
 ## What It Tests
 
 | Category | How | What Playwright Misses |
 |----------|-----|----------------------|
 | Accessibility | axe-core + keyboard nav | WCAG violations, focus rings, screen reader semantics |
-| Visual Quality | Screenshot → Claude judges | Layout balance, typography, spacing, empty states |
-| Responsive | Screenshots at 3 viewports | Mobile usability, touch targets, content overflow |
-| Console Health | JS injection via `browse eval` | Hydration errors, failed requests, deprecation warnings |
-| UX Heuristics | Snapshot + screenshots → Laws of UX + Nielsen's | Cognitive overload, Fitts's Law, system status |
+| Visual Quality | Screenshot + Claude judgment | Layout balance, typography, spacing, empty states |
+| Responsive | Viewport sweep (375px, 768px, 1440px) | Mobile overflow, touch targets, content reflow |
+| Console Health | `browse eval` injection | Hydration errors, failed requests, runtime exceptions |
 | Error States | Navigate to empty/error states | Missing empty states, broken error recovery |
-| Data Display | Inspect tables/dashboards | Column alignment, pagination, number formatting |
-| Exploratory | Snapshot → decide → click → repeat | Bugs you didn't think to test for |
+| Adversarial | XSS, empty submit, rapid click, long input | Edge cases developers don't write tests for |
+| Exploratory | Navigate freely, try to break things | Bugs you didn't think to test for |
 
 ## Browser Execution
-
-All tests use the `browse` CLI — lightweight, no Node.js dependency, connects to Browserbase cloud browsers natively. Claude is the AI layer: it reads snapshots, looks at screenshots, and judges against UX heuristics.
 
 ```bash
 which browse || npm install -g @browserbasehq/browse-cli
 ```
 
+- **Localhost** → `browse env local` (no API key needed)
+- **Deployed sites** → `browse env remote` (uses Browserbase cloud browsers)
+- **Parallel** → `BROWSE_SESSION=<name>` for independent concurrent sessions
+
 ## Project Structure
 
 ```
-ui-testing-skill/
-├── SKILL.md                                    # Skill definition (lightweight entry point)
+ui-test/
+├── SKILL.md                              # Skill definition — workflows, assertion protocol, patterns
+├── EXAMPLES.md                           # 9 worked examples with exact commands
 ├── README.md
 ├── rules/
-│   └── ux-heuristics.md                        # 6 evaluation frameworks (Laws of UX, Nielsen's,
-│                                               #   error states, data display, visual design, a11y)
-├── references/
-│   ├── browser-recipes.md                      # Copy-paste browse CLI recipes for each check
-│   ├── codebase-analysis.md                    # 8-step guide to generating test suites from code
-│   └── exploratory-testing.md                  # Guide for agent-driven exploratory QA
-├── examples/
-│   └── browserbase-dashboard-suite.yml         # Example suite (BB dashboard)
-└── .ui-tests/                                  # Generated per-project
-    ├── suite.yml                               # Test definitions
-    ├── coverage-map.md                         # Route × category coverage
-    └── results/                                # Timestamped test results
+│   └── ux-heuristics.md                  # 6 evaluation frameworks (Laws of UX, Nielsen's, etc.)
+└── references/
+    ├── browser-recipes.md                # Copy-paste browse CLI recipes for deterministic checks
+    ├── codebase-analysis.md              # Quick hints for understanding a frontend codebase
+    └── exploratory-testing.md            # Guide for agent-driven exploratory QA
 ```
 
 ## Philosophy
 
-Traditional tests verify your **intentions**. This skill verifies your **blind spots**.
+Traditional tests verify **intentions**. This skill finds **blind spots**.
 
-Every test is a fresh agentic run. Claude reads the page via `browse snapshot`, looks at it via `browse screenshot`, and judges it against UX heuristics — like a human QA tester with perfect knowledge of every design principle.
+No YAML files, no generated test suites, no artifacts. The agent reads the diff (or explores the app), opens a browser, tries to break things, and reports what it found. Like a human QA tester with perfect knowledge of every design principle.
 
 ## Requirements
 
 - `browse` CLI (`npm install -g @browserbasehq/browse-cli`)
-- `BROWSERBASE_API_KEY` environment variable (for cloud sessions)
+- For remote testing: `BROWSERBASE_API_KEY` environment variable
 - A running web app (localhost or deployed URL)
