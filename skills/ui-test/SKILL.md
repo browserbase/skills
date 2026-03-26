@@ -116,10 +116,7 @@ This allows all `browse` subcommands (`browse open`, `browse snapshot`, `browse 
 | `localhost` / `127.0.0.1` | Local | `browse env local` | None needed |
 | Deployed/staging site | Remote | `browse env remote` | cookie-sync → `--context-id` |
 
-**Auto-select rule — apply this BEFORE every `browse env` call:**
-- If the target URL contains `localhost` or `127.0.0.1` → run `browse env local`
-- Otherwise → run `browse env remote`
-- This applies in all workflows, including parallel sessions
+**Rule: If the target URL contains `localhost` or `127.0.0.1`, always use `browse env local`.**
 
 ### Local Mode (default for localhost)
 
@@ -223,8 +220,8 @@ Changed: src/components/SignupForm.tsx (added email validation)
 
 ```bash
 browse stop 2>/dev/null
-# Auto-select: localhost/127.0.0.1 → local, otherwise → remote
-browse env local   # or: browse env remote (for deployed URLs)
+# localhost → always use local
+browse env local
 ```
 
 For each test, follow the **before/after pattern**:
@@ -542,7 +539,7 @@ Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
 
 **Critical rules for parallel agents:**
 - Every `browse` command in the agent MUST be prefixed with `BROWSE_SESSION=<name>`
-- Each agent must auto-select env: `browse env local` for localhost/127.0.0.1, `browse env remote` otherwise
+- If the target URL is localhost/127.0.0.1, each agent must use `browse env local`
 - Each agent must call `browse stop` when done (with its session name)
 - Pass the full test steps and assertion protocol to each agent — they don't have the skill context
 - Include the before/after snapshot pattern in each agent's prompt
