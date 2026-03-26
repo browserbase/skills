@@ -167,7 +167,7 @@ browse eval "
     method: f.method,
     inputs: Array.from(f.querySelectorAll('input,select,textarea')).map(i => ({
       name: i.name, type: i.type, required: i.required,
-      hasLabel: !!document.querySelector('label[for=' + JSON.stringify(i.id) + ']'),
+      hasLabel: !!i.labels?.length || !!i.getAttribute('aria-label'),
       placeholder: i.placeholder
     }))
   })));

@@ -126,8 +126,8 @@ browse snapshot
 # 2. Is the payload rendered as HTML outside the input? (check for script execution)
 browse eval "document.querySelector('[role=alert]')?.textContent || 'no alert'"
 # Result: "Please enter a valid email"
-browse eval "document.querySelectorAll('script[src]').length === document.querySelectorAll('script').length"
-# Result: true = no inline scripts injected (all scripts have src attributes)
+browse eval "document.querySelector('input[name=email]')?.value"
+# Result: "<script>alert('xss')</script>" — payload stays as text in the input, not rendered as HTML
 
 # STEP_PASS|xss-email|XSS payload rejected by validation, no inline script injection detected
 
@@ -370,7 +370,7 @@ for_each_route() {
   # Result: [] = PASS, any failed resources = FAIL
 
   # Method 2: Inject capture on the page, then interact to catch runtime errors
-  browse eval "window.__logs = []; console.error = (...a) => window.__logs.push({type:'error', text: a.join(' ')}); window.addEventListener('error', e => window.__logs.push({type:'uncaught', text: e.message})); 'installed'"
+  browse eval "window.__logs = []; const _origErr = console.error; console.error = (...a) => { window.__logs.push({type:'error', text: a.join(' ')}); _origErr(...a); }; window.addEventListener('error', e => window.__logs.push({type:'uncaught', text: e.message})); 'installed'"
 
   # Now interact (click buttons, submit forms, navigate)
   browse click @some-button
@@ -388,7 +388,7 @@ browse eval "JSON.stringify(performance.getEntries().filter(e => e.entryType ===
 # Example: check dashboard with interaction
 browse open http://localhost:3000/dashboard
 browse wait load
-browse eval "window.__logs=[]; console.error=(...a)=>window.__logs.push({t:'e',m:a.join(' ')}); 'ok'"
+browse eval "window.__logs=[]; const _orig=console.error; console.error=(...a)=>{window.__logs.push({t:'e',m:a.join(' ')}); _orig(...a);}; 'ok'"
 browse click @some-button
 browse eval "JSON.stringify(window.__logs)"
 # Result: [{"t":"e","m":"Failed to fetch /api/items"}]
