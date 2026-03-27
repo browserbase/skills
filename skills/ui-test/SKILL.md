@@ -1,10 +1,10 @@
 ---
 name: ui-test
-description: "AI-powered adversarial UI testing via the browse CLI. Analyzes git diffs to test only what changed, or explores the full app to find bugs. Use when the user asks to test UI changes, QA a pull request, audit accessibility, or run exploratory testing. Supports local browser (localhost) and remote Browserbase (deployed sites)."
+description: "AI-powered adversarial UI testing via the browse CLI. Analyzes git diffs to test only what changed, or explores the full app to find bugs. Tests functional correctness, craft quality (typography, touch targets, animations, polish), and strategic fitness (luck lens). Use when the user asks to test UI changes, QA a pull request, audit accessibility, review design quality, or run exploratory testing. Supports local browser (localhost) and remote Browserbase (deployed sites)."
 license: MIT
 metadata:
   author: browserbase
-  version: "0.3.0"
+  version: "0.4.0"
 allowed-tools: Bash, Read, Glob, Grep, Agent
 compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). For remote testing: BROWSERBASE_API_KEY and cookie-sync skill."
 ---
@@ -750,6 +750,95 @@ STEP_FAIL|design-inconsistency|existing pages use rounded-lg on cards → new co
 
 Design consistency is a **visual judgment** — the weakest assertion type. Always be specific about what you're comparing (which page, which element, which property).
 
+## Craft Quality Judgement
+
+Beyond "does it work" — evaluate whether the UI is **well-crafted**. This layer catches polish issues that functional testing misses: wrong easing curves, layout shift, broken touch targets, typographic sloppiness, inconsistent component patterns.
+
+Reference files in [references/judgement/](references/judgement/) contain the full rules. Read the relevant file before evaluating — don't guess from memory.
+
+### When to apply
+
+- **Always** on exploratory tests — craft quality is part of the exploration
+- **On diff-driven tests** — only for the changed area, check the category routing below
+- **When the user asks** for "polish", "quality", "craft", "design review", or "critique"
+
+### Category routing
+
+Match changed files to the right reference:
+
+```
+Form, input, button, validation         → references/judgement/forms-controls.md
+Touch, mobile, iOS Safari               → references/judgement/touch-accessibility.md
+Keyboard nav, ARIA, focus management    → references/judgement/touch-accessibility.md
+Animation, transition, easing           → references/judgement/animations.md
+Typography, shadows, spacing, layout    → references/judgement/ui-polish.md
+Marketing or landing page               → references/judgement/marketing.md
+Performance, preloading, bundle size    → references/judgement/performance.md
+Component API, compound components      → references/judgement/component-design.md
+152 detailed rules with code examples   → references/judgement/ui-wiki-rules.md
+```
+
+### Deterministic craft checks
+
+These produce structured data via `browse eval`. Run them alongside the existing deterministic checks (axe-core, console errors, broken images).
+
+```bash
+# Layout shift: font weight changes on hover/selected (causes jank)
+browse eval "JSON.stringify(Array.from(document.querySelectorAll('[class*=hover],[class*=active],[class*=selected]')).slice(0,20).map(el => ({tag: el.tagName, classes: el.className.slice(0,60)})))"
+
+# Touch targets: interactive elements smaller than 44px
+browse eval "JSON.stringify(Array.from(document.querySelectorAll('button,a,[role=button],input,select,textarea')).map(el => {const r = el.getBoundingClientRect(); return {tag: el.tagName, text: (el.textContent||'').trim().slice(0,30), w: Math.round(r.width), h: Math.round(r.height)}}).filter(el => el.w > 0 && (el.w < 44 || el.h < 44)))"
+
+# Typography: inputs under 16px (causes iOS zoom)
+browse eval "JSON.stringify(Array.from(document.querySelectorAll('input,textarea,select')).map(el => ({tag: el.tagName, name: el.name, fontSize: getComputedStyle(el).fontSize})).filter(el => parseFloat(el.fontSize) < 16))"
+
+# Animation: transition: all (performance anti-pattern)
+browse eval "JSON.stringify(Array.from(document.querySelectorAll('*')).slice(0,500).map(el => ({tag: el.tagName, cls: el.className?.toString().slice(0,40), transition: getComputedStyle(el).transition})).filter(el => el.transition && el.transition.includes('all')))"
+
+# z-index abuse: values over 100 (suggests no scale)
+browse eval "JSON.stringify(Array.from(document.querySelectorAll('*')).slice(0,500).map(el => ({tag: el.tagName, cls: el.className?.toString().slice(0,40), zIndex: getComputedStyle(el).zIndex})).filter(el => el.zIndex !== 'auto' && parseInt(el.zIndex) > 100))"
+
+# Form labels: inputs without associated labels
+browse eval "JSON.stringify(Array.from(document.querySelectorAll('input,select,textarea')).filter(el => el.type !== 'hidden').map(el => ({tag: el.tagName, name: el.name||el.id, type: el.type, hasLabel: !!(el.labels?.length || el.getAttribute('aria-label') || el.getAttribute('aria-labelledby'))})).filter(el => !el.hasLabel))"
+```
+
+Assert: empty arrays for PASS. Any result = FAIL with specific craft issue cited.
+
+### Screenshot-based craft evaluation
+
+For visual properties that `eval` can't capture (shadow quality, spacing rhythm, color harmony, animation feel), use the design-critique methodology from [references/judgement/design-critique.md](references/judgement/design-critique.md):
+
+1. **Context** — what is this page and who is it for?
+2. **First impressions** — what stands out, what feels off?
+3. **Visual design** — color intentionality, typographic hierarchy, shadow quality, spacing alignment, icon consistency
+4. **Interface design** — focusing mechanism, progressive disclosure, information density, feedback/reward
+5. **Consistency** — do patterns, components, and visual language hold together?
+
+Report craft issues as structured findings:
+
+```
+STEP_FAIL|craft-touch-targets|3 buttons under 44px: "Edit" (32x28), "Delete" (36x28), "..." (24x24)
+STEP_FAIL|craft-ios-zoom|2 inputs with font-size 14px — will trigger iOS Safari zoom on focus
+STEP_FAIL|craft-transition-all|4 elements use transition:all — specify exact properties for performance
+STEP_PASS|craft-form-labels|all 8 inputs have associated labels
+STEP_PASS|craft-typography|heading scale clear, body text 16px, tabular nums on data columns
+```
+
+### Meta-evaluation: Luck Lens
+
+For holistic page/flow evaluation, optionally apply the luck framework from [references/luck.md](references/luck.md). This evaluates whether the UI will **persist and compound** in its ecology — not just whether it works today.
+
+Use sparingly. Best applied to:
+- New features or pages (not bug fixes)
+- Exploratory testing of the full app
+- When the user asks "will this work?" in a strategic sense
+
+Report as observations, not pass/fail:
+```
+LUCK|solvency|strong — content refreshes via API, empty states handled, no hardcoded values
+LUCK|circulation|concern — user creates reports but can't share or export them (dead end)
+```
+
 ## Test Categories
 
 | Category | How | Assertion type |
@@ -762,9 +851,11 @@ Design consistency is a **visual judgment** — the weakest assertion type. Alwa
 | Error States | Navigate to empty/error states | Before/after comparison |
 | Data Display | Snapshot on tables/dashboards | Element match (column count, formatting) |
 | Design Consistency | Screenshot baseline + changed page comparison | Visual judgment (cite specific property) |
+| Craft Quality | Eval checks + screenshot critique | Deterministic + structured judgment |
+| Luck (meta) | Holistic flow evaluation | Strategic observation (optional) |
 | Exploratory | Free navigation + adversarial testing | Before/after + judgment |
 
-Reference guides: [rules/ux-heuristics.md](rules/ux-heuristics.md), [references/exploratory-testing.md](references/exploratory-testing.md)
+Reference guides: [rules/ux-heuristics.md](rules/ux-heuristics.md), [references/exploratory-testing.md](references/exploratory-testing.md), [references/judgement/](references/judgement/), [references/luck.md](references/luck.md)
 
 ## Best Practices
 
