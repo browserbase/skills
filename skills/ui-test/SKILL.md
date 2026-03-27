@@ -20,24 +20,59 @@ Three workflows:
 
 ## Budget & Limits
 
-Every test run has a budget. Finish and report within these limits — don't try to test everything.
+Every test run has a budget. The main agent **coordinates** — it analyzes the diff, plans test groups, and fans out work to sub-agents. Sub-agents do the actual testing.
 
-| Limit | Default | Notes |
-|-------|---------|-------|
-| **Max test steps** | 25 per run | Each STEP_PASS/STEP_FAIL counts as one step |
-| **Max steps per agent** | 15 | For parallel runs (Workflow C), each sub-agent gets 15 |
-| **Stop-early on failures** | 5 failures | Once you hit 5 STEP_FAILs, stop testing and report what you have |
-| **Max pages to visit** | 8 | Don't crawl the entire app — focus on changed or high-value pages |
+### Time math
 
-**How to stay within budget:**
-- Prioritize ruthlessly. Test the riskiest changes first (forms, auth, data mutation), skip low-risk cosmetic checks if you're running out of steps.
-- Count your steps as you go. When you're at 80% of your budget, wrap up the current test group and move to reporting.
-- Prefer deterministic checks (axe-core, console errors) over manual exploration — they cover more ground per step.
-- If the user provides a custom budget (e.g., "quick test" or "thorough test"), adjust: quick = 10 steps, thorough = 40 steps.
+Each `browse` command takes ~30 seconds. A sub-agent doing 20 steps ≈ 10 min. The bottleneck is the **slowest sub-agent** — if one runs away, the whole run stalls waiting for it.
 
-**At the end of every run, include a budget line in your report:**
+### Budget structure
+
+| Role | Limit | Why |
+|------|-------|-----|
+| **Main agent** | Coordinator only — no `browse` commands | It plans, delegates, merges. Zero testing. |
+| **Sub-agent** | **20 steps max** (~10 min each) | Hard cap. Stop and report at 20 even if there's more to test. |
+| **Max sub-agents** | 5 per run | More agents × fewer steps = fast wall clock |
+| **Max pages per agent** | 3 | Keep each agent tightly focused |
+
+**Total cap: ~100 test steps per run** (5 agents × 20 steps). Wall clock target: **~10 min**.
+
+No early stopping on failures — find as many bugs as possible within the step budget.
+
+The key constraint is **per-agent**: 20 steps max, no exceptions. It's better to split work across more focused agents than to let one agent go deep.
+
+### How the main agent should work
+
+1. **Analyze** — read the diff, categorize changes, identify URLs to test
+2. **Plan** — split into small, focused groups (1-2 pages per group, one test category each)
+3. **Delegate** — launch up to 5 sub-agents in parallel, each with a tight scope and 20-step budget
+4. **Merge** — collect results, produce the final report
+
+The main agent should NOT run `browse` commands itself (except to verify the dev server is up). All testing happens in sub-agents.
+
+**Splitting rules:**
+- Each sub-agent gets 1-2 pages and one test category (e.g., "signup form validation", "dashboard accessibility", "nav + routing")
+- If a page needs both functional and accessibility testing, split into two agents
+- Prefer 5 agents × 15 steps over 3 agents × 20 steps — smaller scope = faster, more focused
+
+### Adjusting the budget
+
+| User says | Steps per agent | Max agents | Wall clock |
+|-----------|----------------|------------|------------|
+| "quick test" | 10 | 2 | ~5 min |
+| (default) | 20 | 5 | ~10 min |
+| "thorough test" | 30 | 5 | ~15 min |
+
+### Budget reporting
+
+**Every sub-agent must include a budget line when reporting back:**
 ```
-Budget: 18/25 steps used | 3 pages visited | 1 failure
+Budget: 14/20 steps used | 2 pages visited | 3 failures
+```
+
+**The main agent includes a total in the final report:**
+```
+Total budget: 62/100 steps across 5 agents | ~10 min wall clock | 7 failures
 ```
 
 ## Testing Philosophy
