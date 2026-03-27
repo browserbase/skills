@@ -18,6 +18,28 @@ Three workflows:
 - **Exploratory** — navigate the app, find bugs the developer didn't think about
 - **Parallel** — fan out independent test groups across multiple Browserbase browsers
 
+## Budget & Limits
+
+Every test run has a budget. Finish and report within these limits — don't try to test everything.
+
+| Limit | Default | Notes |
+|-------|---------|-------|
+| **Max test steps** | 25 per run | Each STEP_PASS/STEP_FAIL counts as one step |
+| **Max steps per agent** | 15 | For parallel runs (Workflow C), each sub-agent gets 15 |
+| **Stop-early on failures** | 5 failures | Once you hit 5 STEP_FAILs, stop testing and report what you have |
+| **Max pages to visit** | 8 | Don't crawl the entire app — focus on changed or high-value pages |
+
+**How to stay within budget:**
+- Prioritize ruthlessly. Test the riskiest changes first (forms, auth, data mutation), skip low-risk cosmetic checks if you're running out of steps.
+- Count your steps as you go. When you're at 80% of your budget, wrap up the current test group and move to reporting.
+- Prefer deterministic checks (axe-core, console errors) over manual exploration — they cover more ground per step.
+- If the user provides a custom budget (e.g., "quick test" or "thorough test"), adjust: quick = 10 steps, thorough = 40 steps.
+
+**At the end of every run, include a budget line in your report:**
+```
+Budget: 18/25 steps used | 3 pages visited | 1 failure
+```
+
 ## Testing Philosophy
 
 **You are an adversarial tester.** Your goal is to find bugs, not prove correctness.
@@ -40,12 +62,42 @@ STEP_PASS|<step-id>|<evidence>
 ```
 or
 ```
-STEP_FAIL|<step-id>|<expected> → <actual>
+STEP_FAIL|<step-id>|<expected> → <actual>|<screenshot-path>
 ```
 
 - `step-id`: short identifier like `homepage-cta`, `form-validation-error`, `modal-cancel`
 - `evidence`: what you observed that proves the step passed (element ref, text content, URL, eval result)
 - `expected → actual`: what you expected vs what you got
+- `screenshot-path`: path to the saved screenshot (failures only — see Screenshot Capture below)
+
+### Screenshot Capture for Failures
+
+**Every STEP_FAIL MUST have an accompanying screenshot** so the developer can see what went wrong visually.
+
+When a test step fails:
+
+```bash
+# 1. Take a screenshot immediately after observing the failure
+browse screenshot --path .context/ui-test-screenshots/<step-id>.png
+
+# If --path is not supported, take the screenshot and save manually:
+browse screenshot
+# The browse CLI will output the screenshot path — move/copy it:
+cp /tmp/browse-screenshot-*.png .context/ui-test-screenshots/<step-id>.png
+```
+
+Setup the screenshot directory at the start of any test run:
+
+```bash
+mkdir -p .context/ui-test-screenshots
+```
+
+**Rules:**
+- File name = step-id (e.g., `double-submit.png`, `axe-audit.png`, `modal-focus-trap.png`)
+- Store in `.context/ui-test-screenshots/` — this directory is gitignored and accessible to the developer and other agents
+- For parallel runs, include the session name: `<session>-<step-id>.png` (e.g., `signup-double-submit.png`)
+- Take the screenshot at the moment of failure — capture the broken state, not after recovery
+- For visual/layout bugs, also screenshot the baseline (working state) for comparison: `<step-id>-baseline.png`
 
 ### How to verify (in order of rigor)
 
@@ -72,7 +124,9 @@ browse snapshot
 
 # 4. ASSERT: emit marker based on comparison
 # If dialog appeared: STEP_PASS|modal-open|dialog "Confirm" appeared at @0-20
-# If nothing changed: STEP_FAIL|modal-open|expected dialog to appear → snapshot unchanged
+# If nothing changed:
+browse screenshot --path .context/ui-test-screenshots/modal-open.png
+# STEP_FAIL|modal-open|expected dialog to appear → snapshot unchanged|.context/ui-test-screenshots/modal-open.png
 ```
 
 ## Setup
@@ -210,6 +264,7 @@ Changed: src/components/SignupForm.tsx (added email validation)
 
 ```bash
 browse stop 2>/dev/null
+mkdir -p .context/ui-test-screenshots
 # localhost → always use local
 browse env local
 ```
@@ -250,16 +305,19 @@ browse snapshot
 - Action: filled "user@test.com", clicked @0-7
 - After: form replaced by status element with "Thanks! We'll be in touch."
 
-### STEP_FAIL|double-submit|expected single submission → form submitted twice
+### STEP_FAIL|double-submit|expected single submission → form submitted twice|.context/ui-test-screenshots/double-submit.png
 - URL: http://localhost:3000/signup
 - Before: form with submit button @0-7
 - Action: clicked @0-7 twice rapidly
 - After: two success toasts appeared, suggesting duplicate submission
+- Screenshot: .context/ui-test-screenshots/double-submit.png
 - Suggestion: disable submit button after first click, or debounce the handler
 
 ---
 **Summary: 4/6 passed, 2 failed**
 Failed: double-submit, xss-sanitization
+
+Screenshots saved to `.context/ui-test-screenshots/` — open any failed step's screenshot to see the broken state.
 ```
 
 Always `browse stop` when done.
@@ -511,19 +569,25 @@ Launch agents in parallel (use Agent tool with multiple invocations in one messa
 Agent 1 — prompt: "Run signup form tests using BROWSE_SESSION=signup.
   Use `browse env local` first (localhost URL). Run these tests: [list tests].
   Follow the before/after assertion protocol.
-  Return structured STEP_PASS/STEP_FAIL markers.
+  On any STEP_FAIL, immediately take a screenshot:
+    BROWSE_SESSION=signup browse screenshot --path .context/ui-test-screenshots/signup-<step-id>.png
+  Return structured STEP_PASS/STEP_FAIL markers (include screenshot path for failures).
   Run `BROWSE_SESSION=signup browse stop` when done."
 
 Agent 2 — prompt: "Run dashboard tests using BROWSE_SESSION=dashboard.
   Use `browse env local` first (localhost URL). Run these tests: [list tests].
   Follow the before/after assertion protocol.
-  Return structured STEP_PASS/STEP_FAIL markers.
+  On any STEP_FAIL, immediately take a screenshot:
+    BROWSE_SESSION=dashboard browse screenshot --path .context/ui-test-screenshots/dashboard-<step-id>.png
+  Return structured STEP_PASS/STEP_FAIL markers (include screenshot path for failures).
   Run `BROWSE_SESSION=dashboard browse stop` when done."
 
 Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
   Use `browse env local` first (localhost URL). Run these tests: [list tests].
   Follow the before/after assertion protocol.
-  Return structured STEP_PASS/STEP_FAIL markers.
+  On any STEP_FAIL, immediately take a screenshot:
+    BROWSE_SESSION=a11y browse screenshot --path .context/ui-test-screenshots/a11y-<step-id>.png
+  Return structured STEP_PASS/STEP_FAIL markers (include screenshot path for failures).
   Run `BROWSE_SESSION=a11y browse stop` when done."
 ```
 
@@ -533,6 +597,7 @@ Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
 - Each agent must call `browse stop` when done (with its session name)
 - Pass the full test steps and assertion protocol to each agent — they don't have the skill context
 - Include the before/after snapshot pattern in each agent's prompt
+- Tell each agent to `mkdir -p .context/ui-test-screenshots` and save screenshots on failure with the naming convention `<session>-<step-id>.png`
 
 ### Phase 3: Collect and merge results
 
@@ -544,19 +609,23 @@ As agents complete, collect their STEP_PASS/STEP_FAIL markers and merge into one
 ### Group: signup (session: signup)
 STEP_PASS|valid-email|heading "Welcome!" appeared after submit
 STEP_PASS|empty-submit|validation error shown for empty form
-STEP_FAIL|double-submit|expected single submission → two success toasts appeared
+STEP_FAIL|double-submit|expected single submission → two success toasts appeared|.context/ui-test-screenshots/signup-double-submit.png
 
 ### Group: dashboard (session: dashboard)
 STEP_PASS|empty-state|"No items yet" message with CTA displayed
 STEP_PASS|data-display|table rendered 5 rows with correct columns
 
 ### Group: a11y (session: a11y)
-STEP_FAIL|axe-audit|expected 0 violations → 2 critical: color-contrast, missing-label
+STEP_FAIL|axe-audit|expected 0 violations → 2 critical: color-contrast, missing-label|.context/ui-test-screenshots/a11y-axe-audit.png
 STEP_PASS|keyboard-nav|all 12 elements reachable via Tab
 
 ---
 **Summary: 5/7 passed, 2 failed (across 3 parallel sessions)**
 Failed: double-submit (signup), axe-audit (a11y)
+
+Screenshots: `.context/ui-test-screenshots/`
+- signup-double-submit.png — duplicate toast after rapid submit
+- a11y-axe-audit.png — page showing color contrast and missing label violations
 ```
 
 ### Parallel with cookie-sync (authenticated pages)
@@ -667,11 +736,12 @@ Reference guides: [rules/ux-heuristics.md](rules/ux-heuristics.md), [references/
 1. **Be adversarial** — try to break things, don't just confirm they work
 2. **Every assertion needs evidence** — snapshot ref, eval result, or before/after diff
 3. **Before/after for every interaction** — snapshot, act, snapshot, compare
-4. **Deterministic checks first** — axe-core, console errors, form labels before visual judgment
-5. **Local for localhost, remote for deployed** — never use Browserbase for localhost
-6. **Always `browse stop` when done** — for parallel runs, stop every named session
-7. **Report failures with reproduction steps** — action, expected, actual, suggestion
-8. **Parallelize independent tests** — use Workflow C with named sessions when testing multiple pages or categories on a deployed site
+4. **Screenshot every failure** — `browse screenshot` immediately on STEP_FAIL, save to `.context/ui-test-screenshots/<step-id>.png`
+5. **Deterministic checks first** — axe-core, console errors, form labels before visual judgment
+6. **Local for localhost, remote for deployed** — never use Browserbase for localhost
+7. **Always `browse stop` when done** — for parallel runs, stop every named session
+8. **Report failures with reproduction steps** — action, expected, actual, screenshot path, suggestion
+9. **Parallelize independent tests** — use Workflow C with named sessions when testing multiple pages or categories on a deployed site
 
 ## Troubleshooting
 

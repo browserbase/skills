@@ -256,7 +256,9 @@ browse eval "document.activeElement?.textContent?.trim().slice(0,20)"
 # Check: does focus cycle within dialog, or does it escape to page behind?
 
 # STEP_PASS|focus-trap|focus cycles within dialog (Cancel → Confirm → Cancel)
-# or: STEP_FAIL|focus-trap|expected focus trapped in dialog → focus escaped to nav link behind modal
+# or on failure:
+browse screenshot --path .context/ui-test-screenshots/focus-trap.png
+# STEP_FAIL|focus-trap|expected focus trapped in dialog → focus escaped to nav link behind modal|.context/ui-test-screenshots/focus-trap.png
 
 browse stop
 ```
@@ -457,7 +459,9 @@ browse snapshot
 # Is there a designed empty state? Or just blank space?
 # Check for: message, CTA, illustration
 # STEP_PASS|empty-state|dashboard shows "No items yet." with CTA "Create your first item"
-# or: STEP_FAIL|empty-state|expected designed empty state → page is blank with no guidance
+# or on failure:
+browse screenshot --path .context/ui-test-screenshots/empty-state.png
+# STEP_FAIL|empty-state|expected designed empty state → page is blank with no guidance|.context/ui-test-screenshots/empty-state.png
 
 # ---- 404 handling ----
 browse open http://localhost:3000/this-page-does-not-exist
@@ -595,7 +599,7 @@ As each agent returns, collect markers into a unified report:
 STEP_PASS|valid-email|heading "Welcome!" appeared at @0-15 after submit
 STEP_PASS|empty-submit|alert "Email required" appeared at @0-9
 STEP_PASS|xss-email|XSS payload rejected by validation
-STEP_FAIL|double-submit|expected single submission → two success toasts
+STEP_FAIL|double-submit|expected single submission → two success toasts|.context/ui-test-screenshots/signup-double-submit.png
 
 ### Group: dashboard (session: dashboard)
 STEP_PASS|empty-state|"No items yet" with CTA "Create first item"
@@ -603,7 +607,7 @@ STEP_PASS|data-display|table: 5 rows, 4 columns, dates formatted
 STEP_PASS|console-health|0 errors during interaction
 
 ### Group: a11y (session: a11y)
-STEP_FAIL|axe-audit|expected 0 violations → 2: color-contrast (serious, 3 nodes), label (critical, 1 node)
+STEP_FAIL|axe-audit|expected 0 violations → 2: color-contrast (serious, 3 nodes), label (critical, 1 node)|.context/ui-test-screenshots/a11y-axe-audit.png
 STEP_PASS|form-labels|all 4 inputs have associated labels
 STEP_PASS|keyboard-nav|10 elements reachable, logical order
 STEP_PASS|images|0 broken images
@@ -628,7 +632,8 @@ BROWSE_SESSION=a11y browse stop 2>/dev/null
 - **Before/after for every interaction** — never assert without comparing state change
 - **Deterministic checks are strongest** — axe-core count, console error array, overflow boolean
 - **Try to break it** — empty input, long input, special chars, rapid clicks, keyboard-only
-- **Use structured markers** — `STEP_PASS|id|evidence` or `STEP_FAIL|id|expected → actual`
+- **Use structured markers** — `STEP_PASS|id|evidence` or `STEP_FAIL|id|expected → actual|screenshot-path`
+- **Screenshot every failure** — save to `.context/ui-test-screenshots/<step-id>.png` so devs can see what broke
 - **Local for localhost** — never send localhost traffic through Browserbase
 - **Always `browse stop` when done** — for parallel runs, stop every named session
 - **`.then()` not `await`** — browse eval doesn't support top-level await
