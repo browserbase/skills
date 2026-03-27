@@ -85,29 +85,19 @@ which browse || npm install -g @browserbasehq/browse-cli
 
 This skill runs many `browse` commands (snapshots, clicks, evals). To avoid approving each one, add `browse` to your allowed commands:
 
-**Project-level** (`.claude/settings.json` in repo root — shared with team):
+Add both patterns to `.claude/settings.json` (project-level) or `~/.claude/settings.json` (user-level):
 ```json
 {
   "permissions": {
     "allow": [
-      "Bash(browse:*)"
+      "Bash(browse:*)",
+      "Bash(BROWSE_SESSION=*)"
     ]
   }
 }
 ```
 
-**User-level** (`~/.claude/settings.json` — just you):
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash(browse:*)"
-    ]
-  }
-}
-```
-
-This allows all `browse` subcommands (`browse open`, `browse snapshot`, `browse eval`, etc.) without prompts. The `BROWSE_SESSION` env var prefix is handled automatically.
+The first pattern covers plain `browse` commands. The second covers parallel sessions (`BROWSE_SESSION=signup browse open ...`). Both are needed to avoid approval prompts.
 
 ## Mode Selection
 
@@ -465,11 +455,11 @@ Don't try to be systematic about coverage. Just explore like a user would, but w
 - Check mobile viewport (375px) on every page — does it overflow?
 - If the app has auth, use cookie-sync first
 
-## Workflow C: Parallel Testing (Browserbase)
+## Workflow C: Parallel Testing
 
-Run multiple tests concurrently using named `browse` sessions — each gets its own Browserbase cloud browser. Use this when you have multiple independent test groups (different pages, different categories) and want faster results.
+Run multiple tests concurrently using named `browse` sessions. Each named session gets its own independent browser. Use this when you have multiple independent test groups (different pages, different categories) and want faster results.
 
-**Requirement: Remote mode only.** Each named session spins up a separate Browserbase browser. This does not work with local mode (you'd be fighting over a single Chrome instance).
+Works with both local and remote mode. Named sessions are fully independent — each has its own browser process.
 
 ### How sessions work
 
