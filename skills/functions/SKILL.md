@@ -10,11 +10,10 @@ Deploy serverless browser automation using the official `bb` CLI.
 
 ## Prerequisites
 
-Get API key and Project ID from: https://browserbase.com/settings
+Get API key from: https://browserbase.com/settings
 
 ```bash
 export BROWSERBASE_API_KEY="your_api_key"
-export BROWSERBASE_PROJECT_ID="your_project_id"
 ```
 
 ## Creating a Function Project
@@ -38,7 +37,6 @@ my-function/
 
 ```bash
 echo "BROWSERBASE_API_KEY=$BROWSERBASE_API_KEY" >> .env
-echo "BROWSERBASE_PROJECT_ID=$BROWSERBASE_PROJECT_ID" >> .env
 ```
 
 ### 3. Install Dependencies
