@@ -182,6 +182,16 @@ browse select "#country" "United States"
 browse select "#tags" "javascript" "typescript"    # multi-select
 ```
 
+#### `upload <selector> <files...>`
+
+Upload file(s) to an `<input type="file">` element. Works with both local and remote Browserbase sessions (remote uses base64 injection). Supports ref-based selectors from snapshot.
+
+```bash
+browse upload "#fileUpload" ./document.pdf          # single file
+browse upload @0-5 ./photo.png                      # using ref from snapshot
+browse upload "#files" ./a.png ./b.png              # multiple files
+```
+
 #### `press <key>`
 
 Press a keyboard key or key combination.
