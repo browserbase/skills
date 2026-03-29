@@ -56,6 +56,23 @@ Use this skill when the user wants to:
 - `bb browse ...` to forward to the standalone `browse` binary (requires `@browserbasehq/browse-cli`)
 - `bb skills install` to install Browserbase agent skills for Claude Code
 
+## Debugging sessions with CDP
+
+Use `bb sessions debug` to get the debug WebSocket URL for a running session, then use `browse cdp` (from `@browserbasehq/browse-cli`) to stream live CDP events:
+
+```bash
+# Get debug URLs for a running session
+bb sessions debug <session_id>
+
+# The output includes a wsUrl — pass it to browse cdp to tail CDP events
+browse cdp <wsUrl>
+browse cdp <wsUrl> --pretty              # Human-readable output
+browse cdp <wsUrl> --domain Network      # Only network events
+browse cdp <wsUrl> > events.jsonl        # Save to file for analysis
+```
+
+This is useful for debugging automation scripts, inspecting network traffic, and monitoring console output from running sessions.
+
 ## Common workflows
 
 ### Functions
