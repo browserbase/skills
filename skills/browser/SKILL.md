@@ -69,6 +69,7 @@ browse get url                           # Get current URL
 browse get title                         # Get page title
 browse get text <selector>               # Get text content (use "body" for all text)
 browse get html <selector>               # Get HTML content of element
+browse get markdown [selector]           # Get page content as markdown (defaults to body)
 browse get value <selector>              # Get form field value
 ```
 

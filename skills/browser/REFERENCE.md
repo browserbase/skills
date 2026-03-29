@@ -101,7 +101,7 @@ browse screenshot --full-page            # capture entire scrollable page
 
 #### `get <property> [selector]`
 
-Get page properties. Available properties: `url`, `title`, `text`, `html`, `value`, `box`, `visible`, `checked`.
+Get page properties. Available properties: `url`, `title`, `text`, `html`, `markdown`, `value`, `box`, `visible`, `checked`.
 
 ```bash
 browse get url                           # current URL
@@ -109,13 +109,17 @@ browse get title                         # page title
 browse get text "body"                   # all visible text (selector required)
 browse get text ".product-info"          # text within a CSS selector
 browse get html "#main"                  # inner HTML of an element
+browse get markdown                      # full page body as markdown
+browse get markdown ".article"           # specific element as markdown
 browse get value "#email-input"          # value of a form field
 browse get box "#header"                 # bounding box (centroid coordinates)
 browse get visible ".modal"              # check if element is visible
 browse get checked "#agree"              # check if checkbox/radio is checked
 ```
 
-**Note**: `get text` requires a CSS selector argument — use `"body"` for full page text.
+**Note**: `get text` and `get html` require a selector argument — use `"body"` for full page content. `get markdown` defaults to body when no selector is given.
+
+**Tip**: Prefer `get markdown` over `get text` or `get html` when you need readable page content for analysis — it preserves links, headings, and structure without HTML noise.
 
 #### `refs`
 
