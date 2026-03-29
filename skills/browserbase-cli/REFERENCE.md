@@ -170,6 +170,41 @@ Returns structured results with titles, URLs, and optional metadata (author, pub
 
 Prefer the `fetch` skill to retrieve page content after finding URLs via search. Prefer the `browser` skill when you need to interact with pages.
 
+## Debugging sessions
+
+### Get debug URLs
+
+```bash
+bb sessions debug <session_id>
+```
+
+Returns `wsUrl`, `debuggerUrl`, `debuggerFullscreenUrl`, and a list of open pages with their debugger URLs. The session must be running.
+
+### Tail CDP events
+
+Use the `wsUrl` from `bb sessions debug` with `browse cdp` to stream live Chrome DevTools Protocol events:
+
+```bash
+# Get the wsUrl
+bb sessions debug <session_id>
+
+# Stream all events as NDJSON
+browse cdp <wsUrl>
+
+# Human-readable output
+browse cdp <wsUrl> --pretty
+
+# Filter to specific domains
+browse cdp <wsUrl> --domain Network
+browse cdp <wsUrl> --domain Network --domain Console
+
+# Pipe to file or jq
+browse cdp <wsUrl> > session-events.jsonl
+browse cdp <wsUrl> | jq 'select(.method | startswith("Network"))'
+```
+
+Requires `@browserbasehq/browse-cli` (`npm install -g @browserbasehq/browse-cli`).
+
 ## Browse passthrough
 
 `bb browse ...` forwards arguments to the standalone `browse` binary (`@browserbasehq/browse-cli`). The examples below are `browse-cli` subcommands — they are not native `bb` commands:

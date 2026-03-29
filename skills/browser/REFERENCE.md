@@ -381,6 +381,61 @@ browse network clear
 
 ---
 
+### CDP Event Tailing
+
+#### `cdp <url|port>`
+
+Attach to any Chrome DevTools Protocol target and stream events as NDJSON (one JSON object per line). This command bypasses the daemon entirely — it opens a direct WebSocket connection and runs until interrupted.
+
+```bash
+browse cdp 9222                          # bare port — auto-discovers via /json/version
+browse cdp ws://127.0.0.1:9222/devtools/browser/...  # full WebSocket URL
+browse cdp wss://connect.browserbase.com/debug/...    # remote Browserbase debug URL
+```
+
+**Options:**
+
+| Flag | Description |
+|------|-------------|
+| `--domain <domains...>` | CDP domains to enable (repeatable). Default: Network, Console, Runtime, Log, Page |
+| `--pretty` | Human-readable output instead of JSON. Auto-enabled for TTY |
+
+**Default domains:** Network, Console, Runtime, Log, Page. To capture only specific domains:
+
+```bash
+browse cdp 9222 --domain Network                     # network events only
+browse cdp 9222 --domain Network --domain Console    # network + console
+```
+
+**Piping and filtering:**
+
+```bash
+browse cdp 9222 > events.jsonl                       # save to file
+browse cdp 9222 | jq '.method'                       # extract method names
+browse cdp 9222 | jq 'select(.method == "Network.requestWillBeSent") | .params.request.url'
+```
+
+**Pretty output** shows compact one-line summaries:
+
+```
+[Target.attachedToTarget] [page] https://example.com
+[Network.requestWillBeSent] GET https://example.com/api/data
+[Network.responseReceived] 200 https://example.com/api/data
+[Runtime.consoleAPICalled] [log] Hello world
+[Page.frameNavigated] https://example.com/about
+```
+
+**With Browserbase sessions:** Use `bb sessions debug <session-id>` to get the `wsUrl`, then pass it to `browse cdp`:
+
+```bash
+# Get the debug WebSocket URL
+bb sessions debug <session-id>
+# Copy the wsUrl field and pass it to browse cdp
+browse cdp wss://connect.browserbase.com/debug/<session-id>/devtools/browser/...
+```
+
+---
+
 ## Configuration
 
 ### Global Flags
