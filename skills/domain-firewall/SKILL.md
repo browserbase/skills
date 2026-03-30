@@ -122,11 +122,11 @@ tld({ ".org": "allow", ".edu": "allow", ".gov": "allow", ".ru": "deny" })
 ```typescript
 function interactive(
   handler: (req: NavigationRequest) => Promise<"allow" | "deny">,
-  opts?: { timeoutMs?: number; onTimeout?: "allow" | "deny" },
+  opts?: { timeoutMs?: number; onTimeout?: "allow" | "deny"; remember?: boolean },
 ): FirewallPolicy
 ```
 
-Calls the async handler and waits for a human decision. Built-in timeout defaults to 30 seconds, auto-denying on timeout.
+Calls the async handler and waits for a human decision. Built-in timeout defaults to 30 seconds, auto-denying on timeout. **Remembers decisions by default** — once you approve or deny a domain, you won't be asked again for the rest of the session. Set `remember: false` to prompt every time.
 
 ```typescript
 import * as readline from "readline/promises";
@@ -139,7 +139,7 @@ interactive(
     const answer = await rl.question("  Allow? (y/n): ");
     return answer.trim().toLowerCase().startsWith("y") ? "allow" : "deny";
   },
-  { timeoutMs: 60000, onTimeout: "deny" },
+  { timeoutMs: 60000, onTimeout: "deny" },  // remember: true is the default
 )
 ```
 
@@ -254,19 +254,30 @@ export function tld(
 
 export function interactive(
   handler: (req: NavigationRequest) => Promise<"allow" | "deny">,
-  opts?: { timeoutMs?: number; onTimeout?: "allow" | "deny" },
+  opts?: { timeoutMs?: number; onTimeout?: "allow" | "deny"; remember?: boolean },
 ): FirewallPolicy {
   const timeoutMs = opts?.timeoutMs ?? 30000;
   const onTimeout = opts?.onTimeout ?? "deny";
+  const remember = opts?.remember ?? true;
+  const approved = new Set<string>();
+  const denied = new Set<string>();
   return {
     name: "interactive",
-    evaluate: (req) =>
-      Promise.race([
+    evaluate: async (req) => {
+      if (approved.has(req.domain)) return "allow";
+      if (denied.has(req.domain)) return "deny";
+      const verdict = await Promise.race([
         handler(req),
         new Promise<"allow" | "deny">((resolve) =>
           setTimeout(() => resolve(onTimeout), timeoutMs),
         ),
-      ]),
+      ]);
+      if (remember) {
+        if (verdict === "allow") approved.add(req.domain);
+        else denied.add(req.domain);
+      }
+      return verdict;
+    },
   };
 }
 ```

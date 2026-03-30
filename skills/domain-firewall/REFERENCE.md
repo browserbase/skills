@@ -200,17 +200,18 @@ Checks the domain's TLD against a rules map. Keys must include the leading dot (
 ```typescript
 function interactive(
   handler: (req: NavigationRequest) => Promise<"allow" | "deny">,
-  opts?: { timeoutMs?: number; onTimeout?: "allow" | "deny" },
+  opts?: { timeoutMs?: number; onTimeout?: "allow" | "deny"; remember?: boolean },
 ): FirewallPolicy
 ```
 
-Calls the async handler for a human (or automated) decision. The request is held at the CDP level until the handler resolves.
+Calls the async handler for a human (or automated) decision. The request is held at the CDP level until the handler resolves. **Remembers decisions by default** — approved and denied domains are cached for the session so the handler is only called once per domain.
 
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | `handler` | `(req) => Promise<"allow" \| "deny">` | — | Async function that returns a verdict |
 | `opts.timeoutMs` | `number` | `30000` | Timeout in milliseconds |
 | `opts.onTimeout` | `"allow" \| "deny"` | `"deny"` | Verdict if handler times out |
+| `opts.remember` | `boolean` | `true` | Cache verdicts per domain for the session. Set `false` to prompt every navigation. |
 
 **Policy name**: `"interactive"`
 
