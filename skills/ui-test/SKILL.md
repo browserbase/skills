@@ -696,7 +696,7 @@ Check whether changed UI is visually consistent with the rest of the app. This c
 
 ### If `references/design-system.md` exists
 
-The customer has documented their design tokens and conventions. Use it as ground truth:
+The user has documented their design tokens and conventions. Use it as ground truth. (See `references/design-system.example.md` for the expected format.)
 
 ```bash
 # Read the design system

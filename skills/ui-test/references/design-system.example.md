@@ -1,6 +1,15 @@
-# Browserbase Design System
+# Design System Reference (Example)
 
-Use this as ground truth when evaluating visual consistency of Browserbase UI.
+> **This is an example.** Copy this file to `design-system.md` and replace with your own design tokens. The ui-test skill uses `design-system.md` (not this file) as ground truth for visual consistency checks.
+>
+> ```bash
+> cp references/design-system.example.md references/design-system.md
+> # Then edit design-system.md with your brand's values
+> ```
+
+---
+
+Below is the Browserbase design system as a reference for the expected format and level of detail.
 
 ## Brand Colors
 
