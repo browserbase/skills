@@ -53,6 +53,21 @@
       "skills": [
         "./skills/browserbase-cli"
       ]
+    },
+    {
+      "name": "domain-firewall",
+      "source": "./",
+      "description": "Implement CDP-based domain allowlist security for Stagehand/Browserbase browser sessions. Use when the user wants to restrict which domains an AI agent can navigate to, block malicious links, prevent prompt injection redirects, or add navigation security to browser automation.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "security",
+      "keywords": ["security", "firewall", "allowlist", "cdp", "navigation", "domain-filtering", "prompt-injection"],
+      "strict": false,
+      "skills": [
+        "./skills/domain-firewall"
+      ]
     }
   ]
 }
