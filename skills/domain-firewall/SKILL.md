@@ -311,7 +311,7 @@ export async function installDomainFirewall(
       // Pass through non-document requests (images, CSS, JS, fonts, etc.)
       const resourceType = params.resourceType || "";
       if (resourceType !== "Document" && resourceType !== "") {
-        page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
+        await page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
         return;
       }
 
@@ -321,7 +321,7 @@ export async function installDomainFirewall(
         url.startsWith("about:") ||
         url.startsWith("data:")
       ) {
-        page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
+        await page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
         return;
       }
 
@@ -329,7 +329,7 @@ export async function installDomainFirewall(
       try {
         domain = normalizeDomain(new URL(url).hostname);
       } catch {
-        page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
+        await page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
         return;
       }
 
@@ -345,13 +345,13 @@ export async function installDomainFirewall(
           time: ts(), domain, url: url.substring(0, 80),
           action: "ALLOWED", decidedBy,
         });
-        page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
+        await page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
       } else {
         auditLog?.push({
           time: ts(), domain, url: url.substring(0, 80),
           action: "BLOCKED", decidedBy,
         });
-        page.sendCDP("Fetch.failRequest", {
+        await page.sendCDP("Fetch.failRequest", {
           requestId: params.requestId,
           errorReason: "BlockedByClient",
         });
