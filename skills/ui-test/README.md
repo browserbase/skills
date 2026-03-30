@@ -57,7 +57,7 @@ ui-test/
 │   └── ux-heuristics.md                  # 6 evaluation frameworks (Laws of UX, Nielsen's, etc.)
 └── references/
     ├── browser-recipes.md                # Copy-paste browse CLI recipes for deterministic checks
-    ├── codebase-analysis.md              # Quick hints for understanding a frontend codebase
+    ├── design-system.example.md          # Example design system template (copy to design-system.md)
     └── exploratory-testing.md            # Guide for agent-driven exploratory QA
 ```
 
