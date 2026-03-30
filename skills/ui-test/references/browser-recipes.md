@@ -169,7 +169,7 @@ browse eval "
     method: f.method,
     inputs: Array.from(f.querySelectorAll('input,select,textarea')).map(i => ({
       name: i.name, type: i.type, required: i.required,
-      hasLabel: !!i.labels?.length || !!i.getAttribute('aria-label'),
+      hasLabel: !!(i.labels?.length || i.getAttribute('aria-label') || i.getAttribute('aria-labelledby')),
       placeholder: i.placeholder
     }))
   })));

@@ -274,7 +274,7 @@ browse wait load
 
 # ---- Test 1: axe-core audit ----
 browse eval "const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js'; document.head.appendChild(s); 'loading'"
-# Wait for load
+browse wait timeout 3000
 browse eval "axe.run().then(r => JSON.stringify({ violations: r.violations.map(v => ({ id: v.id, impact: v.impact, description: v.description, nodes: v.nodes.length })), passes: r.passes.length }))"
 # Result: {"violations":[],"passes":33}
 
@@ -431,6 +431,7 @@ browse snapshot
 
 # axe-core on remote page
 browse eval "const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js'; document.head.appendChild(s); 'loading'"
+browse wait timeout 3000
 browse eval "axe.run().then(r => JSON.stringify({ violations: r.violations.length, passes: r.passes.length }))"
 
 browse stop
