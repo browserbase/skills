@@ -15,8 +15,10 @@ browse wait load
 # Step 1: Load axe-core
 browse eval "const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js'; document.head.appendChild(s); 'loading'"
 
-# Step 2: Wait for script to load, then run audit
-# (wait 2-3 seconds for the script to load)
+# Step 2: Wait for script to load
+browse wait timeout 3000
+
+# Step 3: Run audit
 browse eval "axe.run().then(r => JSON.stringify({ violations: r.violations.map(v => ({ id: v.id, impact: v.impact, description: v.description, nodes: v.nodes.length, help: v.helpUrl })), passes: r.passes.length, incomplete: r.incomplete.length }))"
 ```
 
@@ -100,7 +102,7 @@ browse wait load
 
 # Tab through elements one at a time
 browse press Tab
-browse eval "JSON.stringify({tag: document.activeElement?.tagName, text: document.activeElement?.textContent?.trim().slice(0,40), role: document.activeElement?.getAttribute('role'), ariaLabel: document.activeElement?.getAttribute('aria-label'), hasFocus: window.getComputedStyle(document.activeElement).outlineStyle !== 'none'})"
+browse eval "JSON.stringify({tag: document.activeElement?.tagName, text: document.activeElement?.textContent?.trim().slice(0,40), role: document.activeElement?.getAttribute('role'), ariaLabel: document.activeElement?.getAttribute('aria-label'), hasFocus: (() => { const s = window.getComputedStyle(document.activeElement); return s.outlineStyle !== 'none' || s.boxShadow !== 'none'; })()})"
 
 # Repeat browse press Tab + eval to build the full tab order
 # Stop when activeElement returns BODY (looped back)

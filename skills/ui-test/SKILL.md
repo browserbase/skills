@@ -475,7 +475,8 @@ These produce structured data, not judgment calls. Use them as the strongest for
 
 ```bash
 browse eval "const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js'; document.head.appendChild(s); 'loading'"
-# Wait 2-3 seconds for script to load
+# Wait for script to load
+browse wait timeout 3000
 browse eval "axe.run().then(r => JSON.stringify({ violations: r.violations.map(v => ({ id: v.id, impact: v.impact, description: v.description, nodes: v.nodes.length, help: v.helpUrl })), passes: r.passes.length, incomplete: r.incomplete.length }))"
 ```
 
@@ -518,7 +519,7 @@ Assert: empty array for PASS.
 ### Form structure
 
 ```bash
-browse eval "JSON.stringify(Array.from(document.querySelectorAll('form')).map(f => ({ action: f.action, inputs: Array.from(f.querySelectorAll('input,select,textarea')).map(i => ({ name: i.name, type: i.type, required: i.required, hasLabel: !!i.labels?.length })) })))"
+browse eval "JSON.stringify(Array.from(document.querySelectorAll('form')).map(f => ({ action: f.action, inputs: Array.from(f.querySelectorAll('input,select,textarea')).map(i => ({ name: i.name, type: i.type, required: i.required, hasLabel: !!(i.labels?.length || i.getAttribute('aria-label') || i.getAttribute('aria-labelledby')) })) })))"
 ```
 
 Assert: every input has `hasLabel: true`. Any `false` = accessibility FAIL.

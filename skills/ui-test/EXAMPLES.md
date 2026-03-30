@@ -450,7 +450,7 @@ browse snapshot
 browse screenshot /tmp/explore-home.png
 
 # Console health check
-browse eval "JSON.stringify({errors: (window.__capturedErrors || []).length})"
+browse eval "JSON.stringify({errors: (window.__logs || []).length})"
 
 # ---- Empty state audit ----
 browse open http://localhost:3000/dashboard
