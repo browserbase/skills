@@ -334,22 +334,36 @@ export async function installDomainFirewall(
       }
 
       const req: NavigationRequest = { domain, url };
-      const { verdict, decidedBy } = await evaluatePolicies(
-        policies,
-        req,
-        defaultVerdict,
-      );
 
-      if (verdict === "allow") {
+      try {
+        const { verdict, decidedBy } = await evaluatePolicies(
+          policies,
+          req,
+          defaultVerdict,
+        );
+
+        if (verdict === "allow") {
+          auditLog?.push({
+            time: ts(), domain, url: url.substring(0, 80),
+            action: "ALLOWED", decidedBy,
+          });
+          await page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
+        } else {
+          auditLog?.push({
+            time: ts(), domain, url: url.substring(0, 80),
+            action: "BLOCKED", decidedBy,
+          });
+          await page.sendCDP("Fetch.failRequest", {
+            requestId: params.requestId,
+            errorReason: "BlockedByClient",
+          });
+        }
+      } catch (err) {
+        // Fail-closed: deny the request on any policy error to avoid
+        // permanently hanging the browser with a paused CDP request
         auditLog?.push({
           time: ts(), domain, url: url.substring(0, 80),
-          action: "ALLOWED", decidedBy,
-        });
-        await page.sendCDP("Fetch.continueRequest", { requestId: params.requestId });
-      } else {
-        auditLog?.push({
-          time: ts(), domain, url: url.substring(0, 80),
-          action: "BLOCKED", decidedBy,
+          action: "BLOCKED", decidedBy: "error",
         });
         await page.sendCDP("Fetch.failRequest", {
           requestId: params.requestId,
