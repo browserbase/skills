@@ -5,7 +5,7 @@ license: MIT
 metadata:
   author: browserbase
   version: "0.4.0"
-allowed-tools: Bash, Read, Glob, Grep, Agent
+allowed-tools: Bash Read Glob Grep Agent
 compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). For remote testing: BROWSERBASE_API_KEY and cookie-sync skill."
 ---
 
@@ -359,172 +359,20 @@ Always `browse stop` when done.
 
 ## Adversarial Test Patterns
 
-Use these patterns to try to break features. Apply them to every interactive element you test.
-
-### Forms — try to break them
-
-```bash
-# Empty submission
-browse snapshot                          # BEFORE: note form fields
-browse click @submit-ref                 # ACT: submit empty
-browse snapshot                          # AFTER: error messages should appear
-
-# Long input (500+ chars)
-browse fill "#name" "aaaa....(500 chars)"
-browse snapshot                          # Check: does layout break? Is text truncated?
-
-# Special characters
-browse fill "#name" "<script>alert('xss')</script>"
-browse fill "#email" "'; DROP TABLE users;--"
-browse snapshot                          # Check: input sanitized? No raw HTML rendered?
-
-# Rapid submit
-browse click @submit-ref
-browse click @submit-ref                 # Click twice immediately
-browse snapshot                          # Check: only one submission processed?
-```
-
-### Modals — test the full lifecycle
-
-```bash
-browse snapshot                          # BEFORE: no dialog in tree
-
-# Open
-browse click @trigger-ref
-browse snapshot                          # AFTER: dialog element should appear
-# ASSERT: dialog role exists in tree
-
-# Escape to close
-browse press Escape
-browse snapshot                          # AFTER: dialog should be gone
-# ASSERT: dialog role removed from tree
-
-# Re-open and cancel
-browse click @trigger-ref
-browse snapshot                          # dialog present
-browse click @cancel-ref
-browse snapshot                          # dialog gone
-
-# Re-open and confirm
-browse click @trigger-ref
-browse snapshot                          # dialog present
-browse click @confirm-ref
-browse snapshot                          # dialog gone + side effect occurred
-```
-
-### Navigation — verify routing works
-
-```bash
-browse snapshot                          # BEFORE: note current URL and content
-browse click @nav-link-ref               # ACT: click a navigation link
-browse wait load
-browse get url                           # Check URL changed
-browse snapshot                          # AFTER: content matches the destination
-# Compare: different heading, different page content
-
-# Back button
-browse back
-browse get url                           # Should return to original URL
-browse snapshot                          # Content matches original page
-```
-
-### Error states — find missing ones
-
-```bash
-# Navigate to a page with no data
-browse open http://localhost:3000/items
-browse snapshot
-# Check: is there a designed empty state with a message and CTA?
-# Or just blank space?
-
-# Navigate to a non-existent route
-browse open http://localhost:3000/does-not-exist
-browse snapshot
-# Check: 404 page? Or blank/error?
-
-# Submit invalid data and check error recovery
-browse fill "#field" "invalid"
-browse click @submit-ref
-browse snapshot
-# Check: is the error message helpful? Does it tell you what's wrong?
-# Check: is the user's input preserved? Or was the form cleared?
-```
-
-### Keyboard accessibility — can you use it without a mouse?
-
-```bash
-browse open http://localhost:3000/page
-browse wait load
-
-# Tab through all interactive elements
-browse press Tab
-browse eval "JSON.stringify({tag: document.activeElement?.tagName, text: document.activeElement?.textContent?.trim().slice(0,40), role: document.activeElement?.getAttribute('role')})"
-# Repeat Tab + eval until activeElement returns to BODY
-# Check: every interactive element reachable? Focus ring visible? Order logical?
-
-# Try activating elements via keyboard
-browse press Enter                       # Should activate focused button
-browse snapshot                          # Verify the action happened
-```
+Apply these to every interactive element you test. Read [references/adversarial-patterns.md](references/adversarial-patterns.md) for the full pattern library (forms, modals, navigation, error states, keyboard accessibility).
 
 ## Deterministic Checks
 
 These produce structured data, not judgment calls. Use them as the strongest form of assertion.
 
-### axe-core accessibility audit
+| Check | What it catches | Assertion |
+|-------|----------------|-----------|
+| axe-core | WCAG violations | `violations.length === 0` |
+| Console errors | Runtime exceptions, failed requests | empty error array |
+| Broken images | Missing/failed image loads | no images with `naturalWidth === 0` |
+| Form labels | Inputs without accessible labels | every input has `hasLabel: true` |
 
-```bash
-browse eval "const s = document.createElement('script'); s.src = 'https://cdnjs.cloudflare.com/ajax/libs/axe-core/4.10.2/axe.min.js'; document.head.appendChild(s); 'loading'"
-# Wait for script to load
-browse wait timeout 3000
-browse eval "axe.run().then(r => JSON.stringify({ violations: r.violations.map(v => ({ id: v.id, impact: v.impact, description: v.description, nodes: v.nodes.length, help: v.helpUrl })), passes: r.passes.length, incomplete: r.incomplete.length }))"
-```
-
-Assert: `violations.length === 0` for PASS. Any violation with `impact: "critical"` or `"serious"` is a FAIL.
-
-### Console errors
-
-**Note**: Console capture injected on `about:blank` gets wiped when navigating to a different origin. Instead, navigate to the target page first, then inject the capture and check for errors that occur during interaction:
-
-```bash
-browse open "TARGET_URL"
-browse wait load
-
-# Inject capture on the actual page
-browse eval "window.__logs = []; const orig = { error: console.error, warn: console.warn }; console.error = (...args) => { window.__logs.push({type:'error', text: args.join(' ')}); orig.error(...args); }; console.warn = (...args) => { window.__logs.push({type:'warn', text: args.join(' ')}); orig.warn(...args); }; window.addEventListener('error', e => window.__logs.push({type:'uncaught', text: e.message})); window.addEventListener('unhandledrejection', e => window.__logs.push({type:'rejection', text: String(e.reason)})); 'installed'"
-
-# Now interact with the page — errors during interaction are captured
-browse click @some-ref
-browse eval "JSON.stringify(window.__logs)"
-```
-
-For checking errors on initial page load, use the performance API instead:
-
-```bash
-browse open "TARGET_URL"
-browse wait load
-browse eval "JSON.stringify(performance.getEntries().filter(e => e.entryType === 'resource' && e.responseStatus >= 400).map(e => ({ url: e.name, status: e.responseStatus })))"
-```
-
-Assert: empty array for PASS. Any failed resources = FAIL.
-
-### Broken images
-
-```bash
-browse eval "JSON.stringify(Array.from(document.querySelectorAll('img')).filter(i => !i.complete || i.naturalWidth === 0).map(i => ({ src: i.src, alt: i.alt })))"
-```
-
-Assert: empty array for PASS.
-
-### Form structure
-
-```bash
-browse eval "JSON.stringify(Array.from(document.querySelectorAll('form')).map(f => ({ action: f.action, inputs: Array.from(f.querySelectorAll('input,select,textarea')).map(i => ({ name: i.name, type: i.type, required: i.required, hasLabel: !!(i.labels?.length || i.getAttribute('aria-label') || i.getAttribute('aria-labelledby')) })) })))"
-```
-
-Assert: every input has `hasLabel: true`. Any `false` = accessibility FAIL.
-
-See [references/browser-recipes.md](references/browser-recipes.md) for more recipes.
+For the exact `browse eval` recipes, read [references/browser-recipes.md](references/browser-recipes.md).
 
 ## Workflow B: Exploratory Testing
 
@@ -551,205 +399,15 @@ Don't try to be systematic about coverage. Just explore like a user would, but w
 
 ## Workflow C: Parallel Testing
 
-Run multiple tests concurrently using named `browse` sessions. Each named session gets its own independent browser. Use this when you have multiple independent test groups (different pages, different categories) and want faster results.
+Run independent test groups concurrently using named `browse` sessions (`BROWSE_SESSION=<name>`). Each session gets its own browser. Works with both local and remote mode.
 
-Works with both local and remote mode. Named sessions are fully independent — each has its own browser process.
+Use when testing multiple pages or categories and you want faster wall clock time.
 
-### How sessions work
-
-The `--session` flag (or `BROWSE_SESSION` env var) gives each `browse` command its own isolated browser:
-
-```bash
-# Session "signup" gets its own browser
-# Use env local for localhost URLs, env remote for deployed URLs
-BROWSE_SESSION=signup browse env local
-BROWSE_SESSION=signup browse open http://localhost:3000/signup
-
-# Session "dashboard" gets a completely separate browser
-BROWSE_SESSION=dashboard browse env local
-BROWSE_SESSION=dashboard browse open http://localhost:3000/dashboard
-
-# They don't share state — each has its own page, cookies, refs
-```
-
-### When to use parallel vs sequential
-
-| Scenario | Use |
-|----------|-----|
-| Tests on different pages/routes | **Parallel** — no shared state |
-| Tests within one page (fill form → submit → check result) | **Sequential** — steps depend on each other |
-| Accessibility audit + visual audit on same page | **Parallel** — independent checks |
-| Before/after comparison on one element | **Sequential** — ordering matters |
-
-### Phase 1: Group tests by independence
-
-After generating your test plan (from Workflow A), or identifying pages to test (Workflow B), group tests that can run in parallel:
-
-```
-Parallel Groups (from diff-driven test plan)
-=============================================
-Group 1 (session: signup)     → /signup form validation (happy + adversarial)
-Group 2 (session: dashboard)  → /dashboard empty state + data display
-Group 3 (session: a11y)       → /settings accessibility audit (axe-core + keyboard)
-```
-
-Rule: tests within a group run sequentially. Groups run in parallel.
-
-### Phase 2: Launch parallel agents
-
-Use the Agent tool to fan out. Each agent gets a unique session name and runs its test group independently:
-
-```
-Launch agents in parallel (use Agent tool with multiple invocations in one message):
-
-Agent 1 — prompt: "Run signup form tests using BROWSE_SESSION=signup.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
-  Follow the before/after assertion protocol.
-  On any STEP_FAIL, immediately take a screenshot:
-    BROWSE_SESSION=signup browse screenshot --path .context/ui-test-screenshots/signup-<step-id>.png
-  Return structured STEP_PASS/STEP_FAIL markers (include screenshot path for failures).
-  Run `BROWSE_SESSION=signup browse stop` when done."
-
-Agent 2 — prompt: "Run dashboard tests using BROWSE_SESSION=dashboard.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
-  Follow the before/after assertion protocol.
-  On any STEP_FAIL, immediately take a screenshot:
-    BROWSE_SESSION=dashboard browse screenshot --path .context/ui-test-screenshots/dashboard-<step-id>.png
-  Return structured STEP_PASS/STEP_FAIL markers (include screenshot path for failures).
-  Run `BROWSE_SESSION=dashboard browse stop` when done."
-
-Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
-  Follow the before/after assertion protocol.
-  On any STEP_FAIL, immediately take a screenshot:
-    BROWSE_SESSION=a11y browse screenshot --path .context/ui-test-screenshots/a11y-<step-id>.png
-  Return structured STEP_PASS/STEP_FAIL markers (include screenshot path for failures).
-  Run `BROWSE_SESSION=a11y browse stop` when done."
-```
-
-**Critical rules for parallel agents:**
-- Every `browse` command in the agent MUST be prefixed with `BROWSE_SESSION=<name>`
-- If the target URL is localhost/127.0.0.1, each agent must use `browse env local`
-- Each agent must call `browse stop` when done (with its session name)
-- Pass the full test steps and assertion protocol to each agent — they don't have the skill context
-- Include the before/after snapshot pattern in each agent's prompt
-- Tell each agent to `mkdir -p .context/ui-test-screenshots` and save screenshots on failure with the naming convention `<session>-<step-id>.png`
-
-### Phase 3: Collect and merge results
-
-As agents complete, collect their STEP_PASS/STEP_FAIL markers and merge into one report:
-
-```
-## UI Test Results (Parallel Run)
-
-### Group: signup (session: signup)
-STEP_PASS|valid-email|heading "Welcome!" appeared after submit
-STEP_PASS|empty-submit|validation error shown for empty form
-STEP_FAIL|double-submit|expected single submission → two success toasts appeared|.context/ui-test-screenshots/signup-double-submit.png
-
-### Group: dashboard (session: dashboard)
-STEP_PASS|empty-state|"No items yet" message with CTA displayed
-STEP_PASS|data-display|table rendered 5 rows with correct columns
-
-### Group: a11y (session: a11y)
-STEP_FAIL|axe-audit|expected 0 violations → 2 critical: color-contrast, missing-label|.context/ui-test-screenshots/a11y-axe-audit.png
-STEP_PASS|keyboard-nav|all 12 elements reachable via Tab
-
----
-**Summary: 5/7 passed, 2 failed (across 3 parallel sessions)**
-Failed: double-submit (signup), axe-audit (a11y)
-
-Screenshots: `.context/ui-test-screenshots/`
-- signup-double-submit.png — duplicate toast after rapid submit
-- a11y-axe-audit.png — page showing color contrast and missing label violations
-```
-
-### Parallel with cookie-sync (authenticated pages)
-
-If testing authenticated pages, sync cookies once and share the context ID across sessions:
-
-```bash
-# Sync once
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains staging.app.com
-# Output: Context ID: ctx_abc123
-
-# Each session uses the same context ID
-BROWSE_SESSION=settings browse env remote
-BROWSE_SESSION=settings browse open https://staging.app.com/settings --context-id ctx_abc123
-
-BROWSE_SESSION=profile browse env remote
-BROWSE_SESSION=profile browse open https://staging.app.com/profile --context-id ctx_abc123
-```
-
-### Cleanup
-
-Always stop all sessions when done, even if a test fails:
-
-```bash
-BROWSE_SESSION=signup browse stop 2>/dev/null
-BROWSE_SESSION=dashboard browse stop 2>/dev/null
-BROWSE_SESSION=a11y browse stop 2>/dev/null
-```
+Read [references/parallel-testing.md](references/parallel-testing.md) for the full workflow: session setup, agent fan-out, cookie-sync for auth, and result merging.
 
 ## Design Consistency
 
-Check whether changed UI is visually consistent with the rest of the app. This catches "it works but looks wrong" — mismatched spacing, colors, border radii, component styles.
-
-### If `references/design-system.md` exists
-
-The user has documented their design tokens and conventions. Use it as ground truth. (See `references/design-system.example.md` for the expected format.)
-
-```bash
-# Read the design system
-cat references/design-system.md
-# or: cat .claude/skills/ui-test/references/design-system.md
-
-# Then screenshot the changed page and check against documented patterns
-browse screenshot
-# Compare: does spacing match the grid? Are colors from the palette? Correct font weights?
-```
-
-Flag any deviation from the documented system as a `STEP_FAIL`:
-```
-STEP_FAIL|design-spacing|design system specifies 8px grid → new modal uses 6px gap
-STEP_FAIL|design-button|design system: destructive buttons use outline style → new delete button uses filled red
-```
-
-### If no design system exists — learn from the app
-
-Before testing the changed page, screenshot 2-3 **unchanged** pages to establish a baseline:
-
-```bash
-# Step 1: Capture baseline from existing pages
-browse open http://localhost:3000/
-browse screenshot
-# Note: spacing rhythm, border radii, font sizes, button styles, color palette
-
-browse open http://localhost:3000/settings  # or any other established page
-browse screenshot
-# Note: same patterns — confirm consistency
-
-# Step 2: Now visit the changed page
-browse open http://localhost:3000/changed-page
-browse screenshot
-# Compare against baseline: does it match the established patterns?
-```
-
-Look for:
-- **Spacing rhythm** — does the new UI use the same gaps/padding as existing pages?
-- **Border radius** — rounded-sm vs rounded-md vs rounded-lg consistency
-- **Button styles** — same primary/secondary/destructive patterns?
-- **Typography** — same heading sizes, font weights, body text size?
-- **Color usage** — same palette? Same semantic colors (red=error, green=success)?
-- **Component patterns** — if other pages use inline confirms, does the new page use a modal instead?
-
-Report as structured findings:
-```
-STEP_PASS|design-consistency|new sidebar uses same border-l, bg-white, and shadow pattern as existing sidebar on /sessions
-STEP_FAIL|design-inconsistency|existing pages use rounded-lg on cards → new component uses rounded-sm
-```
-
-Design consistency is a **visual judgment** — the weakest assertion type. Always be specific about what you're comparing (which page, which element, which property).
+Check whether changed UI matches the rest of the app visually. Read [references/design-consistency.md](references/design-consistency.md) when doing visual or design checks.
 
 ## Test Categories
 
@@ -765,7 +423,16 @@ Design consistency is a **visual judgment** — the weakest assertion type. Alwa
 | Design Consistency | Screenshot baseline + changed page comparison | Visual judgment (cite specific property) |
 | Exploratory | Free navigation + adversarial testing | Before/after + judgment |
 
-Reference guides: [rules/ux-heuristics.md](rules/ux-heuristics.md), [references/exploratory-testing.md](references/exploratory-testing.md)
+Reference guides (load on demand):
+- **Adversarial patterns** — [references/adversarial-patterns.md](references/adversarial-patterns.md) — load when testing forms, modals, navigation, or keyboard a11y
+- **Browser recipes** — [references/browser-recipes.md](references/browser-recipes.md) — load when running deterministic checks (axe-core, console, images, form labels)
+- **Exploratory testing** — [references/exploratory-testing.md](references/exploratory-testing.md) — load for Workflow B (no diff, open exploration)
+- **UX heuristics** — [references/ux-heuristics.md](references/ux-heuristics.md) — load when evaluating UX quality or citing specific heuristics
+- **Design system** — [references/design-system.example.md](references/design-system.example.md) — template for users to customize
+- **Design consistency** — [references/design-consistency.md](references/design-consistency.md) — load when doing visual consistency checks
+- **Parallel testing** — [references/parallel-testing.md](references/parallel-testing.md) — load for Workflow C (concurrent sessions)
+
+For worked examples with exact commands, read [EXAMPLES.md](EXAMPLES.md) if you need to see the assertion protocol in action.
 
 ## Best Practices
 

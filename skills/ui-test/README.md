@@ -50,15 +50,17 @@ which browse || npm install -g @browserbasehq/browse-cli
 
 ```
 ui-test/
-├── SKILL.md                              # Skill definition — workflows, assertion protocol, patterns
+├── SKILL.md                              # Skill definition — workflows, assertion protocol, budget
 ├── EXAMPLES.md                           # 9 worked examples with exact commands
 ├── README.md
-├── rules/
-│   └── ux-heuristics.md                  # 6 evaluation frameworks (Laws of UX, Nielsen's, etc.)
 └── references/
+    ├── adversarial-patterns.md           # Adversarial test patterns (forms, modals, nav, keyboard)
     ├── browser-recipes.md                # Copy-paste browse CLI recipes for deterministic checks
+    ├── design-consistency.md             # Design consistency checking methodology
     ├── design-system.example.md          # Example design system template (copy to design-system.md)
-    └── exploratory-testing.md            # Guide for agent-driven exploratory QA
+    ├── exploratory-testing.md            # Guide for agent-driven exploratory QA
+    ├── parallel-testing.md              # Parallel testing with named Browserbase sessions
+    └── ux-heuristics.md                  # 6 evaluation frameworks (Laws of UX, Nielsen's, etc.)
 ```
 
 ## Philosophy
