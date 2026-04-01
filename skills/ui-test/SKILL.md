@@ -357,6 +357,111 @@ Screenshots saved to `.context/ui-test-screenshots/` — open any failed step's 
 
 Always `browse stop` when done.
 
+### Phase 7: Generate HTML report
+
+After producing the text report, generate a standalone HTML report that a reviewer can open in a browser. The report embeds screenshots inline (base64) so it works as a single file — no external dependencies.
+
+**Why:** Text reports are good for the agent conversation, but reviewers (PMs, designers, other engineers) want a visual artifact they can open, scan, and share. Screenshots inline make failures immediately obvious.
+
+#### How to generate
+
+1. Read the HTML template at [references/report-template.html](references/report-template.html)
+2. Build the report by replacing the template placeholders with actual test data:
+
+| Placeholder | Value |
+|-------------|-------|
+| `{{TITLE}}` | Report title (e.g., "UI Test: PR #1234 — OAuth Settings") |
+| `{{META}}` | One-line context: date, app URL, user, branch |
+| `{{TOTAL_STEPS}}` | Total STEP_PASS + STEP_FAIL count |
+| `{{PASS_COUNT}}` | Number of STEP_PASS |
+| `{{FAIL_COUNT}}` | Number of STEP_FAIL |
+| `{{TEST_COUNT}}` | Number of logical tests |
+| `{{PASS_RATE}}` | Integer percentage (e.g., "92") |
+| `{{RATE_CLASS}}` | `good` (≥90%), `warn` (70–89%), `bad` (<70%) |
+| `{{FAILURES_SECTION}}` | HTML for failed test cards (see below) |
+| `{{PASSES_SECTION}}` | HTML for passed test cards (see below) |
+
+3. For each test result, generate a `<details>` card. Failed tests should be **open by default** so reviewers see them immediately:
+
+```html
+<!-- Failed test card (open by default) -->
+<div class="section">
+  <h2>Failures <span class="count">{{FAIL_COUNT}}</span></h2>
+  <details class="test-card fail" open>
+    <summary>
+      <span class="badge fail">FAIL</span>
+      <span class="step-id">step-id-here</span>
+      <span class="evidence">expected → actual</span>
+    </summary>
+    <div class="body">
+      <dl>
+        <dt>URL</dt><dd>http://localhost:3000/path</dd>
+        <dt>Action</dt><dd>What was done</dd>
+        <dt>Expected</dt><dd>What should have happened</dd>
+        <dt>Actual</dt><dd>What happened instead</dd>
+      </dl>
+      <div class="suggestion">Fix: description of suggested fix</div>
+      <div class="screenshot">
+        <img src="data:image/png;base64,..." alt="Screenshot of failure">
+        <div class="caption">step-id.png — captured at moment of failure</div>
+      </div>
+    </div>
+  </details>
+</div>
+
+<!-- Passed test card (collapsed by default) -->
+<div class="section">
+  <h2>Passed <span class="count">{{PASS_COUNT}}</span></h2>
+  <details class="test-card pass">
+    <summary>
+      <span class="badge pass">PASS</span>
+      <span class="step-id">step-id-here</span>
+      <span class="evidence">evidence summary</span>
+    </summary>
+    <div class="body">
+      <dl>
+        <dt>URL</dt><dd>http://localhost:3000/path</dd>
+        <dt>Evidence</dt><dd>What was observed</dd>
+      </dl>
+    </div>
+  </details>
+</div>
+```
+
+4. **Embed screenshots as base64** so the HTML is fully self-contained:
+
+```bash
+# Convert screenshot to base64 data URI
+base64 -i .context/ui-test-screenshots/step-id.png | tr -d '\n'
+# Use as: src="data:image/png;base64,<output>"
+```
+
+Read each screenshot file referenced in STEP_FAIL markers, base64-encode it, and embed it as an `<img src="data:image/png;base64,...">` in the corresponding test card. For STEP_PASS, only embed a screenshot if one was explicitly taken (e.g., baseline screenshots).
+
+5. Write the final HTML to `.context/ui-test-report.html`:
+
+```bash
+# Write the generated HTML
+cat > .context/ui-test-report.html << 'REPORT_EOF'
+<!DOCTYPE html>
+...generated report...
+REPORT_EOF
+
+# Open it for the reviewer
+open .context/ui-test-report.html  # macOS
+# xdg-open .context/ui-test-report.html  # Linux
+```
+
+6. Tell the user: `Report saved to .context/ui-test-report.html` and offer to open it.
+
+**Rules:**
+- Failures section comes before passes — reviewers care about what's broken first
+- Failed cards are `open` by default; passed cards are collapsed
+- Every STEP_FAIL card MUST have an embedded screenshot — if the screenshot file is missing, note it in the card
+- Include the suggestion/fix in each failure card if one was provided
+- The report must work offline — no CDN links, no external assets
+- Keep the HTML under 5MB — if screenshots push it over, reduce image quality or skip baseline screenshots for passes
+
 ## Adversarial Test Patterns
 
 Apply these to every interactive element you test. Read [references/adversarial-patterns.md](references/adversarial-patterns.md) for the full pattern library (forms, modals, navigation, error states, keyboard accessibility).
@@ -431,6 +536,7 @@ Reference guides (load on demand):
 - **Design system** — [references/design-system.example.md](references/design-system.example.md) — template for users to customize
 - **Design consistency** — [references/design-consistency.md](references/design-consistency.md) — load when doing visual consistency checks
 - **Parallel testing** — [references/parallel-testing.md](references/parallel-testing.md) — load for Workflow C (concurrent sessions)
+- **Report template** — [references/report-template.html](references/report-template.html) — HTML template for Phase 7 report generation
 
 For worked examples with exact commands, read [EXAMPLES.md](EXAMPLES.md) if you need to see the assertion protocol in action.
 

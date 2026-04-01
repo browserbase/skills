@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UI Test Report — {{TITLE}}</title>
+<style>
+  :root {
+    --pass: #16a34a;
+    --fail: #dc2626;
+    --bg: #0f172a;
+    --card: #1e293b;
+    --border: #334155;
+    --text: #e2e8f0;
+    --muted: #94a3b8;
+    --accent: #3b82f6;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  /* Header */
+  header { margin-bottom: 2rem; }
+  header h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+  header .meta { color: var(--muted); font-size: 0.875rem; }
+
+  /* Summary bar */
+  .summary { display: flex; gap: 1rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; flex: 1; min-width: 120px; }
+  .stat .label { font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-bottom: 0.25rem; }
+  .stat .value { font-size: 1.5rem; font-weight: 700; }
+  .stat .value.pass { color: var(--pass); }
+  .stat .value.fail { color: var(--fail); }
+
+  /* Pass rate bar */
+  .pass-rate-bar { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1rem 1.25rem; margin-bottom: 2rem; }
+  .pass-rate-bar .bar-track { height: 8px; background: var(--border); border-radius: 4px; overflow: hidden; margin-top: 0.5rem; }
+  .pass-rate-bar .bar-fill { height: 100%; border-radius: 4px; transition: width 0.3s; }
+  .pass-rate-bar .bar-fill.good { background: var(--pass); }
+  .pass-rate-bar .bar-fill.warn { background: #eab308; }
+  .pass-rate-bar .bar-fill.bad { background: var(--fail); }
+
+  /* Section */
+  .section { margin-bottom: 2rem; }
+  .section h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 1rem; display: flex; align-items: center; gap: 0.5rem; }
+  .section h2 .count { font-size: 0.75rem; background: var(--border); border-radius: 999px; padding: 0.125rem 0.5rem; color: var(--muted); }
+
+  /* Test card */
+  .test-card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+  .test-card.fail { border-left: 3px solid var(--fail); }
+  .test-card.pass { border-left: 3px solid var(--pass); }
+  .test-card summary { padding: 0.75rem 1rem; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; list-style: none; }
+  .test-card summary::-webkit-details-marker { display: none; }
+  .test-card summary::before { content: '▶'; font-size: 0.625rem; color: var(--muted); transition: transform 0.15s; }
+  .test-card[open] summary::before { transform: rotate(90deg); }
+  .test-card .badge { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 0.125rem 0.5rem; border-radius: 4px; flex-shrink: 0; }
+  .test-card .badge.pass { background: rgba(22,163,74,0.15); color: var(--pass); }
+  .test-card .badge.fail { background: rgba(220,38,38,0.15); color: var(--fail); }
+  .test-card .step-id { font-family: 'SF Mono', 'Fira Code', monospace; font-size: 0.8125rem; color: var(--text); }
+  .test-card .evidence { color: var(--muted); font-size: 0.8125rem; margin-left: auto; max-width: 40%; text-align: right; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .test-card .body { padding: 0 1rem 1rem 1rem; }
+  .test-card .body dl { display: grid; grid-template-columns: auto 1fr; gap: 0.25rem 0.75rem; font-size: 0.8125rem; }
+  .test-card .body dt { color: var(--muted); font-weight: 500; }
+  .test-card .body dd { color: var(--text); }
+  .test-card .body .suggestion { margin-top: 0.75rem; background: rgba(59,130,246,0.1); border: 1px solid rgba(59,130,246,0.2); border-radius: 6px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; color: var(--accent); }
+
+  /* Screenshot */
+  .screenshot { margin-top: 0.75rem; }
+  .screenshot img { max-width: 100%; border-radius: 6px; border: 1px solid var(--border); cursor: pointer; }
+  .screenshot .caption { font-size: 0.75rem; color: var(--muted); margin-top: 0.25rem; }
+
+  /* Lightbox */
+  .lightbox { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.9); z-index: 1000; align-items: center; justify-content: center; padding: 2rem; cursor: zoom-out; }
+  .lightbox.active { display: flex; }
+  .lightbox img { max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; }
+
+  /* Footer */
+  footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); text-align: center; font-size: 0.75rem; color: var(--muted); }
+  footer a { color: var(--accent); text-decoration: none; }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <header>
+    <h1>{{TITLE}}</h1>
+    <div class="meta">{{META}}</div>
+  </header>
+
+  <div class="summary">
+    <div class="stat"><div class="label">Total Steps</div><div class="value">{{TOTAL_STEPS}}</div></div>
+    <div class="stat"><div class="label">Passed</div><div class="value pass">{{PASS_COUNT}}</div></div>
+    <div class="stat"><div class="label">Failed</div><div class="value fail">{{FAIL_COUNT}}</div></div>
+    <div class="stat"><div class="label">Tests</div><div class="value">{{TEST_COUNT}}</div></div>
+  </div>
+
+  <div class="pass-rate-bar">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;">
+      <span style="font-size:0.875rem;font-weight:500;">Pass Rate</span>
+      <span style="font-size:1.25rem;font-weight:700;">{{PASS_RATE}}%</span>
+    </div>
+    <div class="bar-track"><div class="bar-fill {{RATE_CLASS}}" style="width:{{PASS_RATE}}%"></div></div>
+  </div>
+
+  <!-- FAILURES SECTION — only rendered if there are failures -->
+  {{FAILURES_SECTION}}
+
+  <!-- PASSES SECTION -->
+  {{PASSES_SECTION}}
+</div>
+
+<div class="lightbox" id="lightbox" onclick="this.classList.remove('active')">
+  <img id="lightbox-img" src="" alt="Screenshot enlarged">
+</div>
+
+<footer>
+  Generated by <a href="https://github.com/browserbase/skills">ui-test</a> · Powered by <a href="https://browserbase.com">Browserbase</a>
+</footer>
+
+<script>
+document.querySelectorAll('.screenshot img').forEach(img => {
+  img.addEventListener('click', e => {
+    e.stopPropagation();
+    document.getElementById('lightbox-img').src = img.src;
+    document.getElementById('lightbox').classList.add('active');
+  });
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') document.getElementById('lightbox').classList.remove('active');
+});
+</script>
+</body>
+</html>

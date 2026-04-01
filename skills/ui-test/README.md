@@ -23,6 +23,7 @@ npx skills add browserbase/ui-test
 3. **Tries to break things** — adversarial inputs, rapid clicks, keyboard-only, empty states, XSS
 4. **Runs deterministic checks** — axe-core, console errors, broken images, form labels
 5. **Reports structured results** — `STEP_PASS|id|evidence` or `STEP_FAIL|id|expected → actual`
+6. **Generates an HTML report** — standalone file with embedded screenshots, shareable with reviewers
 
 ## What It Tests
 
@@ -60,6 +61,7 @@ ui-test/
     ├── design-system.example.md          # Example design system template (copy to design-system.md)
     ├── exploratory-testing.md            # Guide for agent-driven exploratory QA
     ├── parallel-testing.md              # Parallel testing with named Browserbase sessions
+    ├── report-template.html              # HTML report template with embedded screenshots
     └── ux-heuristics.md                  # 6 evaluation frameworks (Laws of UX, Nielsen's, etc.)
 ```
 
