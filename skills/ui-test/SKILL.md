@@ -32,11 +32,10 @@ The budget is measured in **steps** (each step = one `browse` command), not wall
 |------|-------|-----|
 | **Main agent** | Coordinator only — no `browse` commands | It plans, delegates, merges. Zero testing. |
 | **Sub-agent** | **20 steps max** | Hard cap. Stop and report at 20 even if there's more to test. |
-| **Max sub-agents** | 5 per sweep | More agents × fewer steps = faster completion |
-| **Sweeps per run** | 2-3 | Deterministic + exploratory-functional + exploratory-visual |
+| **Max sub-agents** | 5 per run | More agents × fewer steps = faster completion |
 | **Max pages per agent** | 3 | Keep each agent tightly focused |
 
-**Total cap: ~150 test steps per run** (3 sweeps × 5 agents × ~10 steps avg).
+**Total cap: ~100 test steps per run** (5 agents × 20 steps).
 
 No early stopping on failures — find as many bugs as possible within the step budget.
 
@@ -45,30 +44,24 @@ The key constraint is **per-agent**: 20 steps max, no exceptions. It's better to
 ### How the main agent should work
 
 1. **Analyze** — read the diff, categorize changes, identify URLs to test
-2. **Discover pages** — enumerate all routes/pages from the codebase (router files, sitemap, nav links) so every page is covered every run
-3. **Plan sweeps** — plan 2-3 sweeps of sub-agents, each sweep testing from a different angle
-4. **Sweep 1: Deterministic checks** — launch sub-agents that run the fixed checklist on every discovered page (axe-core, console errors, broken images, form labels, overflow). These produce the same results every run.
-5. **Sweep 2: Exploratory — functional** — launch sub-agents that test interactions, edge cases, and user flows (form submission, navigation, error states, adversarial inputs)
-6. **Sweep 3: Exploratory — visual & UX** — launch sub-agents that check responsive layout, keyboard navigation, focus management, design consistency
-7. **Merge** — collect results from all sweeps, deduplicate, produce the final report
+2. **Plan** — split into small, focused groups (1-2 pages per group, one test category each)
+3. **Delegate** — launch up to 5 sub-agents in parallel, each with a tight scope and 20-step budget
+4. **Merge** — collect results, produce the final report
 
 The main agent should NOT run `browse` commands itself (except to verify the dev server is up). All testing happens in sub-agents.
 
-**Why multiple sweeps?** A single exploratory pass takes different paths each run, so repeated runs surface different bugs. Multiple sweeps from different angles increase coverage per run, making results more consistent across runs. The deterministic sweep (step 4) always catches the same bugs; the exploratory sweeps (steps 5-6) add breadth.
-
 **Splitting rules:**
-- Each sub-agent gets 1-2 pages and one test category (e.g., "signup form validation", "dashboard accessibility", "nav responsive layout")
-- If a page needs both functional and accessibility testing, split into two agents across different sweeps
+- Each sub-agent gets 1-2 pages and one test category (e.g., "signup form validation", "dashboard accessibility", "nav + routing")
+- If a page needs both functional and accessibility testing, split into two agents
 - Prefer 5 agents × 15 steps over 3 agents × 20 steps — smaller scope = faster, more focused
-- Each sweep can run up to 5 sub-agents in parallel
 
 ### Adjusting the budget
 
-| User says | Steps per agent | Max agents per sweep | Sweeps |
-|-----------|----------------|---------------------|--------|
-| "quick test" | 10 | 3 | 1 (deterministic only) |
-| (default) | 20 | 5 | 2-3 |
-| "thorough test" | 30 | 5 | 3 |
+| User says | Steps per agent | Max agents |
+|-----------|----------------|------------|
+| "quick test" | 10 | 2 |
+| (default) | 20 | 5 |
+| "thorough test" | 30 | 5 |
 
 ### Budget reporting
 
@@ -79,7 +72,7 @@ Budget: 14/20 steps used | 2 pages visited | 3 failures
 
 **The main agent includes a total in the final report:**
 ```
-Total budget: 87/150 steps across 3 sweeps (12 agents) | 7 failures
+Total budget: 62/100 steps across 5 agents | 7 failures
 ```
 
 ## Testing Philosophy
