@@ -22,20 +22,20 @@ Three workflows:
 
 Every test run has a budget. The main agent **coordinates** — it analyzes the diff, plans test groups, and fans out work to sub-agents. Sub-agents do the actual testing.
 
-### Time math
+### Step budget
 
-Each `browse` command takes ~30 seconds. A sub-agent doing 20 steps ≈ 10 min. The bottleneck is the **slowest sub-agent** — if one runs away, the whole run stalls waiting for it.
+The budget is measured in **steps** (each step = one `browse` command), not wall-clock time. The bottleneck is the **slowest sub-agent** — if one runs away, the whole run stalls waiting for it.
 
 ### Budget structure
 
 | Role | Limit | Why |
 |------|-------|-----|
 | **Main agent** | Coordinator only — no `browse` commands | It plans, delegates, merges. Zero testing. |
-| **Sub-agent** | **20 steps max** (~10 min each) | Hard cap. Stop and report at 20 even if there's more to test. |
-| **Max sub-agents** | 5 per run | More agents × fewer steps = fast wall clock |
+| **Sub-agent** | **20 steps max** | Hard cap. Stop and report at 20 even if there's more to test. |
+| **Max sub-agents** | 5 per run | More agents × fewer steps = faster completion |
 | **Max pages per agent** | 3 | Keep each agent tightly focused |
 
-**Total cap: ~100 test steps per run** (5 agents × 20 steps). Wall clock target: **~10 min**.
+**Total cap: ~100 test steps per run** (5 agents × 20 steps).
 
 No early stopping on failures — find as many bugs as possible within the step budget.
 
@@ -57,11 +57,11 @@ The main agent should NOT run `browse` commands itself (except to verify the dev
 
 ### Adjusting the budget
 
-| User says | Steps per agent | Max agents | Wall clock |
-|-----------|----------------|------------|------------|
-| "quick test" | 10 | 2 | ~5 min |
-| (default) | 20 | 5 | ~10 min |
-| "thorough test" | 30 | 5 | ~15 min |
+| User says | Steps per agent | Max agents |
+|-----------|----------------|------------|
+| "quick test" | 10 | 2 |
+| (default) | 20 | 5 |
+| "thorough test" | 30 | 5 |
 
 ### Budget reporting
 
@@ -72,7 +72,7 @@ Budget: 14/20 steps used | 2 pages visited | 3 failures
 
 **The main agent includes a total in the final report:**
 ```
-Total budget: 62/100 steps across 5 agents | ~10 min wall clock | 7 failures
+Total budget: 62/100 steps across 5 agents | 7 failures
 ```
 
 ## Testing Philosophy
