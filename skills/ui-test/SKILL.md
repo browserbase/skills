@@ -18,61 +18,47 @@ Three workflows:
 - **Exploratory** — navigate the app, find bugs the developer didn't think about
 - **Parallel** — fan out independent test groups across multiple Browserbase browsers
 
-## Budget & Limits
+## How Testing Works
 
-Every test run has a budget. The main agent **coordinates** — it analyzes the diff, plans test groups, and fans out work to sub-agents. Sub-agents do the actual testing.
+The main agent **coordinates** — it plans test strategy, delegates to sub-agents, and merges results. Sub-agents do the actual browser testing.
 
-### Step budget
+### Planning: multiple angles, then execute once
 
-The budget is measured in **steps** (each step = one `browse` command), not wall-clock time. The bottleneck is the **slowest sub-agent** — if one runs away, the whole run stalls waiting for it.
+The key to consistent, reproducible results is **planning from multiple angles before executing**:
 
-### Budget structure
+1. **Analyze** — read the diff (or the app), identify pages and components to test
+2. **Plan round 1** — generate a test plan: what to test, how, what would constitute a failure
+3. **Plan round 2** — review round 1 and ask: "what did I miss?" Think about different user personas, error paths, edge cases, empty states
+4. **Plan round 3** — review again: "what about accessibility, keyboard-only usage, mobile viewports, slow interactions?"
+5. **Deduplicate** — merge all three plans, remove overlaps into one comprehensive test plan
+6. **Execute once** — fan out the merged plan across sub-agents in parallel. Every test runs exactly once.
 
-| Role | Limit | Why |
-|------|-------|-----|
-| **Main agent** | Coordinator only — no `browse` commands | It plans, delegates, merges. Zero testing. |
-| **Sub-agent** | **20 steps max** | Hard cap. Stop and report at 20 even if there's more to test. |
-| **Max sub-agents** | 5 per run | More agents × fewer steps = faster completion |
-| **Max pages per agent** | 3 | Keep each agent tightly focused |
+This produces broad coverage without wasting time re-running the same checks.
 
-**Total cap: ~100 test steps per run** (5 agents × 20 steps).
+### Principles for splitting work
 
-No early stopping on failures — find as many bugs as possible within the step budget.
+- **Keep each sub-agent tightly scoped** — one test category, a few pages. A focused agent finishes faster and produces clearer results.
+- **The bottleneck is the slowest agent** — split work so no single agent has a disproportionate share. Many small agents > few large ones.
+- **Size the effort to the change** — a single component fix doesn't need 10 agents. A full-page redesign does. Let the scope of the diff drive the plan.
+- **Stop and report when your scope is exhausted** — don't pad with low-value checks just to fill time.
+- **No early stopping on failures** — find as many bugs as possible within your scope.
 
-The key constraint is **per-agent**: 20 steps max, no exceptions. It's better to split work across more focused agents than to let one agent go deep.
+### Safety valve
 
-### How the main agent should work
-
-1. **Analyze** — read the diff, categorize changes, identify URLs to test
-2. **Plan** — split into small, focused groups (1-2 pages per group, one test category each)
-3. **Delegate** — launch up to 5 sub-agents in parallel, each with a tight scope and 20-step budget
-4. **Merge** — collect results, produce the final report
+If a sub-agent has been running for 20+ browse steps, it must stop and report what it has. This is a safety cap to prevent runaways, not a target to aim for.
 
 The main agent should NOT run `browse` commands itself (except to verify the dev server is up). All testing happens in sub-agents.
 
-**Splitting rules:**
-- Each sub-agent gets 1-2 pages and one test category (e.g., "signup form validation", "dashboard accessibility", "nav + routing")
-- If a page needs both functional and accessibility testing, split into two agents
-- Prefer 5 agents × 15 steps over 3 agents × 20 steps — smaller scope = faster, more focused
+### Reporting
 
-### Adjusting the budget
-
-| User says | Steps per agent | Max agents |
-|-----------|----------------|------------|
-| "quick test" | 10 | 2 |
-| (default) | 20 | 5 |
-| "thorough test" | 30 | 5 |
-
-### Budget reporting
-
-**Every sub-agent must include a budget line when reporting back:**
+**Every sub-agent reports back with:**
 ```
-Budget: 14/20 steps used | 2 pages visited | 3 failures
+Steps used: 14 | Pages visited: 2 | Failures: 3
 ```
 
-**The main agent includes a total in the final report:**
+**The main agent merges into a final report with:**
 ```
-Total budget: 62/100 steps across 5 agents | 7 failures
+Total: 62 steps across 5 agents | 7 unique failures
 ```
 
 ## Testing Philosophy
