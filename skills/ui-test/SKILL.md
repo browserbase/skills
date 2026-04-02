@@ -57,6 +57,7 @@ You have a budget of N browse steps (each `browse` command = 1 step). Count your
 
 Run only these tests: [numbered list from the merged plan]
 Do not explore beyond the assigned tests.
+Do NOT generate an HTML report or write any files. Return only STEP_PASS/STEP_FAIL markers and your findings as text.
 ```
 
 The main agent should NOT run `browse` commands itself (except to verify the dev server is up). All testing happens in sub-agents.
