@@ -53,6 +53,8 @@ Once installed, you can ask Claude to browse or use the Browserbase CLI:
 
 Claude will handle the rest.
 
+For local and localhost work, `browse env local` now starts a clean isolated browser by default. Use `browse env local --auto-connect` when the agent should reuse your existing local Chrome session, cookies, or login state.
+
 ## Troubleshooting
 
 ### Chrome not found

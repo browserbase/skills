@@ -23,7 +23,7 @@ Technical reference for the `browse` CLI tool.
 The browse CLI is a **daemon-based** command-line tool:
 
 - **Daemon process**: A background process manages the browser instance. Auto-starts on the first command (e.g., `browse open`), persists across commands, and stops with `browse stop`.
-- **Local mode** (default): Launches a local Chrome/Chromium instance.
+- **Local mode** (default): `browse env local` launches a clean isolated local browser. Use `browse env local --auto-connect` or `browse env local <port|url>` to attach to an existing browser via CDP.
 - **Remote mode** (Browserbase): Connects to a Browserbase cloud browser session when `BROWSERBASE_API_KEY` is set.
 - **Accessibility-first**: Use `browse snapshot` to get the page's accessibility tree with element refs, then interact using those refs.
 
@@ -272,15 +272,21 @@ Check whether the daemon is running, its connection details, and current environ
 browse status
 ```
 
-#### `env [local|remote]`
+#### `env [local|remote] [port|url]`
 
-Show or switch the browser environment. Without arguments, prints the current environment. With an argument, stops the running daemon and restarts in the specified environment. The switch is sticky — subsequent commands stay in the chosen environment until you switch again or run `browse stop`.
+Show or switch the browser environment. Without arguments, prints the current environment. With an argument, stores a per-session override, restarts the daemon if needed, and keeps using that mode until you switch again or run `browse stop`.
 
 ```bash
 browse env                               # print current environment
-browse env local                         # switch to local Chrome
+browse env local                         # use clean isolated local browser
+browse env local --auto-connect          # auto-discover existing Chrome, fallback to isolated
+browse env local 9222                    # attach to a specific CDP target
+browse env local ws://localhost:9222/devtools/browser/...   # attach to explicit browser WebSocket
 browse env remote                        # switch to Browserbase (requires API keys)
 ```
+
+- `browse status` shows the resolved local strategy when the daemon is running (`localStrategy`, `localSource`, `resolvedCdpUrl`)
+- `browse stop` clears the override so the next start falls back to env-var-based auto detection
 
 #### `newpage [url]`
 
@@ -415,9 +421,11 @@ Save browser state changes back to the Browserbase context when the session ends
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `BROWSERBASE_API_KEY` | For remote mode | API key from https://browserbase.com/settings |
+| `BROWSE_SESSION` | No | Default session name (alternative to `--session`) |
+| `BROWSERBASE_API_KEY` | For remote mode | API key from https://browserbase.com/settings; makes Browserbase the default desired mode when no override is set |
+| `BROWSERBASE_PROJECT_ID` | No | Passed through to Browserbase when set |
 
-When set, the CLI uses Browserbase remote sessions. Otherwise, it falls back to local Chrome.
+Without an override, setting `BROWSERBASE_API_KEY` makes Browserbase the default desired mode. Otherwise the default desired mode is local. `browse env local`, `browse env local --auto-connect`, and `browse env remote` override that per session until `browse stop`.
 
 ### Setting credentials
 
@@ -437,7 +445,7 @@ Get these values from https://browserbase.com/settings.
 
 **"Chrome not found"** / **"Could not find local Chrome installation"**
 - Chrome/Chromium is not installed or not in a standard location.
-- Fix: Install Chrome, or switch to remote with `browse env remote` (no local browser needed).
+- Fix: Install Chrome, use `browse env local --auto-connect` if you already have a debuggable Chrome running, or switch to remote with `browse env remote` (no local browser needed).
 
 **"Daemon not running"**
 - No daemon process is active. Most commands auto-start the daemon, but `snapshot`, `click`, etc. require an active session.

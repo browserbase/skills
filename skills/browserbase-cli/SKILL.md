@@ -56,6 +56,8 @@ Use this skill when the user wants to:
 - `bb browse ...` to forward to the standalone `browse` binary (requires `@browserbasehq/browse-cli`)
 - `bb skills install` to install Browserbase agent skills for Claude Code
 
+For `bb browse`, the standalone `browse` CLI behavior is the source of truth: `bb browse env local` uses a clean isolated local browser by default, and `bb browse env local --auto-connect` opts into reusing an existing local Chrome session.
+
 ## Common workflows
 
 ### Functions
