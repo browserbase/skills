@@ -53,6 +53,21 @@
       "skills": [
         "./skills/browserbase-cli"
       ]
+    },
+    {
+      "name": "data-extractor",
+      "source": "./",
+      "description": "Extract structured data from websites into JSON using the browse CLI. Use when the user wants to scrape pages, extract fields from listings or tables, handle pagination, or build data extraction pipelines.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "automation",
+      "keywords": ["scraping", "extraction", "data", "json", "pagination", "structured-data", "web-scraping"],
+      "strict": false,
+      "skills": [
+        "./skills/data-extractor"
+      ]
     }
   ]
 }
