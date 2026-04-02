@@ -24,9 +24,7 @@ The main agent **coordinates** — it plans test strategy, delegates to sub-agen
 
 ### Planning: multiple angles, then execute once
 
-**You MUST complete all three planning rounds and output them before launching any sub-agents.** Do not skip ahead to execution.
-
-The key to consistent, reproducible results is planning from multiple angles before executing:
+**You MUST complete all three planning rounds yourself and output them before launching any sub-agents.** Planning happens in your own response — it is NOT delegated to sub-agents. Do not skip ahead to execution.
 
 **Round 1 — Functional:** What are the core user flows? What should work? Write out each test as: action → expected result.
 
@@ -34,23 +32,32 @@ The key to consistent, reproducible results is planning from multiple angles bef
 
 **Round 3 — Coverage gaps:** Re-read Rounds 1–2. What about: accessibility (axe-core, keyboard-only), mobile viewports, console errors, visual consistency with the rest of the app?
 
-**Deduplicate:** Merge all three rounds into one numbered test plan. Remove overlaps. This is the plan you execute.
+**Deduplicate:** Merge all three rounds into one numbered list of tests. Remove overlaps. Assign each test to a group (e.g. Group A, Group B).
 
-**Then execute once** — fan out the merged plan across sub-agents in parallel. Every test runs exactly once.
+**Then execute once** — launch one sub-agent per group. Each sub-agent receives its specific list of tests to run, nothing more. Sub-agents do not explore or plan — they execute assigned tests and report results.
 
-Output the three rounds and the final merged plan in your response before calling any Agent tool.
+Output the three rounds, the merged plan, and the group assignments in your response before calling any Agent tool.
 
 ### Principles for splitting work
 
-- **Keep each sub-agent tightly scoped** — one test category, a few pages. A focused agent finishes faster and produces clearer results.
+- **Sub-agents run assigned tests, not open exploration.** The main agent hands each sub-agent a specific numbered list of tests. Sub-agents do not plan, explore, or decide what to test — they execute the list and stop.
 - **The bottleneck is the slowest agent** — split work so no single agent has a disproportionate share. Many small agents > few large ones.
-- **Size the effort to the change** — a single component fix doesn't need 10 agents. A full-page redesign does. Let the scope of the diff drive the plan.
-- **Stop and report when your scope is exhausted** — don't pad with low-value checks just to fill time.
-- **No early stopping on failures** — find as many bugs as possible within your scope.
+- **Size the effort to the change** — a single component fix doesn't need many agents or many steps. A full-page redesign does. Let the scope of the diff drive the plan.
+- **No early stopping on failures** — find as many bugs as possible within the assigned tests.
 
-### Safety valve
+### Giving sub-agents a step budget
 
-If a sub-agent has been running for 20+ browse steps, it must stop and report what it has. This is a safety cap to prevent runaways, not a target to aim for.
+**The main agent MUST include an explicit browse step limit in every sub-agent prompt.** Sub-agents do not self-limit — they will run until done unless told otherwise.
+
+As a rough heuristic: ~25 steps for a few targeted checks, ~40 for a full page with functional + adversarial + a11y, ~75 for multiple pages or a broad category. **Adjust based on what the assigned tests actually require** — these are starting points, not rules.
+
+Every sub-agent prompt must include:
+```
+You have a budget of N browse steps (each `browse` command = 1 step). Count your steps as you go. When you reach N, stop and report what you have.
+
+Run only these tests: [numbered list from the merged plan]
+Do not explore beyond the assigned tests.
+```
 
 The main agent should NOT run `browse` commands itself (except to verify the dev server is up). All testing happens in sub-agents.
 
