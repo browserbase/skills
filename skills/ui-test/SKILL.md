@@ -51,27 +51,34 @@ Output the three rounds, the merged plan, and the group assignments in your resp
 
 As a rough heuristic: ~25 steps for a few targeted checks, ~40 for a full page with functional + adversarial + a11y, ~75 for multiple pages or a broad category. **Adjust based on what the assigned tests actually require** — these are starting points, not rules.
 
+As a rough heuristic: ~25 steps for a few targeted checks, ~40 for a full page with functional + adversarial + a11y, ~75 for multiple pages or a broad category. **Adjust based on what the assigned tests actually require** — these are starting points, not rules.
+
 Every sub-agent prompt must include:
 ```
-You have a budget of N browse steps (each `browse` command = 1 step). Count your steps as you go. When you reach N, stop and report what you have.
+You have a budget of N browse steps (each `browse` command = 1 step). Count your steps as you go. When you reach N, stop immediately and report:
+- STEP_PASS/STEP_FAIL for every test you completed
+- STEP_SKIP|<test-id>|budget reached for every test you didn't get to
 
+Do not retry or continue after hitting the budget.
 Run only these tests: [numbered list from the merged plan]
 Do not explore beyond the assigned tests.
-Do NOT generate an HTML report or write any files. Return only STEP_PASS/STEP_FAIL markers and your findings as text.
+Do NOT generate an HTML report or write any files. Return only step markers and your findings as text.
 ```
 
 The main agent should NOT run `browse` commands itself (except to verify the dev server is up). All testing happens in sub-agents.
+
+**When a sub-agent hits its budget, the main agent accepts the partial results as-is.** Do not re-run or retry the sub-agent. Include SKIPPED tests in the final report so the developer knows what wasn't covered.
 
 ### Reporting
 
 **Every sub-agent reports back with:**
 ```
-Tests: 8 | Passed: 5 | Failed: 3 | Pages visited: 2
+Tests: 8 | Passed: 5 | Failed: 2 | Skipped: 1 | Pages visited: 2
 ```
 
 **The main agent merges into a final report with:**
 ```
-Tests: 20 | Passed: 14 | Failed: 6 | Agents: 3 | Pass rate: 70%
+Tests: 20 | Passed: 14 | Failed: 4 | Skipped: 2 | Agents: 3 | Pass rate: 70%
 ```
 
 Do not report "steps used" — browse command counts are implementation plumbing, not a meaningful metric for reviewers.
