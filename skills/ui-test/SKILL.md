@@ -270,16 +270,36 @@ Detect framework: `cat package.json | grep -E '"(next|react|vue|nuxt|svelte|@sve
 | SvelteKit | 5173 | `src/routes/+page.svelte` → `/` |
 | Angular | 4200 | Check routing module |
 
-### Phase 3: Check dev server
+### Phase 3: Ensure the right code is running
 
+Before testing, verify the dev server is serving the code from the diff — not a stale branch.
+
+**If testing a PR or specific branch:**
+```bash
+# Check what branch is currently checked out
+git branch --show-current
+
+# If it's not the PR branch, switch to it
+git fetch origin <branch> && git checkout <branch>
+
+# Install deps — the lockfile may differ between branches
+yarn install  # or npm install / pnpm install
+```
+
+If the dev server was already running on a different branch, restart it after checkout.
+
+**Find a running dev server:**
 ```bash
 for port in 3000 3001 5173 4200 8080 8000 5000; do
-  status=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port" 2>/dev/null)
-  if [ "$status" != "000" ]; then echo "Dev server on port $port (HTTP $status)"; break; fi
+  s=$(curl -s -o /dev/null -w "%{http_code}" "http://localhost:$port" 2>/dev/null)
+  if [ "$s" != "000" ]; then echo "Dev server on port $port (HTTP $s)"; fi
 done
 ```
 
 If nothing found: tell the user to start their dev server.
+
+**Verify it actually renders:**
+After `browse open` + `browse snapshot`, check that the accessibility tree contains real page content (navigation, headings, interactive elements) — not just an error overlay or empty body. Next.js dev servers can return HTTP 200 while showing a full-screen build error dialog. If the snapshot is empty or dominated by an error dialog, the server is broken — fix the build before testing.
 
 ### Phase 4: Generate test plan
 
