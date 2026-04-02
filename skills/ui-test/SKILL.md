@@ -24,16 +24,21 @@ The main agent **coordinates** — it plans test strategy, delegates to sub-agen
 
 ### Planning: multiple angles, then execute once
 
-The key to consistent, reproducible results is **planning from multiple angles before executing**:
+**You MUST complete all three planning rounds and output them before launching any sub-agents.** Do not skip ahead to execution.
 
-1. **Analyze** — read the diff (or the app), identify pages and components to test
-2. **Plan round 1** — generate a test plan: what to test, how, what would constitute a failure
-3. **Plan round 2** — review round 1 and ask: "what did I miss?" Think about different user personas, error paths, edge cases, empty states
-4. **Plan round 3** — review again: "what about accessibility, keyboard-only usage, mobile viewports, slow interactions?"
-5. **Deduplicate** — merge all three plans, remove overlaps into one comprehensive test plan
-6. **Execute once** — fan out the merged plan across sub-agents in parallel. Every test runs exactly once.
+The key to consistent, reproducible results is planning from multiple angles before executing:
 
-This produces broad coverage without wasting time re-running the same checks.
+**Round 1 — Functional:** What are the core user flows? What should work? Write out each test as: action → expected result.
+
+**Round 2 — Adversarial:** Re-read Round 1. What did you miss? Think about: different user types/roles, error paths, empty states, race conditions, edge inputs (empty, huge, special chars, rapid clicks).
+
+**Round 3 — Coverage gaps:** Re-read Rounds 1–2. What about: accessibility (axe-core, keyboard-only), mobile viewports, console errors, visual consistency with the rest of the app?
+
+**Deduplicate:** Merge all three rounds into one numbered test plan. Remove overlaps. This is the plan you execute.
+
+**Then execute once** — fan out the merged plan across sub-agents in parallel. Every test runs exactly once.
+
+Output the three rounds and the final merged plan in your response before calling any Agent tool.
 
 ### Principles for splitting work
 
