@@ -66,13 +66,15 @@ The main agent should NOT run `browse` commands itself (except to verify the dev
 
 **Every sub-agent reports back with:**
 ```
-Steps used: 14 | Pages visited: 2 | Failures: 3
+Tests: 8 | Passed: 5 | Failed: 3 | Pages visited: 2
 ```
 
 **The main agent merges into a final report with:**
 ```
-Total: 62 steps across 5 agents | 7 unique failures
+Tests: 20 | Passed: 14 | Failed: 6 | Agents: 3 | Pass rate: 70%
 ```
+
+Do not report "steps used" — browse command counts are implementation plumbing, not a meaningful metric for reviewers.
 
 ## Testing Philosophy
 
@@ -378,10 +380,10 @@ After producing the text report, generate a standalone HTML report that a review
 |-------------|-------|
 | `{{TITLE}}` | Report title (e.g., "UI Test: PR #1234 — OAuth Settings") |
 | `{{META}}` | One-line context: date, app URL, user, branch |
-| `{{TOTAL_STEPS}}` | Total STEP_PASS + STEP_FAIL count |
+| `{{TOTAL_TESTS}}` | Total STEP_PASS + STEP_FAIL count |
+| `{{AGENT_COUNT}}` | Number of sub-agents that ran |
 | `{{PASS_COUNT}}` | Number of STEP_PASS |
 | `{{FAIL_COUNT}}` | Number of STEP_FAIL |
-| `{{TEST_COUNT}}` | Number of logical tests |
 | `{{PASS_RATE}}` | Integer percentage (e.g., "92") |
 | `{{RATE_CLASS}}` | `good` (≥90%), `warn` (70–89%), `bad` (<70%) |
 | `{{FAILURES_SECTION}}` | HTML for failed test cards (see below) |
