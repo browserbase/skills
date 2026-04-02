@@ -6,7 +6,7 @@ Works with both local and remote mode. Named sessions are fully independent — 
 
 ### How sessions work
 
-The `--session` flag (or `BROWSE_SESSION` env var) gives each `browse` command its own isolated browser:
+The `--session` flag (or `BROWSE_SESSION` env var) gives each `browse` command its own independent browser. For localhost, `browse env local` starts each session in a clean isolated browser by default:
 
 ```bash
 # Session "signup" gets its own browser
@@ -52,7 +52,7 @@ Use the Agent tool to fan out. Each agent gets a unique session name and runs it
 Launch agents in parallel (use Agent tool with multiple invocations in one message):
 
 Agent 1 — prompt: "Run signup form tests using BROWSE_SESSION=signup.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
+  Use `browse env local` first (localhost URL). If this flow needs existing local credentials, use `browse env local --auto-connect` instead. Run these tests: [list tests].
   Follow the before/after assertion protocol.
   On any STEP_FAIL, immediately take a screenshot:
     BROWSE_SESSION=signup browse screenshot --path .context/ui-test-screenshots/signup-<step-id>.png
@@ -60,7 +60,7 @@ Agent 1 — prompt: "Run signup form tests using BROWSE_SESSION=signup.
   Run `BROWSE_SESSION=signup browse stop` when done."
 
 Agent 2 — prompt: "Run dashboard tests using BROWSE_SESSION=dashboard.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
+  Use `browse env local` first (localhost URL). If this flow needs existing local credentials, use `browse env local --auto-connect` instead. Run these tests: [list tests].
   Follow the before/after assertion protocol.
   On any STEP_FAIL, immediately take a screenshot:
     BROWSE_SESSION=dashboard browse screenshot --path .context/ui-test-screenshots/dashboard-<step-id>.png
@@ -68,7 +68,7 @@ Agent 2 — prompt: "Run dashboard tests using BROWSE_SESSION=dashboard.
   Run `BROWSE_SESSION=dashboard browse stop` when done."
 
 Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
+  Use `browse env local` first (localhost URL). If this flow needs existing local credentials, use `browse env local --auto-connect` instead. Run these tests: [list tests].
   Follow the before/after assertion protocol.
   On any STEP_FAIL, immediately take a screenshot:
     BROWSE_SESSION=a11y browse screenshot --path .context/ui-test-screenshots/a11y-<step-id>.png
@@ -78,7 +78,7 @@ Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
 
 **Critical rules for parallel agents:**
 - Every `browse` command in the agent MUST be prefixed with `BROWSE_SESSION=<name>`
-- If the target URL is localhost/127.0.0.1, each agent must use `browse env local`
+- If the target URL is localhost/127.0.0.1, each agent must start with `browse env local`; use `browse env local --auto-connect` only when that test needs existing local credentials
 - Each agent must call `browse stop` when done (with its session name)
 - Pass the full test steps and assertion protocol to each agent — they don't have the skill context
 - Include the before/after snapshot pattern in each agent's prompt

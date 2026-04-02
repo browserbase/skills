@@ -2,6 +2,8 @@
 
 Common browser automation workflows using the `browse` CLI. Each example demonstrates a distinct pattern using real commands.
 
+For localhost and other local dev flows, start with `browse env local` for a clean isolated browser. Use `browse env local --auto-connect` only when the agent should reuse your existing local Chrome session, cookies, or login state.
+
 ## Example 1: Extract Data from a Page
 
 **User request**: "Get the product details from example.com/product/123"
@@ -73,6 +75,7 @@ browse stop
 
 ```bash
 # Attempt 1: local mode
+browse env local
 browse open https://competitor.com/pricing
 browse snapshot
 # Output shows: "Checking your browser..." (Cloudflare interstitial)
@@ -106,6 +109,7 @@ This uses Browserbase contexts to persist cookies and storage across sessions. R
 
 ```bash
 # Session 1: Log in and persist state
+browse env remote
 browse open https://app.example.com/login --context-id ctx_abc123 --persist
 browse snapshot                          # find login form fields
 browse click @0-3                        # click email input
@@ -122,6 +126,7 @@ In a later session, reuse the same context — already authenticated:
 
 ```bash
 # Session 2: Resume with saved state (already logged in)
+browse env remote
 browse open https://app.example.com/dashboard --context-id ctx_abc123
 browse snapshot                          # dashboard loads — no login needed
 browse get text ".welcome-message"

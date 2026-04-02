@@ -2,6 +2,8 @@
 
 Each example demonstrates the full assertion protocol: before/after comparison, structured markers, and adversarial testing.
 
+These localhost examples assume `browse env local`, which now starts a clean isolated browser for reproducible UI tests. Switch to `browse env local --auto-connect` only when a test explicitly needs the user's existing local Chrome session or login state.
+
 ## Example 1: Diff-Driven Component Test (Happy + Adversarial)
 
 **User request**: "I updated the CTA button text. Test it."

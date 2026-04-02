@@ -175,9 +175,15 @@ Prefer the `fetch` skill to retrieve page content after finding URLs via search.
 `bb browse ...` forwards arguments to the standalone `browse` binary (`@browserbasehq/browse-cli`). The examples below are `browse-cli` subcommands — they are not native `bb` commands:
 
 ```bash
+bb browse env
+bb browse env local
+bb browse env local --auto-connect
+bb browse env remote
 bb browse status
 bb browse open https://example.com
 ```
+
+`bb browse` mirrors the standalone `browse` binary exactly. For local work, `bb browse env local` starts a clean isolated browser by default. Use `bb browse env local --auto-connect` only when you need the agent to reuse an existing local Chrome session, cookies, or login state.
 
 If `browse` is not installed, the CLI will prompt you to install it:
 

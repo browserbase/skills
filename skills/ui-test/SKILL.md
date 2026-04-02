@@ -195,7 +195,7 @@ The first pattern covers plain `browse` commands. The second covers parallel ses
 | `localhost` / `127.0.0.1` | Local | `browse env local` | None needed |
 | Deployed/staging site | Remote | `browse env remote` | cookie-sync → `--context-id` |
 
-**Rule: If the target URL contains `localhost` or `127.0.0.1`, always use `browse env local`.**
+**Rule: If the target URL contains `localhost` or `127.0.0.1`, start with `browse env local`. Escalate to `browse env local --auto-connect` only when the test needs the user's existing local login, cookies, or browser state.**
 
 ### Local Mode (default for localhost)
 
@@ -203,6 +203,17 @@ The first pattern covers plain `browse` commands. The second covers parallel ses
 browse env local
 browse open http://localhost:3000
 ```
+
+`browse env local` gives UI tests a clean isolated browser by default, which keeps results reproducible and avoids leaking prior local state into the run.
+
+### Reuse local credentials when needed
+
+```bash
+browse env local --auto-connect
+browse open http://localhost:3000/account
+```
+
+Use `--auto-connect` only when the test explicitly depends on the user's existing local Chrome session, such as verifying an already-signed-in localhost flow.
 
 ### Remote Mode (deployed sites via cookie-sync)
 
@@ -300,7 +311,7 @@ Changed: src/components/SignupForm.tsx (added email validation)
 ```bash
 browse stop 2>/dev/null
 mkdir -p .context/ui-test-screenshots
-# localhost → always use local
+# localhost → use a clean isolated local browser by default
 browse env local
 ```
 
