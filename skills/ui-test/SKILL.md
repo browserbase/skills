@@ -192,7 +192,7 @@ The first pattern covers plain `browse` commands. The second covers parallel ses
 
 | Target | Mode | Command | Auth |
 |--------|------|---------|------|
-| `localhost` / `127.0.0.1` | Local | `browse env local` | None needed |
+| `localhost` / `127.0.0.1` | Local | `browse env local` | None needed (clean isolated local browser by default) |
 | Deployed/staging site | Remote | `browse env remote` | cookie-sync → `--context-id` |
 
 **Rule: If the target URL contains `localhost` or `127.0.0.1`, always use `browse env local`.**
@@ -203,6 +203,13 @@ The first pattern covers plain `browse` commands. The second covers parallel ses
 browse env local
 browse open http://localhost:3000
 ```
+
+`browse env local` uses a clean isolated local browser by default, which is best for reproducible localhost QA runs.
+
+Use local-mode variants only when needed:
+
+- `browse env local --auto-connect` — auto-discover existing local Chrome, fallback to isolated. Use this only when the test explicitly needs existing local login/cookies/state.
+- `browse env local <port|url>` — attach to a specific CDP target (explicit local browser attach).
 
 ### Remote Mode (deployed sites via cookie-sync)
 
@@ -300,7 +307,7 @@ Changed: src/components/SignupForm.tsx (added email validation)
 ```bash
 browse stop 2>/dev/null
 mkdir -p .context/ui-test-screenshots
-# localhost → always use local
+# localhost/default QA → clean, reproducible local run
 browse env local
 ```
 
@@ -547,7 +554,7 @@ For worked examples with exact commands, read [EXAMPLES.md](EXAMPLES.md) if you 
 3. **Before/after for every interaction** — snapshot, act, snapshot, compare
 4. **Screenshot every failure** — `browse screenshot` immediately on STEP_FAIL, save to `.context/ui-test-screenshots/<step-id>.png`
 5. **Deterministic checks first** — axe-core, console errors, form labels before visual judgment
-6. **Local for localhost, remote for deployed** — never use Browserbase for localhost
+6. **For localhost, start with clean local mode** — use `browse env local` first for reproducible runs; use `--auto-connect` only when existing local state is required
 7. **Always `browse stop` when done** — for parallel runs, stop every named session
 8. **Report failures with reproduction steps** — action, expected, actual, screenshot path, suggestion
 9. **Parallelize independent tests** — use Workflow C with named sessions when testing multiple pages or categories on a deployed site

@@ -636,6 +636,9 @@ BROWSE_SESSION=a11y browse stop 2>/dev/null
 - **Use structured markers** — `STEP_PASS|id|evidence` or `STEP_FAIL|id|expected → actual|screenshot-path`
 - **Screenshot every failure** — save to `.context/ui-test-screenshots/<step-id>.png` so devs can see what broke
 - **Local for localhost** — never send localhost traffic through Browserbase
+- **Default localhost run** — start with `browse env local` for clean, reproducible QA
+- **Use `--auto-connect` selectively** — only when a localhost test explicitly needs existing local Chrome login/cookies/state (`browse env local --auto-connect`)
+- **Explicit local CDP attach** — use `browse env local <port|url>` when you must target a specific local browser instance
 - **Always `browse stop` when done** — for parallel runs, stop every named session
 - **`.then()` not `await`** — browse eval doesn't support top-level await
 - **Parallelize with `BROWSE_SESSION`** — each named session gets its own Browserbase browser; fan out via Agent tool

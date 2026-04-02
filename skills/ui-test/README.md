@@ -19,7 +19,7 @@ npx skills add browserbase/ui-test
 ## How It Works
 
 1. **Analyzes the diff** (or explores the app) to decide what to test
-2. **Opens a real browser** — local Chrome for localhost, Browserbase for deployed sites
+2. **Opens a real browser** — clean isolated local browser for localhost, Browserbase for deployed sites
 3. **Tries to break things** — adversarial inputs, rapid clicks, keyboard-only, empty states, XSS
 4. **Runs deterministic checks** — axe-core, console errors, broken images, form labels
 5. **Reports structured results** — `STEP_PASS|id|evidence` or `STEP_FAIL|id|expected → actual`
@@ -44,8 +44,12 @@ which browse || npm install -g @browserbasehq/browse-cli
 ```
 
 - **Localhost** → `browse env local` (no API key needed)
+- **Need existing local login/cookies/state on localhost** → `browse env local --auto-connect` (auto-discover local Chrome, fallback to isolated)
+- **Need explicit local CDP attach** → `browse env local <port|url>`
 - **Deployed sites** → `browse env remote` (uses Browserbase cloud browsers)
 - **Parallel** → `BROWSE_SESSION=<name>` for independent concurrent sessions
+
+For default localhost QA, start with `browse env local` for clean, reproducible runs.
 
 ## Project Structure
 

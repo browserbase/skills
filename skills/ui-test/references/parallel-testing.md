@@ -10,7 +10,7 @@ The `--session` flag (or `BROWSE_SESSION` env var) gives each `browse` command i
 
 ```bash
 # Session "signup" gets its own browser
-# Use env local for localhost URLs, env remote for deployed URLs
+# For localhost/default QA, use clean local mode first
 BROWSE_SESSION=signup browse env local
 BROWSE_SESSION=signup browse open http://localhost:3000/signup
 
@@ -20,6 +20,12 @@ BROWSE_SESSION=dashboard browse open http://localhost:3000/dashboard
 
 # They don't share state — each has its own page, cookies, refs
 ```
+
+Local mode variants follow the CLI contract:
+
+- `browse env local` — clean isolated local browser (default; preferred for reproducible localhost testing)
+- `browse env local --auto-connect` — auto-discover local Chrome, fallback to isolated (use only when a test needs existing local login/cookies/state)
+- `browse env local <port|url>` — explicit CDP attach to a specific local browser target
 
 ### When to use parallel vs sequential
 
@@ -78,7 +84,8 @@ Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
 
 **Critical rules for parallel agents:**
 - Every `browse` command in the agent MUST be prefixed with `BROWSE_SESSION=<name>`
-- If the target URL is localhost/127.0.0.1, each agent must use `browse env local`
+- If the target URL is localhost/127.0.0.1, each agent should start with `browse env local` for clean/reproducible runs
+- Use `browse env local --auto-connect` only when the test explicitly needs existing local Chrome state
 - Each agent must call `browse stop` when done (with its session name)
 - Pass the full test steps and assertion protocol to each agent — they don't have the skill context
 - Include the before/after snapshot pattern in each agent's prompt
