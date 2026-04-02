@@ -381,7 +381,8 @@ After producing the text report, generate a standalone HTML report that a review
 
 | Placeholder | Value |
 |-------------|-------|
-| `{{TITLE}}` | Report title (e.g., "UI Test: PR #1234 — OAuth Settings") |
+| `{{TITLE}}` | Report title for `<title>` tag (e.g., "UI Test: PR #1234 — OAuth Settings") |
+| `{{TITLE_HTML}}` | Report title for the visible `<h1>`. If a PR URL is available, wrap the PR reference in an `<a>` tag so it's clickable (e.g., `UI Test: <a href="https://github.com/org/repo/pull/1234">PR #1234</a> — OAuth Settings`). If no URL, use plain text same as `{{TITLE}}`. |
 | `{{META}}` | One-line context: date, app URL, user, branch |
 | `{{TOTAL_STEPS}}` | Total STEP_PASS + STEP_FAIL count |
 | `{{PASS_COUNT}}` | Number of STEP_PASS |
