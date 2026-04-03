@@ -11,6 +11,7 @@ This plugin includes the following skills (see `skills/` for details):
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
 | [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `bb` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
+| [data-extractor](skills/data-extractor/SKILL.md) | Extract structured data from websites into JSON — scrape listings, tables, paginated results, and build data pipelines |
 
 ## Installation
 
