@@ -180,7 +180,7 @@ Copy this into your project. The file exports all types, built-in policies, and 
 
 ```typescript
 function normalizeDomain(hostname: string): string {
-  return hostname.replace(/^www\./, "").toLowerCase();
+  return hostname.toLowerCase().replace(/^www\./, "");
 }
 
 function ts(): string {
