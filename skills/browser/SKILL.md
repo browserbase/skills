@@ -33,15 +33,15 @@ cat ${CLAUDE_SKILL_DIR}/memory/MEMORY_FILE.md 2>/dev/null || echo "NO MEMORY —
 
 Replace MEMORY_FILE with the domain, using dashes for dots/colons/slashes (e.g., `news-ycombinator-com`, `github-com`, `localhost-3000`).
 
-**If site memory exists**: You have selectors from previous visits. After `browse open`, use them IMMEDIATELY. Do NOT run `browse snapshot`. Example:
+**If site memory exists**: You have selectors from previous visits. After `browse open`, use them IMMEDIATELY for selector-based commands. If you need to click, run `browse snapshot` first to get refs. Example:
 
 ```bash
 # Memory says story titles use ".titleline > a" — use it directly:
 browse open https://news.ycombinator.com
-browse click ".titleline > a"              # ← use cached selector, NO snapshot
+browse get text ".titleline > a"           # ← use cached selector, NO snapshot
 ```
 
-Only run `browse snapshot` if a cached selector FAILS (returns an error). Trust the memory.
+Run `browse snapshot` when you need click refs or if a cached selector fails (returns an error). Trust the memory.
 
 **If no memory exists**: After `browse open`, use `browse snapshot` to discover the page.
 
@@ -151,7 +151,7 @@ Last updated: <YYYY-MM-DD>
 ```
 
 Rules for memory files:
-- Record **stable selectors**: `input[name="email"]`, `[data-testid="..."]`, `button[type="submit"]` — NOT just snapshot refs like `@0-5`
+- Record **stable selectors** for selector-based commands (`get`, `fill`, `is`, `highlight`): `input[name="email"]`, `[data-testid="..."]`, `button[type="submit"]` — NOT just snapshot refs like `@0-5`
 - Use **URL patterns**: `/users/:id` not `/users/123` when pages share structure
 - Note **async behavior**: "table loads after ~2s", "button disabled until form valid"
 - Be **generous**: record all interactive elements, not just the ones you used
@@ -163,8 +163,8 @@ If the environment matters, set it first with `browse env local`, `browse env lo
 
 1. **Read site memory** (MANDATORY): `cat ${CLAUDE_SKILL_DIR}/memory/<domain>.md`
 2. `browse open <url>` — navigate to the page
-3. If memory had selectors, use them directly. Otherwise: `browse snapshot`
-4. Interact: `browse click` / `browse type` / `browse fill`
+3. If memory had selectors, use them directly for selector-based commands. If you need to click (or have no memory): `browse snapshot`
+4. Interact: `browse click` (ref from snapshot) / `browse type` / `browse fill`
 5. `browse snapshot` to confirm (if needed)
 6. Repeat 3-5
 7. **Write site memory** (MANDATORY): update `${CLAUDE_SKILL_DIR}/memory/<domain>.md`
@@ -208,7 +208,7 @@ browse stop
 1. **ALWAYS read site memory before browsing** — this is not optional
 2. **ALWAYS write site memory after browsing** — this is not optional
 3. **Choose the local strategy deliberately**: `browse env local` for clean state, `--auto-connect` for existing credentials, `remote` for protected sites
-4. **Use `browse snapshot`** only when no memory exists or cached selectors fail
+4. **Use `browse snapshot`** when no memory exists, when cached selectors fail, or when you need refs for `browse click`
 5. **Only screenshot when visual context is needed** (layout checks, images, debugging)
 6. **Use refs from snapshot** to click/interact — e.g., `browse click @0-5`
 7. **`browse stop`** when done to clean up the browser session and clear the env override
