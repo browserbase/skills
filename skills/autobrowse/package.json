@@ -4,13 +4,11 @@
   "description": "Self-improving browser agent via skill learning — autoresearch pattern + Browse CLI + Anthropic API",
   "type": "module",
   "scripts": {
-    "evaluate": "tsx evaluate.ts"
+    "evaluate": "tsx scripts/evaluate.ts"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",
-    "@browserbasehq/stagehand": "^3.2.0",
-    "dotenv": "^16.4.5",
-    "zod": "^4.3.6"
+    "dotenv": "^16.4.5"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

@@ -121,9 +121,15 @@ function getNextRunNumber(tracesDir: string): number {
 const ALLOWED_COMMANDS = ["browse "];
 
 function executeCommand(command: string): { output: string; error: boolean; duration_ms: number } {
-  // Security: only allow browse CLI commands to prevent prompt injection
-  if (!ALLOWED_COMMANDS.some((prefix) => command.trimStart().startsWith(prefix))) {
+  // Security: only allow browse CLI commands to prevent prompt injection.
+  // Strip leading whitespace and check prefix, then verify no shell metacharacters
+  // that could chain arbitrary commands after the allowed prefix.
+  const trimmed = command.trimStart();
+  if (!ALLOWED_COMMANDS.some((prefix) => trimmed.startsWith(prefix))) {
     return { output: `BLOCKED: only browse commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
+  }
+  if (/[;&|`$()<>]/.test(command)) {
+    return { output: `BLOCKED: shell metacharacters not allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
   }
   const start = Date.now();
   try {
@@ -303,7 +309,7 @@ async function main() {
     for (const block of response.content) {
       if (block.type === "text") {
         reasoningText += block.text;
-        lastAssistantText = block.text;
+        lastAssistantText += block.text;
       }
       if (block.type === "tool_use") {
         toolUseBlocks.push(block);

@@ -11,6 +11,6 @@
     "resolveJsonModule": true,
     "isolatedModules": true
   },
-  "include": ["*.ts"],
+  "include": ["scripts/**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }
