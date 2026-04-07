@@ -1,165 +1,191 @@
 ---
 task: sf-311-request
-graduated: 2026-04-07
-iterations: 17
-pass_rate: 3/3 (runs 021-023)
+graduated: 2026-04-06
+iterations: 22
+pass_rate: 3/3 last runs passed
 env: remote
 ---
 
-# SF 311 Pothole Report — Browser Skill
+# SF 311 Pothole Request — Browser Skill
 
 ## Purpose
 
-Submit an anonymous pothole / street defect report to San Francisco's 311 system. Navigates the Verint form hosted at `sanfrancisco.form.us.empro.verintcloudservices.com`, enters location via ESRI map search, selects "Pothole or pavement defect" category, and captures the Service Request Number from the confirmation page.
+Submit an anonymous pothole / street defect report to San Francisco's 311 system. Navigates the Verint form hosted at `sanfrancisco.form.us.empro.verintcloudservices.com`, enters location via ESRI map search, selects "Pothole or pavement defect" category, fills in description, submits anonymously, and reads the Service Request Number from the confirmation page.
 
 ## When to Use
 
 Use this skill when you need to:
 - Submit a pothole or street defect report to SF 311
 - Navigate the SF 311 Verint form system for public works issues
-- Demonstrate anonymous form submission on sfgov.org infrastructure
+- Demonstrate anonymous government form submission on sfgov infrastructure
 
 ## Quick Start
 
 ```bash
-# Run with isolated remote session
 tsx scripts/evaluate.ts --task sf-311-request --env remote
-```
-
-Expected output:
-```json
-{
-  "success": true,
-  "confirmation_number": "101003821474",
-  "category_selected": "Pothole or pavement defect",
-  "location_entered": "INTERSECTION OF 7TH ST & CHARLES J BRENHAM PL SAN FRANCISCO, CA 94102",
-  "submission_method": "anonymous",
-  "error_reasoning": null
-}
 ```
 
 ## Browse CLI Reference
 
-All commands MUST use `--session sf311` to avoid contamination from the shared default Browserbase session:
-
 ```bash
-browse --session sf311 stop
-browse --session sf311 env local
-browse --session sf311 env remote
-browse --session sf311 open <url>
-browse --session sf311 wait load
-browse --session sf311 wait timeout <ms>
-browse --session sf311 snapshot
-browse --session sf311 click <ref>
-browse --session sf311 click "//xpath"
-browse --session sf311 type <text>
-browse --session sf311 press Enter
-browse --session sf311 press Tab
-browse --session sf311 select "//select" <value>
-browse --session sf311 fill "#css-id" <text> --no-press-enter
+browse stop
+browse env local
+browse env remote
+browse open <url>
+browse wait load
+browse wait timeout <ms>
+browse snapshot
+browse click <ref>
+browse click "//xpath"
+browse type <text>
+browse press Enter
+browse press Tab
+browse select "//select" <value>
+browse fill "#css-id" <text> --no-press-enter
 ```
+
+Wait syntax:
+- CORRECT: `browse wait load` or `browse wait timeout 2000`
+- WRONG (errors): `browse wait ms 2000`, `browse wait 2000`
 
 ## Workflow
 
-**Turn budget: exactly 30 turns. Follow precisely.**
+**Turn budget: 30 turns. Follow precisely. Turn 30 must be the JSON output with no tool call.**
 
-### Startup (5 turns)
-
-```bash
-browse --session sf311 stop
-browse --session sf311 env local        # REQUIRED: forces new Browserbase session
-browse --session sf311 env remote       # restarted:true = clean session
-browse --session sf311 open "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=street_defect&Nature_of_request=pavement_defect"
-browse --session sf311 wait load
-```
-
-### Page 1 — Disclaimer (2 turns)
+### Startup (turns 1–5)
 
 ```bash
-browse --session sf311 snapshot         # find Next button ref (~0-385 or 0-386)
-browse --session sf311 click <Next ref> # click by ref, not XPath
+browse stop
+browse env local        # REQUIRED: forces new Browserbase session
+browse env remote       # restarted:true = clean session
+browse open "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=street_defect&Nature_of_request=pavement_defect"
+browse wait load
 ```
 
-### Page 2 — Location (11 turns)
+The `env local` + `env remote` sequence is mandatory. Skipping `env local` causes `env remote` to reconnect to a dead prior session, producing "No Page found" errors.
+
+### Page 1 — Disclaimer (turns 6–7)
 
 ```bash
-browse --session sf311 click "//label[normalize-space(.)='Street']"
-browse --session sf311 click "//input[@placeholder='Find address or place']"
-browse --session sf311 type "Market St & 7th St, San Francisco, CA 94103"
-browse --session sf311 wait timeout 2000
-browse --session sf311 snapshot         # find autocomplete menuitem (~0-2510)
-browse --session sf311 click <menuitem ref>
-browse --session sf311 press Enter
-browse --session sf311 wait timeout 3000
-browse --session sf311 press Tab
-browse --session sf311 snapshot         # verify Location field, find Next ref (~0-685)
-browse --session sf311 click <Next ref from snapshot>
+browse snapshot         # find Next button ref (~0-385 or 0-386)
+browse click <Next ref>
 ```
 
-### Page 3 — Request Details (3 turns)
+Click Next by ref from snapshot. Do not use XPath for the Next button.
+
+### Page 2 — Location (turns 8–18)
 
 ```bash
-browse --session sf311 select "//select" "Pothole or pavement defect"
-browse --session sf311 fill "#dform_widget_Request_description" "Large pothole approximately 12 inches wide near the crosswalk, causing hazard for cyclists" --no-press-enter
-browse --session sf311 click 0-970      # stable ref, no snapshot needed
+browse click "//label[normalize-space(.)='Street']"
+browse click "//input[@placeholder='Find address or place']"
+browse type "Market St & 7th St, San Francisco, CA 94103"
+browse wait timeout 2000
+browse snapshot         # find autocomplete menuitem (~0-2510)
+browse click <menuitem ref>
+browse press Enter
+browse wait timeout 3000
+browse press Tab
+browse snapshot         # verify Location field, find Next ref (~0-685 or 0-686)
+browse click <Next ref from snapshot>
 ```
 
-### Page 4 — Contact (4 turns)
+The Location textarea is map-driven — the ESRI geocoder populates it. Do not type into the Location field directly. After clicking the autocomplete suggestion, press Enter, wait 3000ms, then Tab — the Location field populates automatically.
+
+### Page 3 — Request Details (turns 19–21)
 
 ```bash
-browse --session sf311 snapshot         # find anonymous radio ref (~0-58, 0-141, or 0-142)
-browse --session sf311 click <anonymous radio ref>
-browse --session sf311 snapshot         # find Report Anonymously button (~0-1117)
-browse --session sf311 click <Report Anonymously ref>
+browse select "//select" "Pothole or pavement defect"
+browse fill "#dform_widget_Request_description" "Large pothole approximately 12 inches wide near the crosswalk, causing hazard for cyclists" --no-press-enter
+browse click 0-970
 ```
 
-### Review + Submit + Confirm (4 turns)
+The Page 3 Next ref is consistently 0-970. No snapshot needed before clicking it.
+
+### Page 4 — Contact (turns 22–25)
 
 ```bash
-browse --session sf311 snapshot         # review page — find Submit ref (~0-1496)
-browse --session sf311 click <Submit ref>
-browse --session sf311 wait load
-browse --session sf311 snapshot         # confirmation page shows Service Request Number
+browse snapshot         # find anonymous radio ref (~0-58, 0-141, or 0-142)
+browse click <anonymous radio ref>
+browse snapshot         # find Report Anonymously button (~0-1117)
+browse click <Report Anonymously ref>
 ```
 
-**Turn 30: Output the final JSON immediately — NO MORE TOOL CALLS.**
+The anonymous radio ref varies between sessions. Always snapshot to get the current ref.
+
+### Review + Submit + Confirm (turns 26–29)
+
+```bash
+browse snapshot         # review page — find Submit ref (~0-1496)
+browse click <Submit ref>
+browse wait load
+browse snapshot         # confirmation page: "Your Service Request Number is: XXXXXXXXX"
+```
+
+### Turn 30 — Output (no tool call)
+
+Read the confirmation number from the snapshot and immediately output the final JSON. No further tool calls:
+
+```json
+{
+  "success": true,
+  "confirmation_number": "<number from snapshot>",
+  "category_selected": "Pothole or pavement defect",
+  "location_entered": "INTERSECTION OF 7TH ST & CHARLES J BRENHAM PL SAN FRANCISCO, CA 94102",
+  "submission_method": "anonymous",
+  "gotchas": [
+    "Use --session sf311 to avoid contaminated default Browserbase session",
+    "env local + env remote forces a fresh Browserbase session",
+    "Location field is map-driven: type in ESRI search box, click autocomplete, Enter → wait 3000ms → Tab",
+    "XPath Next buttons fail — always snapshot first and click by ref",
+    "Page 3 description: use CSS selector #dform_widget_Request_description with fill --no-press-enter",
+    "Page 3 Next ref 0-970 is stable — no snapshot needed"
+  ],
+  "error_reasoning": null
+}
+```
 
 ## Site-Specific Gotchas
 
-1. **Shared Browserbase session contamination**: The default session has tabs open from other demo tasks (Assessment Appeals, Business Registration, etc.) that redirect all navigations. Fix: always use `--session sf311`.
+1. **Dead session on reconnect**: After a session ends, `browse env remote` alone reconnects to the same dead Browserbase session (no pages). The `env local` → `env remote` sequence forces creating a fresh session.
 
-2. **Verint session opening extra tabs**: The sf311 Verint session also has prior Assessment Appeals state that causes it to open a new tab for that form when clicking Next. Fix: the isolated `sf311` session prevents this entirely.
+3. **Location field is map-driven**: The Location textarea is populated by the ESRI geocoder. Workflow: type in the search box → wait 2000ms → snapshot → click autocomplete suggestion → press Enter → wait 3000ms → press Tab → Location field auto-populates.
 
-3. **Dead session on reconnect**: After a session ends, `browse env remote` reconnects to the same dead Browserbase session (no pages). Fix: `env local` then `env remote` forces creating a fresh session.
+4. **XPath Next button fails**: `//button[normalize-space(.)='Next']` XPath fails to advance pages on this Verint form. Always click Next by ref obtained from a snapshot.
 
-4. **Location field is map-driven**: The Location textarea is populated by the ESRI geocoder, not by typing. Workflow: type in search box → wait for autocomplete → click suggestion → Enter → wait 3000ms → Tab → Location populates automatically.
+5. **Page 3 textarea by CSS ID**: The Request Description textarea has a stable `id="dform_widget_Request_description"`. Use `fill "#dform_widget_Request_description" <text> --no-press-enter`.
 
-5. **XPath Next button fails**: `//button[normalize-space(.)='Next']` XPath fails to advance pages on this Verint form. Always click Next by ref from snapshot.
+6. **Page 3 Next ref is stable at 0-970**: No snapshot needed before clicking Next on Page 3.
 
-6. **Page 3 textarea by CSS ID**: The Request Description textarea has stable `id="dform_widget_Request_description"`. Use `browse fill "#dform_widget_Request_description" <text> --no-press-enter` — faster and reliable.
+7. **Anonymous radio ref varies per session**: The "No, I want to remain anonymous" radio has refs like 0-58, 0-59, 0-141, or 0-142 depending on session. Always snapshot Page 4 first.
 
-7. **Anonymous radio ref varies**: The "No, I want to remain anonymous" radio ref changes between sessions (0-58, 0-59, 0-141, 0-142). Always snapshot page 4 first to get the current ref.
+8. **Report Anonymously button appears conditionally**: It only renders after the anonymous radio is clicked. Snapshot after clicking the radio to find its ref.
 
-8. **Report Anonymously button**: Only appears after clicking the anonymous radio. Snapshot first to get ref (~0-1117 is common).
+9. **Real form URL is not the sfgov.org services page**: The task.md lists `https://www.sfgov.org/services/submit-service-request` as the entry point, but the actual Verint form that accepts pothole submissions is `https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=street_defect&Nature_of_request=pavement_defect`. Navigate directly to this URL.
 
-## Failure Recovery
+## Known Failure Point
 
-- **"No Page found for awaitActivePage"**: Session has no pages. Run `env local` + `env remote` to force new session.
-- **Page 2 Next doesn't advance** (stays on page 2): The Street radio may not have been recognized. Re-snapshot, get fresh Next ref, try again.
-- **Location field empty after Enter+Tab**: Geocoding took too long. Repeat Enter → wait 3000 → Tab sequence.
-- **Wrong page after startup** (Assessment Appeals, Accela): Using default session. Ensure all commands use `--session sf311`.
+**The agent runs out of turns before reading the confirmation number from the final snapshot.**
+
+The form submission itself succeeds — the Review page renders, the Submit button is clicked, and the confirmation page loads with "Your Service Request Number is: XXXXXXXXX". The failure occurs because the agent exhausts its 30-turn budget on intermediate steps (extra snapshots, retries, or verification steps not in the prescribed flow) and does not reach the final snapshot at turn 29 or cannot output the JSON at turn 30.
+
+Specific known causes:
+- Taking an extra snapshot on Page 2 to verify the location field (costs 1 extra turn)
+- Retrying the Page 2 Next button via XPath instead of ref (costs 1–2 turns)
+- Taking a screenshot or using `get value` to verify fields (costs turns, provides no benefit)
+- Performing an extra `wait load` or `snapshot` between pages that don't need it
+
+To recover in future runs: follow the exact turn budget above with no deviations. If a step fails, do not retry with a different approach mid-run — re-snapshot and use the fresh ref, but count that retry against budget and skip the next non-essential verification step.
 
 ## Expected Output
 
 ```json
 {
   "success": true,
-  "confirmation_number": "101003821474",
+  "confirmation_number": "101003821426",
   "category_selected": "Pothole or pavement defect",
   "location_entered": "INTERSECTION OF 7TH ST & CHARLES J BRENHAM PL SAN FRANCISCO, CA 94102",
   "submission_method": "anonymous",
   "gotchas": [
-    "Use --session sf311 (named session) to avoid contaminated default Browserbase session",
     "env local + env remote forces a fresh Browserbase session",
     "Location field is map-driven: type in ESRI search box, click autocomplete, Enter → wait 3000ms → Tab",
     "XPath Next buttons fail — always snapshot first and use ref ID",
