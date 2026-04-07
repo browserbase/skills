@@ -53,9 +53,13 @@ ls tasks/
 
 If running multiple tasks, use the Agent tool to spawn one sub-agent per task simultaneously. Each sub-agent receives a self-contained prompt to run the full autobrowse loop for its task:
 
-> "You are running the autobrowse skill for task `<name>`. Working directory: `<cwd>`. Run `<N>` iterations of: evaluate → read trace → improve strategy.md → commit. Use `--env <env>`. Follow the autobrowse loop instructions exactly. At the end, output a one-line summary: task name, pass/fail on final run, total cost, iterations completed."
+> "You are running the autobrowse skill for task `<name>`. Working directory: `<cwd>`. Run `<N>` iterations of: evaluate → read trace → improve strategy.md → commit. Use `--env <env>`. Follow the autobrowse loop instructions exactly.
+>
+> When graduating, write a proper structured skill.md (not a copy of strategy.md) — see the graduation template in SKILL.md.
+>
+> At the end, output a structured summary with: task name, pass/fail on final run, total cumulative cost, iterations completed, per-iteration table (iter number, turns, cost, status, hypothesis tested), and 2-3 bullet key learnings."
 
-Spawn all sub-agents in parallel, wait for all to complete, then collect their summaries and print a final report.
+Spawn all sub-agents in parallel, wait for all to complete, then collect their summaries and write the session report.
 
 **For single task**, skip this step and run the loop directly below.
 
@@ -128,10 +132,74 @@ Read the new summary. Did it pass? Make clear progress?
 
 ### After all iterations — publish if ready
 
-If the task passed on 2+ of the last 3 iterations:
+If the task passed on 2+ of the last 3 iterations **or has reached the max iteration limit**, write a proper `skill.md` — **do not just copy strategy.md**. The skill.md must be self-contained and useful to someone who has never seen this codebase. If graduating at max iterations without a clean pass, note the known failure point but still document everything learned.
+
+Use this structure:
+
+```markdown
+---
+task: <task-name>
+graduated: <YYYY-MM-DD>
+iterations: <N>
+pass_rate: <X/N runs passed>
+env: remote|local
+---
+
+# <Task Title> — Browser Skill
+
+## Purpose
+<1-2 sentences: what this automates and why it exists. E.g. "Extracts permit appeal process info from SF.gov Board of Appeals page, including eligibility, deadlines, fees, and contact details.">
+
+## When to Use
+<When should someone reach for this skill. E.g. "Use when you need to populate permit appeal data for SF city government workflows.">
+
+## Quick Start
 ```bash
-mkdir -p tasks/<task-name>/output
-cp tasks/<task-name>/strategy.md tasks/<task-name>/skill.md
+tsx scripts/evaluate.ts --task <task-name> --env remote
+```
+
+## Browse CLI Reference
+The inner agent uses the `browse` CLI. Key commands for this task:
+- `browse stop` — kill existing session (always run before switching to remote)
+- `browse env remote` — start a fresh Browserbase cloud session
+- `browse newpage <url>` — open URL in a new tab (required in remote mode — `browse open` fails with "no page available")
+- `browse open <url>` — navigate existing tab (local mode only)
+- `browse wait load` — wait for page to finish loading
+- `browse get title` — verify you're on the right page
+- `browse get text body` — extract all visible text (preferred for content extraction)
+- `browse snapshot` — get accessibility tree with @ref IDs (use before clicking)
+- `browse click <ref>` — click element by @ref from snapshot
+
+**Never use `--session <name>` flags in skill.md.** Named sessions are a parallel-run workaround — they contaminate skills with infrastructure concerns. Skills must work in isolation with the default session.
+
+## Workflow
+
+### Step 1 — Start session
+<exact browse commands in order>
+
+### Step 2 — Navigate
+<exact URL and verification steps>
+
+### Step 3 — Extract
+<exact extraction commands>
+
+### Step 4 — Output
+<what JSON to emit, referencing the schema below>
+
+## Site-Specific Gotchas
+<Bullet list of every hard-won heuristic from the iterations. This is the core value of the skill.>
+
+## Failure Recovery
+<What to do when navigation fails, session is contaminated, or extraction returns garbage>
+
+## Expected Output
+```json
+<paste the exact expected output schema from task.md>
+```
+```
+
+Then commit:
+```bash
 git add tasks/<task-name>/skill.md
 git commit -m "skill: graduate <task-name>"
 ```
@@ -142,10 +210,54 @@ git commit -m "skill: graduate <task-name>"
 
 After all sub-agents complete, print a markdown table:
 
-| Task | Iterations | Final Status | Graduated |
-|------|-----------|--------------|-----------|
-| google-flights | 5 | ✅ pass | yes |
-| slusa-payment | 5 | ❌ fail | no |
+| Task | Iterations | Final Status | Graduated | Cost |
+|------|-----------|--------------|-----------|------|
+| google-flights | 5 | ✅ pass | yes | $0.42 |
+| slusa-payment | 5 | ❌ fail | no | $1.20 |
+
+Then write a persistent session report to `reports/` so there's a durable record of the run:
+
+```bash
+mkdir -p reports
+```
+
+Write the file `reports/YYYY-MM-DD-HH-MM-<tasks>.md` with:
+
+```markdown
+# AutoBrowse Session Report
+**Date:** <ISO date>
+**Tasks:** <comma-separated list>
+**Environment:** remote|local
+**Total cost:** $X.XX
+
+## Results
+
+| Task | Iterations | Pass Rate | Final Status | Graduated | Cost |
+|------|-----------|-----------|--------------|-----------|------|
+| ... | ... | X/5 | ✅/❌ | yes/no | $X.XX |
+
+## Per-Task Learnings
+
+### <task-name>
+- **Key insight 1:** <what the agent learned>
+- **Key insight 2:** <another heuristic>
+- **Failure mode fixed:** <what was failing and how it was resolved>
+
+## Iteration Log
+
+### <task-name>
+| Iter | Turns | Cost | Status | Hypothesis tested |
+|------|-------|------|--------|-------------------|
+| 1 | 79 | $18.75 | ❌ fail | baseline |
+| 2 | 9 | $0.26 | ✅ pass | session contamination fix |
+| ... | ... | ... | ... | ... |
+```
+
+Commit the report:
+```bash
+git add reports/
+git commit -m "report: autobrowse session <date> — <N> tasks, <X> graduated"
+```
 
 ---
 
