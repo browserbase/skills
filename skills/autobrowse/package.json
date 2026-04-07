@@ -1,0 +1,20 @@
+{
+  "name": "autobrowse-v2",
+  "version": "0.1.0",
+  "description": "Self-improving browser agent via skill learning — autoresearch pattern + Browse CLI + Anthropic API",
+  "type": "module",
+  "scripts": {
+    "evaluate": "tsx evaluate.ts"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.39.0",
+    "@browserbasehq/stagehand": "^3.2.0",
+    "dotenv": "^16.4.5",
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0"
+  }
+}
