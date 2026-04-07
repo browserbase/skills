@@ -8,6 +8,7 @@
 - [Platform APIs](#platform-apis)
 - [Fetch API](#fetch-api)
 - [Search API](#search-api)
+- [Templates](#templates)
 - [Browse passthrough](#browse-passthrough)
 - [Skills](#skills)
 - [Troubleshooting](#troubleshooting)
@@ -115,7 +116,11 @@ bb projects usage <project_id>
 bb sessions list
 bb sessions list --q "user_metadata['userId']:'123'"
 bb sessions get <session_id>
-bb sessions create --body '{"projectId":"proj_123"}'
+bb sessions create --proxies --advanced-stealth
+bb sessions create --region us-east-1 --timeout 300
+bb sessions create --solve-captchas --context-id ctx_abc --persist
+bb sessions create --body '{"proxies":[{"type":"browserbase","geolocation":{"country":"US"}}]}'
+echo '{"proxies":true}' | bb sessions create --stdin
 bb sessions update <session_id> --status REQUEST_RELEASE
 bb sessions debug <session_id>
 bb sessions logs <session_id>
@@ -123,6 +128,28 @@ bb sessions recording <session_id>
 bb sessions downloads get <session_id> --output session-artifacts.zip
 bb sessions uploads create <session_id> ./file.txt
 ```
+
+#### `sessions create` flags
+
+Use flags for common options instead of building `--body` JSON manually:
+
+| Flag | Description |
+|------|-------------|
+| `--proxies` | Enable Browserbase proxy |
+| `--advanced-stealth` | Enable advanced stealth mode |
+| `--solve-captchas` / `--no-solve-captchas` | Toggle automatic CAPTCHA solving |
+| `--block-ads` | Enable ad blocking |
+| `--region <region>` | Session region (`us-west-2`, `us-east-1`, `eu-central-1`, `ap-southeast-1`) |
+| `--keep-alive` | Keep session alive after disconnection |
+| `--timeout <seconds>` | Session timeout in seconds |
+| `--context-id <id>` | Browserbase context ID for persistent state |
+| `--persist` | Persist context changes after session ends |
+| `--record-session` / `--no-record-session` | Toggle session recording |
+| `--log-session` / `--no-log-session` | Toggle session logging |
+| `--viewport <WxH>` | Browser viewport dimensions (e.g. `1920x1080`) |
+| `--extension-id <id>` | Chrome extension ID to load |
+| `--body <body>` | Full JSON request body (merged with flags) |
+| `--stdin` | Read JSON request body from stdin |
 
 When both `--status` and `--body` are present on `bb sessions update`, the CLI merges them.
 
@@ -169,6 +196,32 @@ bb search "AI agents" --output results.json
 Returns structured results with titles, URLs, and optional metadata (author, published date). Use `--num-results` to control how many results are returned (1-25, default 10).
 
 Prefer the `fetch` skill to retrieve page content after finding URLs via search. Prefer the `browser` skill when you need to interact with pages.
+
+## Templates
+
+Browse and scaffold starter templates from the Browserbase templates repository.
+
+### List templates
+
+```bash
+bb templates list
+bb templates list --language python
+bb templates list --language typescript
+```
+
+### Clone a template
+
+```bash
+bb templates clone form-filling --language typescript
+bb templates clone amazon-product-scraping --language python ./my-scraper
+```
+
+Arguments:
+- `<slug>` (required) — template name from `bb templates list`
+- `[path]` (optional) — destination directory, defaults to the template slug
+
+Options:
+- `--language <language>` — `python` or `typescript`
 
 ## Browse passthrough
 

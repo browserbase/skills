@@ -1,6 +1,6 @@
 ---
 name: browserbase-cli
-description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or search the web through the Browserbase Search API. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
+description: Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, search the web through the Browserbase Search API, or scaffold starter templates. Prefer the Browser skill for interactive browsing; use `bb browse` only when the user explicitly wants the Browserbase CLI path.
 compatibility: "Requires the Browserbase CLI (`npm install -g @browserbasehq/cli`). API commands require `BROWSERBASE_API_KEY`. `BROWSERBASE_PROJECT_ID` is only needed for `bb functions dev` and `bb functions publish`. `bb browse` additionally requires `npm install -g @browserbasehq/browse-cli`."
 license: MIT
 allowed-tools: Bash
@@ -40,6 +40,7 @@ Use this skill when the user wants to:
 - inspect or manage Browserbase sessions, projects, contexts, or extensions
 - fetch a page through Browserbase without opening a browser session
 - search the web through Browserbase without opening a browser session
+- browse or scaffold starter templates with `bb templates`
 
 ## When not to use this skill
 
@@ -53,6 +54,7 @@ Use this skill when the user wants to:
 - `bb sessions`, `bb projects`, `bb contexts`, `bb extensions` for Browserbase platform resources
 - `bb fetch <url>` for Fetch API requests
 - `bb search "<query>"` for Search API requests
+- `bb templates` to browse and scaffold starter templates
 - `bb browse ...` to forward to the standalone `browse` binary (requires `@browserbasehq/browse-cli`)
 - `bb skills install` to install Browserbase agent skills for Claude Code
 
@@ -76,6 +78,8 @@ Use `bb functions invoke --check-status <invocation_id>` to poll an existing inv
 
 ```bash
 bb projects list
+bb sessions create --proxies --advanced-stealth --region us-east-1
+bb sessions create --solve-captchas --context-id ctx_abc --persist
 bb sessions get <session_id>
 bb sessions downloads get <session_id> --output session-artifacts.zip
 bb contexts create --body '{"region":"us-west-2"}'
@@ -95,6 +99,15 @@ bb fetch https://example.com --allow-redirects --output page.html
 bb search "browser automation"
 bb search "web scraping" --num-results 5
 bb search "AI agents" --output results.json
+```
+
+### Templates
+
+```bash
+bb templates list
+bb templates list --language python
+bb templates clone form-filling --language typescript
+bb templates clone amazon-product-scraping --language python ./my-scraper
 ```
 
 ## Best practices
