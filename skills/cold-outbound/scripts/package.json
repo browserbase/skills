@@ -1,14 +1,6 @@
 {
   "name": "cold-outbound-scripts",
-  "type": "module",
+  "version": "0.1.0",
   "private": true,
-  "dependencies": {
-    "@browserbasehq/sdk": "^2.8.0",
-    "playwright": "^1.52.0",
-    "zod": "^3.23.8"
-  },
-  "devDependencies": {
-    "tsx": "^4.16.0",
-    "typescript": "^5.5.0"
-  }
+  "type": "module"
 }

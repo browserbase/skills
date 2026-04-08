@@ -21,12 +21,11 @@ This is the most important research in the pipeline. Every downstream decision d
 
 ### Page Discovery
 Discover site pages dynamically — do NOT hardcode paths like `/about` or `/customers`:
-1. Fetch `bb_smart_fetch.ts --url "{company website}/sitemap.xml" --raw` — primary source, has ALL pages
+1. Fetch `bb fetch --allow-redirects "{company website}/sitemap.xml"` — primary source, has ALL pages
 2. Scan sitemap URLs for keywords: `customer`, `case-stud`, `pricing`, `about`, `use-case`, `blog`, `docs`, `industry`, `solution`
-3. Optionally fetch `bb_smart_fetch.ts --url "{company website}/llms.txt" --raw` for page descriptions
-4. Pick the 3-5 most relevant URLs from the sitemap and fetch those (without `--raw`)
+3. Optionally fetch `bb fetch --allow-redirects "{company website}/llms.txt"` for page descriptions
+4. Pick the 3-5 most relevant URLs from the sitemap and fetch those
 5. Sitemap is the source of truth. llms.txt is bonus context but often incomplete.
-6. The `--raw` flag outputs plain text instead of structured JSON — essential for reading sitemap.xml and llms.txt
 
 ### External Research
 - Search: `"{company} customers use cases reviews"`
