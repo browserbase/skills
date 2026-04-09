@@ -15,7 +15,7 @@ import "dotenv/config";
 import Anthropic from "@anthropic-ai/sdk";
 import * as fs from "node:fs";
 import * as path from "node:path";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
 
 // ── Config ─────────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ const TOOLS: Anthropic.Messages.Tool[] = [
   {
     name: "execute",
     description:
-      "Execute a shell command. Use this to run browse CLI commands for browser automation.\n\n" +
+      "Execute a browse CLI command for browser automation.\n\n" +
       "Browse commands:\n" +
       "  browse env local|remote    — Switch browser environment\n" +
       "  browse open <url>          — Navigate to URL\n" +
@@ -69,7 +69,7 @@ const TOOLS: Anthropic.Messages.Tool[] = [
       properties: {
         command: {
           type: "string",
-          description: "The shell command to execute",
+          description: "The browse CLI command to execute",
         },
       },
       required: ["command"],
@@ -118,22 +118,105 @@ function getNextRunNumber(tracesDir: string): number {
   return Math.max(...nums) + 1;
 }
 
-const ALLOWED_COMMANDS = ["browse "];
+const ALLOWED_COMMAND = "browse";
+
+function parseCommand(command: string): { args: string[] } | { error: string } {
+  const args: string[] = [];
+  let current = "";
+  let quote: "'" | "\"" | null = null;
+  let escaping = false;
+  let tokenStarted = false;
+
+  for (const char of command.trim()) {
+    if (escaping) {
+      current += char;
+      escaping = false;
+      tokenStarted = true;
+      continue;
+    }
+
+    if (quote === "'") {
+      if (char === "'") {
+        quote = null;
+      } else {
+        current += char;
+      }
+      tokenStarted = true;
+      continue;
+    }
+
+    if (quote === "\"") {
+      if (char === "\"") {
+        quote = null;
+      } else if (char === "\\") {
+        escaping = true;
+      } else {
+        current += char;
+      }
+      tokenStarted = true;
+      continue;
+    }
+
+    if (char === "'" || char === "\"") {
+      quote = char;
+      tokenStarted = true;
+      continue;
+    }
+
+    if (char === "\\") {
+      escaping = true;
+      tokenStarted = true;
+      continue;
+    }
+
+    if (/\s/.test(char)) {
+      if (tokenStarted) {
+        args.push(current);
+        current = "";
+        tokenStarted = false;
+      }
+      continue;
+    }
+
+    current += char;
+    tokenStarted = true;
+  }
+
+  if (escaping) {
+    return { error: "BLOCKED: command ends with an unfinished escape sequence." };
+  }
+
+  if (quote) {
+    return { error: "BLOCKED: command has an unclosed quote." };
+  }
+
+  if (tokenStarted) {
+    args.push(current);
+  }
+
+  if (args.length === 0) {
+    return { error: "BLOCKED: empty command." };
+  }
+
+  return { args };
+}
 
 function executeCommand(command: string): { output: string; error: boolean; duration_ms: number } {
-  // Security: only allow browse CLI commands to prevent prompt injection.
-  // Strip leading whitespace and check prefix, then verify no shell metacharacters
-  // that could chain arbitrary commands after the allowed prefix.
-  const trimmed = command.trimStart();
-  if (!ALLOWED_COMMANDS.some((prefix) => trimmed.startsWith(prefix))) {
+  // Security: only allow the browse CLI and execute it without a shell so
+  // metacharacters are treated as literal arguments instead of extra commands.
+  const parsed = parseCommand(command);
+  if ("error" in parsed) {
+    return { output: parsed.error, error: true, duration_ms: 0 };
+  }
+
+  const [executable, ...args] = parsed.args;
+  if (executable !== ALLOWED_COMMAND) {
     return { output: `BLOCKED: only browse commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
   }
-  if (/[;&|`$()<>]/.test(command)) {
-    return { output: `BLOCKED: shell metacharacters not allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
-  }
+
   const start = Date.now();
   try {
-    const output = execSync(command, {
+    const output = execFileSync(executable, args, {
       encoding: "utf-8",
       timeout: EXEC_TIMEOUT_MS,
       stdio: ["pipe", "pipe", "pipe"],
@@ -141,8 +224,10 @@ function executeCommand(command: string): { output: string; error: boolean; dura
     });
     return { output: output.trim(), error: false, duration_ms: Date.now() - start };
   } catch (err: unknown) {
-    const e = err as { stderr?: string; stdout?: string; message?: string };
-    const output = e.stderr || e.stdout || e.message || String(err);
+    const e = err as { stderr?: string | Buffer; stdout?: string | Buffer; message?: string };
+    const stderr = typeof e.stderr === "string" ? e.stderr : e.stderr?.toString("utf-8");
+    const stdout = typeof e.stdout === "string" ? e.stdout : e.stdout?.toString("utf-8");
+    const output = stderr || stdout || e.message || String(err);
     return { output: output.trim(), error: true, duration_ms: Date.now() - start };
   }
 }
@@ -304,17 +389,20 @@ async function main() {
     totalOutputTokens += response.usage.output_tokens;
 
     const toolUseBlocks: Anthropic.Messages.ToolUseBlock[] = [];
+    let assistantText = "";
     let reasoningText = "";
 
     for (const block of response.content) {
       if (block.type === "text") {
         reasoningText += block.text;
-        lastAssistantText += block.text;
+        assistantText += block.text;
       }
       if (block.type === "tool_use") {
         toolUseBlocks.push(block);
       }
     }
+
+    lastAssistantText = assistantText;
 
     if (reasoningText) {
       const short = reasoningText.slice(0, 200).replace(/\n/g, " ");
