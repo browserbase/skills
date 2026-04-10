@@ -80,7 +80,7 @@ Inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch) 
 outer agent (Claude Code + /autobrowse skill)
   └── reads trace → improves strategy.md → repeats
 
-inner agent (scripts/evaluate.ts → Anthropic API)
+inner agent (scripts/evaluate.mjs → Anthropic API)
   └── browse open → snapshot → click → snapshot → ...
   └── writes traces/ with summary, full trace, screenshots
 ```

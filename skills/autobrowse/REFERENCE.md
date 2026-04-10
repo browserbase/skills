@@ -1,9 +1,9 @@
 # AutoBrowse Reference
 
-## evaluate.ts flags
+## evaluate.mjs flags
 
 ```bash
-tsx ${CLAUDE_SKILL_DIR}/scripts/evaluate.ts --task <name> [options]
+node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <name> [options]
 ```
 
 | Flag | Default | Description |
@@ -47,7 +47,7 @@ Each run writes to `traces/<task>/run-NNN/`:
 ```
 task.md        → input (you write this, don't edit after)
 strategy.md    → working file (auto-improved each iteration)
-skill.md       → output (copy from strategy.md when ready to ship)
+skill.md       → output (graduated from strategy.md when ready to ship)
 ```
 
 A task is ready to graduate when it passes on 2+ of the last 3 consecutive runs.

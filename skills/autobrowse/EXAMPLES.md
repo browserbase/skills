@@ -61,7 +61,7 @@ Keep skills fresh as websites change. Add to your crontab:
 Run the inner agent once and read the trace yourself:
 
 ```bash
-tsx ${CLAUDE_SKILL_DIR}/scripts/evaluate.ts --task my-portal --env remote
+node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task my-portal --env remote
 cat traces/my-portal/latest/summary.md
 ```
 

@@ -1,15 +1,12 @@
 ---
 name: autobrowse
 description: Self-improving browser automation via the auto-research loop. Iteratively runs a browsing task, reads the trace, and improves the navigation skill (strategy.md) until it reliably passes. Supports parallel runs across multiple tasks using sub-agents. Use when you want to build or improve browser automation skills for specific website tasks.
-compatibility: "Requires Node.js 18+, tsx, browse CLI, and ANTHROPIC_API_KEY. Run from the autobrowse app directory."
+license: See LICENSE.txt
+compatibility: "Requires Node.js 18+, browse CLI, and ANTHROPIC_API_KEY. Run from the autobrowse app directory."
 allowed-tools: Bash Read Write Edit Glob Grep Agent
 metadata:
-  openclaw:
-    requires:
-      bins:
-        - tsx
-        - browse
-    homepage: https://github.com/browserbase/skills
+  author: browserbase
+  homepage: https://github.com/browserbase/skills
 ---
 
 # AutoBrowse — Self-Improving Browser Skill
@@ -79,9 +76,9 @@ Check if `tasks/<task>/strategy.md` exists. If not, create it:
 ### Run the inner agent
 
 ```bash
-tsx ${CLAUDE_SKILL_DIR}/scripts/evaluate.ts --task <task-name>
+node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name>
 # or for bot-protected sites:
-tsx ${CLAUDE_SKILL_DIR}/scripts/evaluate.ts --task <task-name> --env remote
+node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --env remote
 ```
 
 This runs the browser session and writes a full trace to `traces/<task>/latest/`.
@@ -155,7 +152,7 @@ env: remote|local
 
 ## Quick Start
 ```bash
-tsx scripts/evaluate.ts --task <task-name> --env remote
+node scripts/evaluate.mjs --task <task-name> --env remote
 ```
 
 ## Browse CLI Reference
@@ -263,7 +260,7 @@ git commit -m "report: autobrowse session <date> — <N> tasks, <X> graduated"
 
 ## Rules
 
-- **Only edit `strategy.md`** — never touch `task.md` or `evaluate.ts`
+- **Only edit `strategy.md`** — never touch `task.md` or `evaluate.mjs`
 - **One hypothesis per commit** — test one change at a time
 - **Build on wins** — keep what worked, add to it
 - **Trust the trace** — the inner agent shows exactly what it saw and did

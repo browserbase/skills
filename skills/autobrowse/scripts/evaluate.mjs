@@ -1,14 +1,13 @@
+#!/usr/bin/env node
+
 /**
- * evaluate.ts — Inner agent harness.
+ * evaluate.mjs — Inner agent harness.
  *
  * Runs a browsing agent using the raw Anthropic API with a single `execute`
  * tool. The agent calls browse CLI commands to navigate websites. Full trace
  * is captured incrementally and written to disk.
  *
- * Usage: tsx evaluate.ts --task <task-name> [--run-number N] [--model <model>]
- *
- * Example: tsx evaluate.ts --task google-flights
- *          tsx evaluate.ts --task amazon-checkout --model claude-sonnet-4-6
+ * Usage: node scripts/evaluate.mjs --task <task-name> [--env local|remote] [--model <model>] [--run-number N]
  */
 
 import "dotenv/config";
@@ -24,26 +23,9 @@ const MAX_TURNS = 30;
 const MAX_TOKENS = 4096;
 const EXEC_TIMEOUT_MS = 30_000;
 
-// ── Types ──────────────────────────────────────────────────────────
-
-interface TraceEntry {
-  turn: number;
-  timestamp: string;
-  role: "assistant" | "tool_result";
-  reasoning?: string;
-  tool_name?: string;
-  tool_input?: Record<string, unknown>;
-  command?: string;
-  output?: string;
-  error?: boolean;
-  duration_ms?: number;
-  input_tokens?: number;
-  output_tokens?: number;
-}
-
 // ── Tool definition ────────────────────────────────────────────────
 
-const TOOLS: Anthropic.Messages.Tool[] = [
+const TOOLS = [
   {
     name: "execute",
     description:
@@ -65,7 +47,7 @@ const TOOLS: Anthropic.Messages.Tool[] = [
       "  browse back/reload/stop    — Navigation/session control\n\n" +
       "Critical: Always `browse snapshot` after every action — refs invalidate on DOM changes.",
     input_schema: {
-      type: "object" as const,
+      type: "object",
       properties: {
         command: {
           type: "string",
@@ -79,17 +61,52 @@ const TOOLS: Anthropic.Messages.Tool[] = [
 
 // ── CLI args ───────────────────────────────────────────────────────
 
-function getArg(name: string, fallback?: string): string | undefined {
+function getArg(name, fallback) {
   const idx = process.argv.indexOf(`--${name}`);
   if (idx !== -1 && process.argv[idx + 1]) return process.argv[idx + 1];
   return fallback;
 }
 
-function getTaskName(): string {
+function showHelp() {
+  console.log(`evaluate.mjs — Inner agent harness for autobrowse skill
+
+Usage: node scripts/evaluate.mjs --task <name> [options]
+
+Options:
+  --task <name>        Task name — matches tasks/<name>/ directory (required)
+  --env local|remote   Browser environment (default: local)
+  --model <model>      Claude model for the inner agent (default: ${DEFAULT_MODEL})
+  --run-number N       Force a specific run number (default: auto-increment)
+  --help               Show this help message
+
+Environment variables:
+  ANTHROPIC_API_KEY          Required — Claude API key
+  BROWSERBASE_API_KEY        Required for --env remote
+  BROWSERBASE_PROJECT_ID     Required for --env remote
+
+Output:
+  traces/<task>/run-NNN/summary.md     Decision log and final output
+  traces/<task>/run-NNN/trace.json     Full tool call log
+  traces/<task>/run-NNN/messages.json  Raw API message history
+  traces/<task>/run-NNN/screenshots/   Visual captures
+
+Examples:
+  node scripts/evaluate.mjs --task google-flights
+  node scripts/evaluate.mjs --task my-portal --env remote
+  node scripts/evaluate.mjs --task checkout --model claude-opus-4-6`);
+  process.exit(0);
+}
+
+function getTaskName() {
+  if (process.argv.includes("--help") || process.argv.includes("-h")) {
+    showHelp();
+  }
+
   const task = getArg("task");
   if (!task) {
     console.error("ERROR: --task <name> is required");
-    console.error("Usage: tsx evaluate.ts --task google-flights");
+    console.error("Usage: node scripts/evaluate.mjs --task google-flights");
+    console.error("\nRun with --help for full usage.");
     console.error("\nAvailable tasks:");
     const tasksDir = path.resolve("tasks");
     if (fs.existsSync(tasksDir)) {
@@ -107,7 +124,7 @@ function getTaskName(): string {
 
 // ── Helpers ─────────────────────────────────────────────────────────
 
-function getNextRunNumber(tracesDir: string): number {
+function getNextRunNumber(tracesDir) {
   const n = getArg("run-number");
   if (n) { const num = parseInt(n, 10); if (!isNaN(num)) return num; }
   if (!fs.existsSync(tracesDir)) return 1;
@@ -120,10 +137,10 @@ function getNextRunNumber(tracesDir: string): number {
 
 const ALLOWED_COMMAND = "browse";
 
-function parseCommand(command: string): { args: string[] } | { error: string } {
-  const args: string[] = [];
+function parseCommand(command) {
+  const args = [];
   let current = "";
-  let quote: "'" | "\"" | null = null;
+  let quote = null;
   let escaping = false;
   let tokenStarted = false;
 
@@ -201,7 +218,7 @@ function parseCommand(command: string): { args: string[] } | { error: string } {
   return { args };
 }
 
-function executeCommand(command: string): { output: string; error: boolean; duration_ms: number } {
+function executeCommand(command) {
   // Security: only allow the browse CLI and execute it without a shell so
   // metacharacters are treated as literal arguments instead of extra commands.
   const parsed = parseCommand(command);
@@ -223,16 +240,15 @@ function executeCommand(command: string): { output: string; error: boolean; dura
       maxBuffer: 1024 * 1024,
     });
     return { output: output.trim(), error: false, duration_ms: Date.now() - start };
-  } catch (err: unknown) {
-    const e = err as { stderr?: string | Buffer; stdout?: string | Buffer; message?: string };
-    const stderr = typeof e.stderr === "string" ? e.stderr : e.stderr?.toString("utf-8");
-    const stdout = typeof e.stdout === "string" ? e.stdout : e.stdout?.toString("utf-8");
-    const output = stderr || stdout || e.message || String(err);
+  } catch (err) {
+    const stderr = typeof err.stderr === "string" ? err.stderr : err.stderr?.toString("utf-8");
+    const stdout = typeof err.stdout === "string" ? err.stdout : err.stdout?.toString("utf-8");
+    const output = stderr || stdout || err.message || String(err);
     return { output: output.trim(), error: true, duration_ms: Date.now() - start };
   }
 }
 
-function buildSystemPrompt(strategy: string, traceDir: string, browseEnv: string): string {
+function buildSystemPrompt(strategy, traceDir, browseEnv) {
   const envDesc = browseEnv === "remote"
     ? `Use **remote mode** (Browserbase) — anti-bot stealth, CAPTCHA solving, residential proxies:
 \`\`\`
@@ -326,7 +342,7 @@ ${strategy}
 
 async function main() {
   const taskName = getTaskName();
-  const model = getArg("model", DEFAULT_MODEL)!;
+  const model = getArg("model", DEFAULT_MODEL);
   const taskDir = path.resolve("tasks", taskName);
   const tracesDir = path.resolve("traces", taskName);
 
@@ -340,13 +356,12 @@ async function main() {
     process.exit(1);
   }
   if (!fs.existsSync(strategyFile)) {
-    // Create empty strategy.md if it doesn't exist
     fs.mkdirSync(taskDir, { recursive: true });
     fs.writeFileSync(strategyFile, `# ${taskName} Navigation Skill\n\n(This will grow as the agent learns through iterations)\n`);
-    console.log(`Created empty strategy.md for task "${taskName}"`);
+    console.error(`Created empty strategy.md for task "${taskName}"`);
   }
 
-  const browseEnv = getArg("env", "local")!;
+  const browseEnv = getArg("env", "local");
   const client = new Anthropic();
   const runNumber = getNextRunNumber(tracesDir);
   const runId = `run-${String(runNumber).padStart(3, "0")}`;
@@ -358,13 +373,13 @@ async function main() {
   const task = fs.readFileSync(taskFile, "utf-8");
   const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv);
 
-  console.log(`\n${"=".repeat(60)}`);
-  console.log(`  AUTOBROWSE — ${taskName} — Run ${runNumber}`);
-  console.log(`${"=".repeat(60)}`);
-  console.log(`Model: ${model} | Env: ${browseEnv} | Max turns: ${MAX_TURNS} | Trace: ${traceDir}\n`);
+  console.error(`\n${"=".repeat(60)}`);
+  console.error(`  AUTOBROWSE — ${taskName} — Run ${runNumber}`);
+  console.error(`${"=".repeat(60)}`);
+  console.error(`Model: ${model} | Env: ${browseEnv} | Max turns: ${MAX_TURNS} | Trace: ${traceDir}\n`);
 
-  const trace: TraceEntry[] = [];
-  const messages: Anthropic.Messages.MessageParam[] = [
+  const trace = [];
+  const messages = [
     { role: "user", content: task },
   ];
 
@@ -388,7 +403,7 @@ async function main() {
     totalInputTokens += response.usage.input_tokens;
     totalOutputTokens += response.usage.output_tokens;
 
-    const toolUseBlocks: Anthropic.Messages.ToolUseBlock[] = [];
+    const toolUseBlocks = [];
     let assistantText = "";
     let reasoningText = "";
 
@@ -406,7 +421,7 @@ async function main() {
 
     if (reasoningText) {
       const short = reasoningText.slice(0, 200).replace(/\n/g, " ");
-      console.log(`  [${turn}] 💭 ${short}${reasoningText.length > 200 ? "..." : ""}`);
+      console.error(`  [${turn}] reasoning: ${short}${reasoningText.length > 200 ? "..." : ""}`);
       trace.push({
         turn,
         timestamp: new Date().toISOString(),
@@ -418,33 +433,31 @@ async function main() {
     }
 
     if (response.stop_reason === "end_turn" || toolUseBlocks.length === 0) {
-      console.log(`  [${turn}] ✅ Agent finished (${response.stop_reason})`);
-      // Append final response so messages.json has the complete conversation
+      console.error(`  [${turn}] done (${response.stop_reason})`);
       messages.push({ role: "assistant", content: response.content });
       break;
     }
 
-    const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+    const toolResults = [];
 
     for (const toolUse of toolUseBlocks) {
-      const input = toolUse.input as { command: string };
-      const command = input.command;
+      const command = toolUse.input.command;
       const isSnapshot = command.includes("browse snapshot");
       const isScreenshot = command.includes("browse screenshot");
 
-      console.log(`  [${turn}] 🔧 ${command.slice(0, 120)}`);
+      console.error(`  [${turn}] exec: ${command.slice(0, 120)}`);
 
       const { output, error, duration_ms } = executeCommand(command);
 
       if (isSnapshot) {
         const refCount = (output.match(/@/g) || []).length;
-        console.log(`  [${turn}] 📸 snapshot: ${refCount} refs (${duration_ms}ms)`);
+        console.error(`  [${turn}] snapshot: ${refCount} refs (${duration_ms}ms)`);
       } else if (isScreenshot) {
-        console.log(`  [${turn}] 📷 screenshot saved (${duration_ms}ms)`);
+        console.error(`  [${turn}] screenshot saved (${duration_ms}ms)`);
       } else if (error) {
-        console.log(`  [${turn}] ❌ error: ${output.slice(0, 100)}`);
+        console.error(`  [${turn}] error: ${output.slice(0, 100)}`);
       } else {
-        console.log(`  [${turn}] ✓ ${output.slice(0, 100)} (${duration_ms}ms)`);
+        console.error(`  [${turn}] ok: ${output.slice(0, 100)} (${duration_ms}ms)`);
       }
 
       trace.push({
@@ -481,8 +494,7 @@ async function main() {
 
   // ── Write final artifacts ──────────────────────────────────────
   const durationSec = (Date.now() - startTime) / 1000;
-  // Pricing per million tokens (input/output)
-  const pricing: Record<string, [number, number]> = {
+  const pricing = {
     "claude-opus-4-6": [5, 25],
     "claude-sonnet-4-6": [3, 15],
     "claude-haiku-4-5-20251001": [1, 5],
@@ -490,7 +502,7 @@ async function main() {
   const [inputRate, outputRate] = pricing[model] ?? [3, 15];
   const costUsd = (totalInputTokens * inputRate + totalOutputTokens * outputRate) / 1_000_000;
 
-  const summaryLines: string[] = [
+  const summaryLines = [
     `# ${taskName} — Run ${runId} Summary`,
     "",
     `**Duration:** ${durationSec.toFixed(1)}s | **Turns:** ${turn} | **Cost:** ~$${costUsd.toFixed(2)}`,
@@ -506,7 +518,7 @@ async function main() {
       summaryLines.push(`Turn ${entry.turn}: [reasoning] "${short}${entry.reasoning.length > 150 ? "..." : ""}"`);
     }
     if (entry.role === "assistant" && entry.tool_name) {
-      summaryLines.push(`Turn ${entry.turn}: [execute] \`${(entry.tool_input as any)?.command}\``);
+      summaryLines.push(`Turn ${entry.turn}: [execute] \`${entry.tool_input?.command}\``);
     }
     if (entry.role === "tool_result") {
       const isSnapshot = entry.command?.includes("snapshot");
@@ -537,23 +549,27 @@ async function main() {
   try {
     try {
       fs.unlinkSync(latestLink);
-    } catch (err: unknown) {
-      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    } catch (err) {
+      if (err.code !== "ENOENT") throw err;
     }
     fs.symlinkSync(runId, latestLink);
-  } catch (err: unknown) {
-    console.warn(`Warning: failed to update latest symlink: ${(err as Error).message}`);
+  } catch (err) {
+    console.warn(`Warning: failed to update latest symlink: ${err.message}`);
   }
 
-  console.log(`\n${summary}`);
-  console.log(`\n${"=".repeat(60)}`);
-  console.log(`task: ${taskName}`);
-  console.log(`duration_sec: ${durationSec.toFixed(1)}`);
-  console.log(`cost_usd: ${costUsd.toFixed(2)}`);
-  console.log(`turns: ${turn}`);
-  console.log(`tokens_in: ${totalInputTokens}`);
-  console.log(`tokens_out: ${totalOutputTokens}`);
-  console.log(`trace: ${traceDir}/summary.md`);
+  // Structured summary to stdout (data), diagnostics already went to stderr
+  const result = {
+    task: taskName,
+    run: runId,
+    status: turn < MAX_TURNS ? "completed" : "max_turns",
+    duration_sec: parseFloat(durationSec.toFixed(1)),
+    cost_usd: parseFloat(costUsd.toFixed(2)),
+    turns: turn,
+    tokens_in: totalInputTokens,
+    tokens_out: totalOutputTokens,
+    trace_dir: traceDir,
+  };
+  console.log(JSON.stringify(result));
 }
 
 main().catch((err) => {
