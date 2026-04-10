@@ -50,9 +50,9 @@ ls tasks/
 
 If running multiple tasks, use the Agent tool to spawn one sub-agent per task simultaneously. Each sub-agent receives a self-contained prompt to run the full autobrowse loop for its task:
 
-> "You are running the autobrowse skill for task `<name>`. Working directory: `<cwd>`. Run `<N>` iterations of: evaluate → read trace → improve strategy.md → commit. Use `--env <env>`. Follow the autobrowse loop instructions exactly.
+> "You are running the autobrowse skill for task `<name>`. Working directory: `<cwd>`. Run `<N>` iterations of: evaluate → read trace → improve strategy.md → repeat. Use `--env <env>`. Follow the autobrowse loop instructions exactly.
 >
-> When graduating, write a proper structured skill.md (not a copy of strategy.md) — see the graduation template in SKILL.md.
+> When graduating, install the skill to `~/.claude/skills/<task-name>/SKILL.md` with proper agentskills frontmatter (name + description). Do not just copy strategy.md — write a self-contained skill.
 >
 > At the end, output a structured summary with: task name, pass/fail on final run, total cumulative cost, iterations completed, per-iteration table (iter number, turns, cost, status, hypothesis tested), and 2-3 bullet key learnings."
 
@@ -115,45 +115,37 @@ Good strategies have:
 - **Site-specific knowledge**: selector IDs, form field names, success indicators
 - **Failure recovery**: what to do when X goes wrong
 
-### Commit
-```bash
-git add tasks/<task-name>/strategy.md
-git commit -m "skill: <brief description of what was learned>"
-```
-
 ### Judge the result
 
 Read the new summary. Did it pass? Make clear progress?
 - **Pass or progress** → keep, next iteration
-- **No progress or regression** → `git reset --hard HEAD~1`, try a different hypothesis
+- **No progress or regression** → revert strategy.md to the previous version and try a different hypothesis
 
 ### After all iterations — publish if ready
 
-If the task passed on 2+ of the last 3 iterations **or has reached the max iteration limit**, write a proper `skill.md` — **do not just copy strategy.md**. The skill.md must be self-contained and useful to someone who has never seen this codebase. If graduating at max iterations without a clean pass, note the known failure point but still document everything learned.
+If the task passed on 2+ of the last 3 iterations **or has reached the max iteration limit**, install it as a Claude Code skill. **Do not just copy strategy.md** — the skill must be self-contained and useful to someone who has never seen this codebase. If graduating at max iterations without a clean pass, note the known failure point but still document everything learned.
 
-Use this structure:
+Install by writing to `~/.claude/skills/<task-name>/SKILL.md`:
+
+```bash
+mkdir -p ~/.claude/skills/<task-name>
+```
+
+Use this structure for the SKILL.md:
 
 ```markdown
 ---
-task: <task-name>
-graduated: <YYYY-MM-DD>
-iterations: <N>
-pass_rate: <X/N runs passed>
-env: remote|local
+name: <task-name>
+description: <1-2 sentences describing what this skill does and when to use it. Include trigger keywords.>
 ---
 
 # <Task Title> — Browser Skill
 
 ## Purpose
-<1-2 sentences: what this automates and why it exists. E.g. "Extracts permit appeal process info from SF.gov Board of Appeals page, including eligibility, deadlines, fees, and contact details.">
+<1-2 sentences: what this automates and why it exists.>
 
 ## When to Use
-<When should someone reach for this skill. E.g. "Use when you need to populate permit appeal data for SF city government workflows.">
-
-## Quick Start
-```bash
-node scripts/evaluate.mjs --task <task-name> --env remote
-```
+<When should someone reach for this skill.>
 
 ## Browse CLI Reference
 The inner agent uses the `browse` CLI. Key commands for this task:
@@ -167,7 +159,7 @@ The inner agent uses the `browse` CLI. Key commands for this task:
 - `browse snapshot` — get accessibility tree with @ref IDs (use before clicking)
 - `browse click <ref>` — click element by @ref from snapshot
 
-**Never use `--session <name>` flags in skill.md.** Named sessions are a parallel-run workaround — they contaminate skills with infrastructure concerns. Skills must work in isolation with the default session.
+**Never use `--session <name>` flags in SKILL.md.** Named sessions are a parallel-run workaround — they contaminate skills with infrastructure concerns. Skills must work in isolation with the default session.
 
 ## Workflow
 
@@ -195,11 +187,12 @@ The inner agent uses the `browse` CLI. Key commands for this task:
 ```
 ```
 
-Then commit:
+After writing the SKILL.md, confirm it's installed:
 ```bash
-git add tasks/<task-name>/skill.md
-git commit -m "skill: graduate <task-name>"
+ls ~/.claude/skills/<task-name>/SKILL.md
 ```
+
+The skill is now available as `/<task-name>` in Claude Code.
 
 ---
 
@@ -250,17 +243,12 @@ Write the file `reports/YYYY-MM-DD-HH-MM-<tasks>.md` with:
 | ... | ... | ... | ... | ... |
 ```
 
-Commit the report:
-```bash
-git add reports/
-git commit -m "report: autobrowse session <date> — <N> tasks, <X> graduated"
-```
-
 ---
 
 ## Rules
 
 - **Only edit `strategy.md`** — never touch `task.md` or `evaluate.mjs`
-- **One hypothesis per commit** — test one change at a time
+- **One hypothesis per iteration** — test one change at a time
 - **Build on wins** — keep what worked, add to it
 - **Trust the trace** — the inner agent shows exactly what it saw and did
+- **Graduate to `~/.claude/skills/`** — the output is an installed Claude Code skill, not a committed file
