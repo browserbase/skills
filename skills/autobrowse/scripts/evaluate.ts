@@ -483,9 +483,9 @@ async function main() {
   const durationSec = (Date.now() - startTime) / 1000;
   // Pricing per million tokens (input/output)
   const pricing: Record<string, [number, number]> = {
-    "claude-opus-4-6": [15, 75],
+    "claude-opus-4-6": [5, 25],
     "claude-sonnet-4-6": [3, 15],
-    "claude-haiku-4-5-20251001": [0.80, 4],
+    "claude-haiku-4-5-20251001": [1, 5],
   };
   const [inputRate, outputRate] = pricing[model] ?? [3, 15];
   const costUsd = (totalInputTokens * inputRate + totalOutputTokens * outputRate) / 1_000_000;
@@ -534,7 +534,16 @@ async function main() {
 
   // Update latest symlink
   const latestLink = path.join(tracesDir, "latest");
-  try { if (fs.existsSync(latestLink)) fs.unlinkSync(latestLink); fs.symlinkSync(runId, latestLink); } catch {}
+  try {
+    try {
+      fs.unlinkSync(latestLink);
+    } catch (err: unknown) {
+      if ((err as NodeJS.ErrnoException).code !== "ENOENT") throw err;
+    }
+    fs.symlinkSync(runId, latestLink);
+  } catch (err: unknown) {
+    console.warn(`Warning: failed to update latest symlink: ${(err as Error).message}`);
+  }
 
   console.log(`\n${summary}`);
   console.log(`\n${"=".repeat(60)}`);
