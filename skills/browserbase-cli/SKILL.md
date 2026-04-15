@@ -38,6 +38,7 @@ Use this skill when the user wants to:
 - run Browserbase commands through `bb`
 - scaffold, develop, publish, or invoke Browserbase Functions
 - inspect or manage Browserbase sessions, projects, contexts, or extensions
+- retrieve files downloaded during a remote browser session (`bb sessions downloads get`)
 - fetch a page through Browserbase without opening a browser session
 - search the web through Browserbase without opening a browser session
 - browse or scaffold starter templates with `bb templates`
@@ -81,7 +82,7 @@ bb projects list
 bb sessions create --proxies --advanced-stealth --region us-east-1
 bb sessions create --solve-captchas --context-id ctx_abc --persist
 bb sessions get <session_id>
-bb sessions downloads get <session_id> --output session-artifacts.zip
+bb sessions downloads get <session_id> --wait 20 --output session-artifacts.zip
 bb contexts create --body '{"region":"us-west-2"}'
 bb extensions upload ./my-extension.zip
 ```

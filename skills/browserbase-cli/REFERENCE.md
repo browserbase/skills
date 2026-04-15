@@ -125,7 +125,7 @@ bb sessions update <session_id> --status REQUEST_RELEASE
 bb sessions debug <session_id>
 bb sessions logs <session_id>
 bb sessions recording <session_id>
-bb sessions downloads get <session_id> --output session-artifacts.zip
+bb sessions downloads get <session_id> --wait 20 --output session-artifacts.zip
 bb sessions uploads create <session_id> ./file.txt
 ```
 
@@ -152,6 +152,34 @@ Use flags for common options instead of building `--body` JSON manually:
 | `--stdin` | Read JSON request body from stdin |
 
 When both `--status` and `--body` are present on `bb sessions update`, the CLI merges them.
+
+#### Capturing downloads from a browse session
+
+The browse CLI (`@browserbasehq/browse-cli`) wraps Stagehand, which configures `Browser.setDownloadBehavior` automatically — no manual CDP setup is required. Trigger the download through the automation, let the file sync to Browserbase storage, then retrieve it with `bb sessions downloads get`:
+
+```bash
+browse env remote
+browse open https://portal.example.com
+# ...navigate and click the download button...
+browse click @<download-button-ref>
+sleep 5   # let the download event fire + initial sync
+
+SESSION_ID=$(bb sessions list | jq -r '.[0].id')
+browse stop
+sleep 3
+
+bb sessions downloads get "$SESSION_ID" --wait 20 --output ./downloads.zip
+unzip -l ./downloads.zip
+```
+
+Use `--wait <seconds>` so the CLI polls the downloads API (every 2s) until the returned ZIP exceeds the 22-byte empty-archive sentinel. This matters most right after `browse stop`, when files may still be syncing.
+
+##### Common pitfalls
+
+- **A 22-byte ZIP means no downloads were captured.** A ZIP with zero entries is a valid but empty archive (just an End of Central Directory record). The CLI reports this as `{ok: true, empty: true, sizeBytes: 22}` and prints a warning to stderr. Either no download event fired during the session, or the files are still syncing — use `--wait 20` to poll.
+- **Direct navigation to a PDF URL does NOT trigger a download.** Chrome renders PDFs in its built-in viewer, which does not emit a download event. To capture a PDF, click a link with the `download` attribute or navigate to a URL that returns `Content-Disposition: attachment`.
+- **Downloads sync asynchronously after a session ends.** Allow a few seconds between `browse stop` and `bb sessions downloads get`, or pass `--wait`.
+- **Stagehand (and the browse CLI) configures `Browser.setDownloadBehavior` automatically.** The manual CDP setup shown in the public docs is only required when driving sessions with raw Playwright or Puppeteer.
 
 ### Contexts
 
