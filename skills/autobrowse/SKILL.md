@@ -15,19 +15,23 @@ Build reliable browser automation skills through iterative experimentation. An i
 
 ## Entry Points
 
-### Single task — interactive loop
+Invocation is flexible — both explicit flags and free-form natural language work:
+
 ```
-/autobrowse --task <name>
-/autobrowse --task <name> --iterations 10
-/autobrowse --task <name> --env remote
+/autobrowse --task google-flights
+/autobrowse --task google-flights --iterations 10 --env remote
+/autobrowse --tasks google-flights,slusa-payment
+/autobrowse --all
+
+# Also fine — parse freely:
+/autobrowse https://flights.google.com/
+/autobrowse book a flight on delta.com
+/autobrowse fix the existing google-flights skill
 ```
 
-### Multiple tasks — parallel sub-agents
-```
-/autobrowse --all
-/autobrowse --tasks google-flights,slusa-payment --iterations 5
-/autobrowse --all --env remote --iterations 10
-```
+When the user drops a URL or free-form instruction instead of `--task <name>`:
+- If an existing task in `${WORKSPACE}/tasks/` clearly matches the site/intent, use it.
+- Otherwise, pick a short kebab-case name, create `${WORKSPACE}/tasks/<name>/task.md` from `${CLAUDE_SKILL_DIR}/references/example-task.md`, fill in the URL/goal based on what the user said, and proceed. Tell the user the chosen name in one line.
 
 ---
 
@@ -41,16 +45,38 @@ Check what was passed:
 - `--iterations N` → how many evaluate → improve cycles (default: 5)
 - `--env local|remote` → browser environment (default: local; use remote for bot-protected sites)
 
-List available tasks if needed:
+If the user passed free-form text instead, map it to one of the above before continuing.
+
+### Step 2 — Set up the workspace
+
+All training artifacts (task definitions, strategy iterations, traces, reports) live in a workspace directory in the **current working directory** — NOT inside `~/.claude/skills/`. This keeps the inner agent's file writes out of Claude's home dir and away from permission friction.
+
+Default workspace: `${CWD}/autobrowse/`
+
 ```bash
-ls tasks/
+mkdir -p ./autobrowse/tasks ./autobrowse/traces ./autobrowse/reports
 ```
 
-### Step 2 — Multi-task: spawn parallel sub-agents
+If the task directory (`./autobrowse/tasks/<task>/task.md`) doesn't exist yet, scaffold it:
+
+```bash
+mkdir -p ./autobrowse/tasks/<task>
+cp ${CLAUDE_SKILL_DIR}/references/example-task.md ./autobrowse/tasks/<task>/task.md
+# Then edit task.md to describe the URL, inputs, steps, and expected JSON output
+```
+
+The skill source at `${CLAUDE_SKILL_DIR}` stays read-only — only `./autobrowse/` in CWD gets written to during training. Graduation (final step) writes a single file to `~/.claude/skills/<task>/SKILL.md`.
+
+List available tasks:
+```bash
+ls ./autobrowse/tasks/
+```
+
+### Step 3 — Multi-task: spawn parallel sub-agents
 
 If running multiple tasks, use the Agent tool to spawn one sub-agent per task simultaneously. Each sub-agent receives a self-contained prompt to run the full autobrowse loop for its task:
 
-> "You are running the autobrowse skill for task `<name>`. Working directory: `<cwd>`. Run `<N>` iterations of: evaluate → read trace → improve strategy.md → repeat. Use `--env <env>`. Follow the autobrowse loop instructions exactly.
+> "You are running the autobrowse skill for task `<name>`. Workspace: `<absolute-path-to-workspace>` (e.g. `/Users/shrey/Developer/autobrowse`). Run `<N>` iterations of: evaluate → read trace → improve strategy.md → repeat. Use `--env <env>`. Pass `--workspace <workspace>` to every evaluate.mjs invocation. Follow the autobrowse loop instructions exactly.
 >
 > When graduating, install the skill to `~/.claude/skills/<task-name>/SKILL.md` with proper agentskills frontmatter (name + description). Do not just copy strategy.md — write a self-contained skill.
 >
@@ -66,33 +92,32 @@ Spawn all sub-agents in parallel, wait for all to complete, then collect their s
 
 ### Iteration start
 
-Check if `tasks/<task>/strategy.md` exists. If not, create it:
-```markdown
-# <task> Navigation Skill
+Check that `./autobrowse/tasks/<task>/task.md` exists (scaffold it from the template if not — see Step 2). `strategy.md` is auto-created empty by the harness on first run.
 
-(This will grow as the agent learns through iterations)
-```
+### Requirements
+
+- `ANTHROPIC_API_KEY` must be in the environment (or in a `.env` file in CWD — `evaluate.mjs` auto-loads it). If missing, the harness prints a clear error and exits; don't hunt for keys in other paths.
 
 ### Run the inner agent
 
 ```bash
-node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name>
+node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse
 # or for bot-protected sites:
-node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --env remote
+node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse --env remote
 ```
 
-This runs the browser session and writes a full trace to `traces/<task>/latest/`.
+This runs the browser session and writes a full trace to `./autobrowse/traces/<task>/latest/`.
 
 ### Read the trace
 
 ```bash
-cat traces/<task-name>/latest/summary.md
+cat ./autobrowse/traces/<task-name>/latest/summary.md
 ```
 
 The summary has duration, cost, turns, the decision log, and the final JSON output.
 
 If the agent failed or got stuck, look deeper:
-- Read `traces/<task-name>/latest/trace.json` — search for the failure turn
+- Read `./autobrowse/traces/<task-name>/latest/trace.json` — search for the failure turn
 - Read screenshots around the failure point with the Read tool
 
 ### Form one hypothesis
@@ -107,7 +132,7 @@ Examples:
 
 ### Update strategy.md
 
-Edit `tasks/<task-name>/strategy.md`. Keep everything that worked. Fix the specific failure. Add a concrete heuristic.
+Edit `./autobrowse/tasks/<task-name>/strategy.md`. Keep everything that worked. Fix the specific failure. Add a concrete heuristic.
 
 Good strategies have:
 - **Fast path**: direct URL or shortcuts to skip exploration
@@ -153,11 +178,11 @@ The inner agent uses the `browse` CLI. Key commands for this task:
 - `browse env remote` — start a fresh Browserbase cloud session
 - `browse newpage <url>` — open URL in a new tab (required in remote mode — `browse open` fails with "no page available")
 - `browse open <url>` — navigate existing tab (local mode only)
-- `browse wait load` — wait for page to finish loading
+- `browse wait load` — wait for page to finish loading (the ONLY supported `wait` form — `browse wait <ms>` errors)
 - `browse get title` — verify you're on the right page
 - `browse get text body` — extract all visible text (preferred for content extraction)
-- `browse snapshot` — get accessibility tree with @ref IDs (use before clicking)
-- `browse click <ref>` — click element by @ref from snapshot
+- `browse snapshot` — get accessibility tree; each node has a ref in `[X-Y]` format (e.g. `[0-5]`, `[2-147]`)
+- `browse click [X-Y]` — click element by ref from the latest snapshot (include the brackets)
 
 **Never use `--session <name>` flags in SKILL.md.** Named sessions are a parallel-run workaround — they contaminate skills with infrastructure concerns. Skills must work in isolation with the default session.
 
@@ -205,13 +230,13 @@ After all sub-agents complete, print a markdown table:
 | google-flights | 5 | ✅ pass | yes | $0.42 |
 | slusa-payment | 5 | ❌ fail | no | $1.20 |
 
-Then write a persistent session report to `reports/` so there's a durable record of the run:
+Then write a persistent session report to `./autobrowse/reports/` so there's a durable record of the run inside the workspace:
 
 ```bash
-mkdir -p reports
+mkdir -p ./autobrowse/reports
 ```
 
-Write the file `reports/YYYY-MM-DD-HH-MM-<tasks>.md` with:
+Write the file `./autobrowse/reports/YYYY-MM-DD-HH-MM-<tasks>.md` with:
 
 ```markdown
 # AutoBrowse Session Report
@@ -247,8 +272,9 @@ Write the file `reports/YYYY-MM-DD-HH-MM-<tasks>.md` with:
 
 ## Rules
 
-- **Only edit `strategy.md`** — never touch `task.md` or `evaluate.mjs`
+- **Only edit `strategy.md`** — never touch `task.md` (unless creating it from the template) or `evaluate.mjs`
+- **Stay in the workspace** — all training writes go to `./autobrowse/`, never to `~/.claude/skills/autobrowse/`. The skill source is read-only.
 - **One hypothesis per iteration** — test one change at a time
 - **Build on wins** — keep what worked, add to it
 - **Trust the trace** — the inner agent shows exactly what it saw and did
-- **Graduate to `~/.claude/skills/`** — the output is an installed Claude Code skill, not a committed file
+- **Graduate to `~/.claude/skills/`** — the only file you write there is the final graduated `SKILL.md`

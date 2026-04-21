@@ -7,7 +7,7 @@
  * tool. The agent calls browse CLI commands to navigate websites. Full trace
  * is captured incrementally and written to disk.
  *
- * Usage: node scripts/evaluate.mjs --task <task-name> [--env local|remote] [--model <model>] [--run-number N]
+ * Usage: node scripts/evaluate.mjs --task <task-name> [--workspace <dir>] [--env local|remote] [--model <model>] [--run-number N]
  */
 
 import "dotenv/config";
@@ -15,6 +15,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
+import { fileURLToPath } from "node:url";
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+const SKILL_DIR = path.resolve(__dirname, "..");
 
 // ── Config ─────────────────────────────────────────────────────────
 
@@ -33,15 +37,15 @@ const TOOLS = [
       "Browse commands:\n" +
       "  browse env local|remote    — Switch browser environment\n" +
       "  browse open <url>          — Navigate to URL\n" +
-      "  browse snapshot            — Get accessibility tree with @ref IDs (primary perception)\n" +
+      "  browse snapshot            — Get accessibility tree; refs look like [0-5] (primary perception)\n" +
       "  browse screenshot <path>   — Save screenshot to file\n" +
-      "  browse click <ref>         — Click element by @ref from snapshot\n" +
+      "  browse click <ref>         — Click element by [X-Y] ref from snapshot\n" +
       "  browse type <text>         — Type into focused element\n" +
       "  browse fill <sel> <value>  — Fill input (clears first — preferred over type)\n" +
       "  browse press <key>         — Keyboard: Enter, Tab, Escape, ArrowRight, ArrowLeft...\n" +
-      "  browse scroll down/up      — Scroll page\n" +
+      "  browse scroll <x> <y> <dx> <dy> — Scroll at coords (positive dy scrolls down)\n" +
       "  browse select <sel> <val>  — Select dropdown option\n" +
-      "  browse wait <condition>    — Wait: load, selector, text, or ms\n" +
+      "  browse wait load           — Wait for page load (only supported form)\n" +
       "  browse get url/title/text  — Get page info\n" +
       "  browse drag <x1> <y1> <x2> <y2> — Drag (for sliders)\n" +
       "  browse back/reload/stop    — Navigation/session control\n\n" +
@@ -74,6 +78,7 @@ Usage: node scripts/evaluate.mjs --task <name> [options]
 
 Options:
   --task <name>        Task name — matches tasks/<name>/ directory (required)
+  --workspace <dir>    Workspace root holding tasks/ and traces/ (default: ./autobrowse)
   --env local|remote   Browser environment (default: local)
   --model <model>      Claude model for the inner agent (default: ${DEFAULT_MODEL})
   --run-number N       Force a specific run number (default: auto-increment)
@@ -97,7 +102,12 @@ Examples:
   process.exit(0);
 }
 
-function getTaskName() {
+function resolveWorkspace() {
+  const workspace = path.resolve(getArg("workspace", "autobrowse"));
+  return workspace;
+}
+
+function getTaskName(workspace) {
   if (process.argv.includes("--help") || process.argv.includes("-h")) {
     showHelp();
   }
@@ -107,19 +117,33 @@ function getTaskName() {
     console.error("ERROR: --task <name> is required");
     console.error("Usage: node scripts/evaluate.mjs --task google-flights");
     console.error("\nRun with --help for full usage.");
-    console.error("\nAvailable tasks:");
-    const tasksDir = path.resolve("tasks");
+    console.error(`\nAvailable tasks in ${workspace}:`);
+    const tasksDir = path.join(workspace, "tasks");
     if (fs.existsSync(tasksDir)) {
       const dirs = fs.readdirSync(tasksDir, { withFileTypes: true })
         .filter(d => d.isDirectory())
         .map(d => `  - ${d.name}`);
       console.error(dirs.length > 0 ? dirs.join("\n") : "  (none — create tasks/<name>/task.md)");
     } else {
-      console.error("  (no tasks/ directory found)");
+      console.error("  (no tasks/ directory found — create one via the SKILL.md workflow)");
     }
     process.exit(1);
   }
   return task;
+}
+
+function ensureApiKey() {
+  if (!process.env.ANTHROPIC_API_KEY) {
+    console.error("ERROR: ANTHROPIC_API_KEY is not set.");
+    console.error("");
+    console.error("Set it one of these ways:");
+    console.error("  1. export ANTHROPIC_API_KEY=sk-ant-...");
+    console.error("  2. Create a .env file in the current directory with:");
+    console.error("       ANTHROPIC_API_KEY=sk-ant-...");
+    console.error("");
+    console.error("Get a key at https://console.anthropic.com/settings/keys");
+    process.exit(1);
+  }
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -279,21 +303,21 @@ ${envDesc}
 - \`browse back\` / \`browse forward\` — History navigation
 
 ### Page State (prefer snapshot over screenshot)
-- \`browse snapshot\` — Get accessibility tree with @ref element identifiers (FAST, structured — PRIMARY perception tool)
+- \`browse snapshot\` — Get accessibility tree. Each element has a ref in \`[X-Y]\` format (e.g. \`[0-5]\`, \`[2-147]\`). This is your PRIMARY perception tool.
 - \`browse screenshot ${traceDir}/screenshots/step-NN.png\` — Save visual screenshot (for debugging only)
 - \`browse get url\` / \`browse get title\` — Page info
 - \`browse get text <selector>\` — Get text content ("body" for all)
 - \`browse get value <selector>\` — Get form field value
 
 ### Interaction
-- \`browse click <ref>\` — Click element by @ref from snapshot (e.g., @0-5)
+- \`browse click [X-Y]\` — Click element by ref from the latest snapshot. Pass the ref EXACTLY as it appears in the tree, including brackets (e.g. \`browse click [2-147]\`).
 - \`browse type <text>\` — Type text into focused element
 - \`browse fill <selector> <value>\` — Fill input AND press Enter (clears existing text — PREFERRED over type)
 - \`browse select <selector> <values...>\` — Select dropdown option(s)
 - \`browse press <key>\` — Press key: Enter, Tab, Escape, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Cmd+A
 - \`browse drag <fromX> <fromY> <toX> <toY>\` — Drag (useful for sliders)
-- \`browse scroll <x> <y> <deltaX> <deltaY>\` — Scroll at coordinates
-- \`browse wait <type> [arg]\` — Wait for: load, selector, text, or timeout in ms
+- \`browse scroll <x> <y> <deltaX> <deltaY>\` — Scroll at coords (positive dy scrolls down)
+- \`browse wait load\` — Wait for page to finish loading. NOTE: \`browse wait <number>\` (sleep) and other wait types are NOT supported — they will error.
 
 ### Session
 - \`browse stop\` — Close browser
@@ -304,20 +328,21 @@ ${envDesc}
 ## Workflow Pattern
 1. \`browse env ${browseEnv}\` — set browser environment
 2. \`browse open <url>\` — navigate to page
-3. \`browse snapshot\` — read accessibility tree, get element refs
-4. \`browse click <ref>\` / \`browse fill <sel> <val>\` / \`browse press <key>\` — interact using refs
+3. \`browse snapshot\` — read accessibility tree; refs appear as \`[X-Y]\`
+4. \`browse click [X-Y]\` / \`browse fill <sel> <val>\` / \`browse press <key>\` — interact using refs
 5. \`browse snapshot\` — confirm action worked (refs invalidate after DOM changes!)
 6. Repeat 4-5 until done
 7. \`browse stop\` — clean up
 
 ## Critical Rules
 1. **Always start with \`browse env ${browseEnv}\` then \`browse open <url>\`**
-2. **ALWAYS snapshot after every action** — refs like @0-5 invalidate when the DOM changes
+2. **ALWAYS snapshot after every action** — refs like \`[0-5]\` invalidate when the DOM changes
 3. **Use fill, not type, for input fields** — fill clears existing text first
 4. **Use refs from the LATEST snapshot only** — old refs are stale
-5. **Save screenshots at key decision points** — \`browse screenshot ${traceDir}/screenshots/step-NN.png\`
-6. **When an action fails**, run \`browse snapshot\` to see current state and try a different approach
-7. **When done, output your final answer as a JSON code block**
+5. **Never invent refs.** If you haven't seen \`[X-Y]\` in the snapshot output, it doesn't exist. Snapshot first, then click.
+6. **Save screenshots at key decision points** — \`browse screenshot ${traceDir}/screenshots/step-NN.png\`
+7. **When an action fails**, run \`browse snapshot\` to see current state and try a different approach
+8. **When done, output your final answer as a JSON code block**
 
 ## Troubleshooting
 - **Action fails / element not found**: Run \`browse snapshot\` to see available elements
@@ -341,18 +366,20 @@ ${strategy}
 // ── Main agent loop ────────────────────────────────────────────────
 
 async function main() {
-  const taskName = getTaskName();
-  const model = getArg("model", DEFAULT_MODEL);
-  const taskDir = path.resolve("tasks", taskName);
-  const tracesDir = path.resolve("traces", taskName);
+  const workspace = resolveWorkspace();
+  const taskName = getTaskName(workspace);
+  ensureApiKey();
 
-  // Validate task exists
+  const model = getArg("model", DEFAULT_MODEL);
+  const taskDir = path.join(workspace, "tasks", taskName);
+  const tracesDir = path.join(workspace, "traces", taskName);
+
   const taskFile = path.join(taskDir, "task.md");
   const strategyFile = path.join(taskDir, "strategy.md");
 
   if (!fs.existsSync(taskFile)) {
-    console.error(`ERROR: tasks/${taskName}/task.md not found`);
-    console.error(`Create it with your task description.`);
+    console.error(`ERROR: ${path.relative(process.cwd(), taskFile)} not found.`);
+    console.error(`Create it from the template: ${path.join(SKILL_DIR, "references/example-task.md")}`);
     process.exit(1);
   }
   if (!fs.existsSync(strategyFile)) {
@@ -450,7 +477,7 @@ async function main() {
       const { output, error, duration_ms } = executeCommand(command);
 
       if (isSnapshot) {
-        const refCount = (output.match(/@/g) || []).length;
+        const refCount = (output.match(/\[\d+-\d+\]/g) || []).length;
         console.error(`  [${turn}] snapshot: ${refCount} refs (${duration_ms}ms)`);
       } else if (isScreenshot) {
         console.error(`  [${turn}] screenshot saved (${duration_ms}ms)`);
@@ -524,7 +551,7 @@ async function main() {
       const isSnapshot = entry.command?.includes("snapshot");
       const isError = entry.error;
       if (isSnapshot) {
-        const refs = (entry.output?.match(/@/g) || []).length;
+        const refs = (entry.output?.match(/\[\d+-\d+\]/g) || []).length;
         summaryLines.push(`Turn ${entry.turn}: [snapshot] ${refs} refs (${entry.duration_ms}ms)`);
       } else if (isError) {
         summaryLines.push(`Turn ${entry.turn}: [error] ${entry.output?.slice(0, 100)}`);
