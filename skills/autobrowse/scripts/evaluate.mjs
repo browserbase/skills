@@ -414,6 +414,7 @@ async function main() {
   let totalOutputTokens = 0;
   let turn = 0;
   let lastAssistantText = "";
+  let completed = false;
   const startTime = Date.now();
 
   while (turn < MAX_TURNS) {
@@ -432,11 +433,9 @@ async function main() {
 
     const toolUseBlocks = [];
     let assistantText = "";
-    let reasoningText = "";
 
     for (const block of response.content) {
       if (block.type === "text") {
-        reasoningText += block.text;
         assistantText += block.text;
       }
       if (block.type === "tool_use") {
@@ -444,16 +443,15 @@ async function main() {
       }
     }
 
-    lastAssistantText = assistantText;
-
-    if (reasoningText) {
-      const short = reasoningText.slice(0, 200).replace(/\n/g, " ");
-      console.error(`  [${turn}] reasoning: ${short}${reasoningText.length > 200 ? "..." : ""}`);
+    if (assistantText) {
+      lastAssistantText = assistantText;
+      const short = assistantText.slice(0, 200).replace(/\n/g, " ");
+      console.error(`  [${turn}] reasoning: ${short}${assistantText.length > 200 ? "..." : ""}`);
       trace.push({
         turn,
         timestamp: new Date().toISOString(),
         role: "assistant",
-        reasoning: reasoningText,
+        reasoning: assistantText,
         input_tokens: response.usage.input_tokens,
         output_tokens: response.usage.output_tokens,
       });
@@ -462,6 +460,7 @@ async function main() {
     if (response.stop_reason === "end_turn" || toolUseBlocks.length === 0) {
       console.error(`  [${turn}] done (${response.stop_reason})`);
       messages.push({ role: "assistant", content: response.content });
+      completed = true;
       break;
     }
 
@@ -476,13 +475,13 @@ async function main() {
 
       const { output, error, duration_ms } = executeCommand(command);
 
-      if (isSnapshot) {
+      if (error) {
+        console.error(`  [${turn}] error: ${output.slice(0, 100)}`);
+      } else if (isSnapshot) {
         const refCount = (output.match(/\[\d+-\d+\]/g) || []).length;
         console.error(`  [${turn}] snapshot: ${refCount} refs (${duration_ms}ms)`);
       } else if (isScreenshot) {
         console.error(`  [${turn}] screenshot saved (${duration_ms}ms)`);
-      } else if (error) {
-        console.error(`  [${turn}] error: ${output.slice(0, 100)}`);
       } else {
         console.error(`  [${turn}] ok: ${output.slice(0, 100)} (${duration_ms}ms)`);
       }
@@ -550,11 +549,11 @@ async function main() {
     if (entry.role === "tool_result") {
       const isSnapshot = entry.command?.includes("snapshot");
       const isError = entry.error;
-      if (isSnapshot) {
+      if (isError) {
+        summaryLines.push(`Turn ${entry.turn}: [error] ${entry.output?.slice(0, 100)}`);
+      } else if (isSnapshot) {
         const refs = (entry.output?.match(/\[\d+-\d+\]/g) || []).length;
         summaryLines.push(`Turn ${entry.turn}: [snapshot] ${refs} refs (${entry.duration_ms}ms)`);
-      } else if (isError) {
-        summaryLines.push(`Turn ${entry.turn}: [error] ${entry.output?.slice(0, 100)}`);
       } else {
         summaryLines.push(`Turn ${entry.turn}: [result] ${entry.output?.slice(0, 100)} (${entry.duration_ms}ms)`);
       }
@@ -588,7 +587,7 @@ async function main() {
   const result = {
     task: taskName,
     run: runId,
-    status: turn < MAX_TURNS ? "completed" : "max_turns",
+    status: completed ? "completed" : "max_turns",
     duration_sec: parseFloat(durationSec.toFixed(1)),
     cost_usd: parseFloat(costUsd.toFixed(2)),
     turns: turn,
