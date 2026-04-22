@@ -45,7 +45,7 @@ const TOOLS = [
       "  browse press <key>         — Keyboard: Enter, Tab, Escape, ArrowRight, ArrowLeft...\n" +
       "  browse scroll <x> <y> <dx> <dy> — Scroll at coords (positive dy scrolls down)\n" +
       "  browse select <sel> <val>  — Select dropdown option\n" +
-      "  browse wait load           — Wait for page load (only supported form)\n" +
+      "  browse wait load|selector|timeout — Wait for page load, a selector, or a timeout\n" +
       "  browse get url/title/text  — Get page info\n" +
       "  browse drag <x1> <y1> <x2> <y2> — Drag (for sliders)\n" +
       "  browse back/reload/stop    — Navigation/session control\n\n" +
@@ -317,7 +317,9 @@ ${envDesc}
 - \`browse press <key>\` — Press key: Enter, Tab, Escape, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Cmd+A
 - \`browse drag <fromX> <fromY> <toX> <toY>\` — Drag (useful for sliders)
 - \`browse scroll <x> <y> <deltaX> <deltaY>\` — Scroll at coords (positive dy scrolls down)
-- \`browse wait load\` — Wait for page to finish loading. NOTE: \`browse wait <number>\` (sleep) and other wait types are NOT supported — they will error.
+- \`browse wait load\` — Wait for page to finish loading
+- \`browse wait timeout <ms>\` — Wait a fixed amount of time for spinners or animations
+- \`browse wait selector "<selector>"\` — Wait for an element to become visible (or use \`--state\`)
 
 ### Session
 - \`browse stop\` — Close browser
@@ -346,7 +348,7 @@ ${envDesc}
 
 ## Troubleshooting
 - **Action fails / element not found**: Run \`browse snapshot\` to see available elements
-- **Page seems empty**: Try \`browse wait selector "body"\` then \`browse snapshot\`
+- **Page seems empty**: Try \`browse wait timeout 1000\` then \`browse snapshot\`; if you know the target element, use \`browse wait selector "<selector>"\`
 - **Dropdown didn't open**: Wait briefly, then snapshot to check
 - **Slider won't move with click**: Use \`browse press ArrowRight\` / \`browse press ArrowLeft\` after clicking the slider thumb
 

@@ -128,7 +128,7 @@ Examples:
 - "After clicking the dropdown, wait 1s — options animate in before they're clickable"
 - "Navigate directly to `/pay-invoice/` — skip the landing page entirely"
 - "Use `browse fill #field_3 value` not `browse type` — this field clears on focus"
-- "The page shows a spinner at turn 8 — add `browse wait 2000` before snapshot"
+- "The page shows a spinner at turn 8 — add `browse wait timeout 2000` before snapshot"
 
 ### Update strategy.md
 
@@ -178,7 +178,9 @@ The inner agent uses the `browse` CLI. Key commands for this task:
 - `browse env remote` — start a fresh Browserbase cloud session
 - `browse newpage <url>` — open URL in a new tab (required in remote mode — `browse open` fails with "no page available")
 - `browse open <url>` — navigate existing tab (local mode only)
-- `browse wait load` — wait for page to finish loading (the ONLY supported `wait` form — `browse wait <ms>` errors)
+- `browse wait load` — wait for page to finish loading
+- `browse wait timeout <ms>` — wait a fixed amount of time for spinners or animations
+- `browse wait selector "<selector>"` — wait for an element to become visible
 - `browse get title` — verify you're on the right page
 - `browse get text body` — extract all visible text (preferred for content extraction)
 - `browse snapshot` — get accessibility tree; each node has a ref in `[X-Y]` format (e.g. `[0-5]`, `[2-147]`)
