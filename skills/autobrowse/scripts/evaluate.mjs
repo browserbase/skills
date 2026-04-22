@@ -416,7 +416,8 @@ async function main() {
   let totalOutputTokens = 0;
   let turn = 0;
   let lastAssistantText = "";
-  let completed = false;
+  let runStatus = "max_turns";
+  let finalStopReason = null;
   const startTime = Date.now();
 
   while (turn < MAX_TURNS) {
@@ -459,10 +460,19 @@ async function main() {
       });
     }
 
-    if (response.stop_reason === "end_turn" || toolUseBlocks.length === 0) {
+    if (response.stop_reason === "end_turn") {
       console.error(`  [${turn}] done (${response.stop_reason})`);
       messages.push({ role: "assistant", content: response.content });
-      completed = true;
+      runStatus = "completed";
+      finalStopReason = response.stop_reason;
+      break;
+    }
+
+    if (toolUseBlocks.length === 0) {
+      finalStopReason = response.stop_reason ?? "unknown";
+      runStatus = response.stop_reason === "max_tokens" ? "truncated" : "incomplete";
+      console.error(`  [${turn}] incomplete (${finalStopReason})`);
+      messages.push({ role: "assistant", content: response.content });
       break;
     }
 
@@ -533,6 +543,7 @@ async function main() {
   const summaryLines = [
     `# ${taskName} — Run ${runId} Summary`,
     "",
+    `**Status:** ${runStatus}${finalStopReason ? ` (${finalStopReason})` : ""}`,
     `**Duration:** ${durationSec.toFixed(1)}s | **Turns:** ${turn} | **Cost:** ~$${costUsd.toFixed(2)}`,
     `**Tokens:** ${totalInputTokens.toLocaleString()} in / ${totalOutputTokens.toLocaleString()} out`,
     "",
@@ -589,7 +600,8 @@ async function main() {
   const result = {
     task: taskName,
     run: runId,
-    status: completed ? "completed" : "max_turns",
+    status: runStatus,
+    stop_reason: finalStopReason ?? (runStatus === "max_turns" ? "max_turns" : null),
     duration_sec: parseFloat(durationSec.toFixed(1)),
     cost_usd: parseFloat(costUsd.toFixed(2)),
     turns: turn,
