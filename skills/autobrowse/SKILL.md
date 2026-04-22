@@ -20,7 +20,7 @@ Invocation is flexible — both explicit flags and free-form natural language wo
 ```
 /autobrowse --task google-flights
 /autobrowse --task google-flights --iterations 10 --env remote
-/autobrowse --tasks google-flights,slusa-payment
+/autobrowse --tasks google-flights,amazon-add-to-cart
 /autobrowse --all
 
 # Also fine — parse freely:
@@ -230,7 +230,7 @@ After all sub-agents complete, print a markdown table:
 | Task | Iterations | Final Status | Graduated | Cost |
 |------|-----------|--------------|-----------|------|
 | google-flights | 5 | ✅ pass | yes | $0.42 |
-| slusa-payment | 5 | ❌ fail | no | $1.20 |
+| amazon-add-to-cart | 5 | ❌ fail | no | $1.20 |
 
 Then write a persistent session report to `./autobrowse/reports/` so there's a durable record of the run inside the workspace:
 
