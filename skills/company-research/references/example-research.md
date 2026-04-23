@@ -1,6 +1,6 @@
 # Example Company Research File
 
-Each research subagent writes one markdown file per company to `{OUTPUT_DIR}/{company-slug}.md`, where `{OUTPUT_DIR}` is the per-run Desktop directory set up by the main agent in Step 0 (e.g., `/Users/jay/Desktop/browserbase_research_2026-04-23/`). The YAML frontmatter contains structured fields for report + CSV compilation. The body contains human-readable research.
+Each research subagent writes one markdown file per company to `{OUTPUT_DIR}/{company-slug}.md`, where `{OUTPUT_DIR}` is the per-run Desktop directory set up by the main agent in Step 0 (e.g., `~/Desktop/acme_research_2026-04-23/`). The YAML frontmatter contains structured fields for report + CSV compilation. The body contains human-readable research.
 
 ## Template
 

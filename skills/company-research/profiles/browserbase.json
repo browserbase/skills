@@ -1,9 +1,0 @@
-{
-  "company": "Browserbase",
-  "website": "https://www.browserbase.com",
-  "product": "Cloud browser infrastructure for AI agents and web automation. Run Playwright, Puppeteer, and Selenium at scale with stealth mode, CAPTCHA solving, session persistence, residential proxies, and debugging tools. Products include Browserbase (headless infra), Stagehand (browser automation SDK), and Director (workflow builder). Also offers MCP browser tool and Computer Use Agent support.",
-  "existing_customers": ["Firecrawl", "Ramp", "Exa", "Reducto", "Cerebras", "Cartesia", "Extend", "Polymarket"],
-  "competitors": ["Browserless", "Apify", "Scrapfly", "Surfsky", "BrowserTree", "Hyperbrowser", "Anchor Browser"],
-  "use_cases": ["AI agent browser access", "web scraping and data extraction", "automated testing", "form filling", "document downloading", "price monitoring", "lead research", "computer use agents"],
-  "researched_at": "2026-03-18"
-}

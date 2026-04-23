@@ -5,7 +5,7 @@
 // with a scored overview table linking to individual company pages.
 //
 // Usage: node compile_report.mjs <research-dir> [--template <path>]
-// Example: node compile_report.mjs ~/Desktop/asprey_research_2026-04-09
+// Example: node compile_report.mjs ~/Desktop/acme_research_2026-04-09
 
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
@@ -30,7 +30,7 @@ Options:
   --help, -h         Show this help message
 
 Examples:
-  node compile_report.mjs ~/Desktop/asprey_research_2026-04-09
+  node compile_report.mjs ~/Desktop/acme_research_2026-04-09
   node compile_report.mjs ~/Desktop/research --open`);
   process.exit(args.includes('--help') || args.includes('-h') ? 0 : 1);
 }
@@ -108,7 +108,7 @@ function mdToHtml(md) {
 
   function flushPara() {
     if (paraLines.length > 0) {
-      let text = paraLines.join(' ').trim();
+      let text = escapeHtml(paraLines.join(' ').trim());
       text = text.replace(/\*\*\[(\w+)\]\*\*/g, '<span class="confidence $1">[$1]</span>');
       text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
       if (text) out.push(`<p>${text}</p>`);
@@ -145,7 +145,7 @@ function mdToHtml(md) {
     if (trimmed.startsWith('- ')) {
       flushPara();
       if (!inList) { out.push('<ul>'); inList = true; }
-      let text = trimmed.slice(2);
+      let text = escapeHtml(trimmed.slice(2));
       text = text.replace(/\*\*\[(\w+)\]\*\*/g, '<span class="confidence $1">[$1]</span>');
       text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
       out.push(`<li>${text}</li>`);
@@ -218,17 +218,19 @@ const tableRows = deduped.map(c => {
 }).join('\n');
 
 // Fill index template
+const escapedTitle = escapeHtml(title);
 let indexHtml = template
-  .replace(/\{\{TITLE\}\}/g, `Company Research — ${escapeHtml(title)}`)
-  .replace('{{META}}', `${deduped.length} companies researched · ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`)
-  .replace('{{TOTAL}}', String(total))
-  .replace('{{HIGH_COUNT}}', String(high))
-  .replace('{{MEDIUM_COUNT}}', String(medium))
-  .replace('{{LOW_COUNT}}', String(low))
-  .replace('{{HIGH_PCT}}', String(highPct))
-  .replace('{{MEDIUM_PCT}}', String(mediumPct))
-  .replace('{{LOW_PCT}}', String(lowPct))
-  .replace('{{TABLE_ROWS}}', tableRows);
+  .replace(/\{\{TITLE\}\}/g, `Company Research — ${escapedTitle}`)
+  .replace(/\{\{COMPANY_NAME\}\}/g, escapedTitle)
+  .replace(/\{\{META\}\}/g, `${deduped.length} companies researched · ${new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}`)
+  .replace(/\{\{TOTAL\}\}/g, String(total))
+  .replace(/\{\{HIGH_COUNT\}\}/g, String(high))
+  .replace(/\{\{MEDIUM_COUNT\}\}/g, String(medium))
+  .replace(/\{\{LOW_COUNT\}\}/g, String(low))
+  .replace(/\{\{HIGH_PCT\}\}/g, String(highPct))
+  .replace(/\{\{MEDIUM_PCT\}\}/g, String(mediumPct))
+  .replace(/\{\{LOW_PCT\}\}/g, String(lowPct))
+  .replace(/\{\{TABLE_ROWS\}\}/g, tableRows);
 
 writeFileSync(join(dir, 'index.html'), indexHtml);
 

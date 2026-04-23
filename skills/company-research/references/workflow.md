@@ -23,7 +23,7 @@ The `list_urls.mjs` script handles both formats (flat array and `{ results: [...
 
 File: `{OUTPUT_DIR}/{company-slug}.md`
 
-Where `{OUTPUT_DIR}` is the per-run directory on the user's Desktop (e.g., `/Users/jay/Desktop/browserbase_research_2026-04-23/`). The main agent sets this up in Step 0 and passes the full literal path to every subagent.
+Where `{OUTPUT_DIR}` is the per-run directory on the user's Desktop (e.g., `~/Desktop/acme_research_2026-04-23/`). The main agent sets this up in Step 0 and passes the full literal path to every subagent.
 
 Each research subagent writes one markdown file per company. See `references/example-research.md` for the full template.
 
