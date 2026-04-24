@@ -63,7 +63,7 @@
         "name": "Browserbase"
       },
       "category": "security",
-      "keywords": ["security", "firewall", "allowlist", "cdp", "navigation", "domain-filtering", "prompt-injection"],
+      "keywords": ["security", "firewall", "allowlist", "denylist", "cdp", "navigation", "domain-filtering", "prompt-injection", "block", "protect", "restrict", "malicious", "exfiltration", "safe-browsing"],
       "strict": false,
       "skills": [
         "./skills/domain-firewall"

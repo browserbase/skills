@@ -72,16 +72,19 @@ node .claude/skills/domain-firewall/scripts/domain-firewall.mjs \
   --allowlist "docs.stripe.com,stripe.com,*.stripe.com" \
   --default deny &
 
-# 3. Browse normally — firewall is transparent
-browse open https://docs.stripe.com --session-id $SESSION_ID
-browse snapshot
-# ... agent works normally ...
+# 3. Use browse open for the initial page only
+browse open https://docs.stripe.com --session $SESSION_ID
 
-# 4. If the agent or page tries to navigate to an unlisted domain → BLOCKED
-#    Firewall logs the decision to stderr in real-time:
+# 4. Interact with the page using browse act/extract/observe
+#    (page-level navigations like link clicks and redirects are intercepted by the firewall)
+browse act "click the API reference link" --session $SESSION_ID
+browse extract "get the endpoint details" --session $SESSION_ID
+
+# 5. If the page tries to redirect to an unlisted domain → BLOCKED
+#    Firewall logs the decision in real-time:
 #    [14:30:05] BLOCKED  evil.com  (default)
 
-# 5. Stop the firewall when done
+# 6. Stop the firewall when done
 kill %1
 ```
 
@@ -213,13 +216,20 @@ cat firewall.log | jq 'select(.action == "BLOCKED")'
 ## Best Practices
 
 1. **Start the firewall before browsing** — run `domain-firewall.mjs` before the first `browse open` so all navigations are intercepted from the start.
-2. **Include your starting URL's domain** — the allowlist must include the domain you navigate to first, otherwise it will be blocked.
-3. **Use wildcards for subdomains** — `stripe.com` and `docs.stripe.com` are separate domains. Use `--allowlist "stripe.com,*.stripe.com"` to allow the base domain and all subdomains. The `*` prefix matches any subdomain (e.g. `*.stripe.com` matches `docs.stripe.com`, `api.stripe.com`). Note that `*.stripe.com` does NOT match `stripe.com` itself — include both if you need the base domain.
-4. **Denylist takes priority** — a domain on both the denylist and allowlist will be denied.
-5. **Use `--json` for programmatic analysis** — pipe to `jq` or save to a file for post-session review.
-6. **Use `--default deny` for high-security tasks** — only explicitly allowed domains pass through. This is the default.
-7. **Use `--default allow` with a denylist for low-friction browsing** — block known-bad domains while allowing general navigation.
-8. **Stop the firewall when done** — press Ctrl+C in the foreground, or `kill %1` if backgrounded with `&`. The firewall disables Fetch interception on shutdown.
+2. **Use `browse open` only for the initial allowed URL** — the firewall intercepts all navigations that happen *within* the page (redirects, link clicks, JS location changes). To ensure full protection, use `browse open` to navigate to your starting URL, then let the agent interact with the page using `browse act` / `browse extract` / `browse observe`. Do NOT use `browse open` to follow links found on pages — let the browser follow them naturally so the firewall can intercept.
+3. **Include your starting URL's domain** — the allowlist must include the domain you navigate to first, otherwise it will be blocked.
+4. **Use wildcards for subdomains** — `stripe.com` and `docs.stripe.com` are separate domains. Use `--allowlist "stripe.com,*.stripe.com"` to allow the base domain and all subdomains. The `*` prefix matches any subdomain (e.g. `*.stripe.com` matches `docs.stripe.com`, `api.stripe.com`). Note that `*.stripe.com` does NOT match `stripe.com` itself — include both if you need the base domain.
+5. **Denylist takes priority** — a domain on both the denylist and allowlist will be denied.
+6. **Use `--json` for programmatic analysis** — pipe to `jq` or save to a file for post-session review.
+7. **Use `--default deny` for high-security tasks** — only explicitly allowed domains pass through. This is the default.
+8. **Use `--default allow` with a denylist for low-friction browsing** — block known-bad domains while allowing general navigation.
+9. **Stop the firewall when done** — press Ctrl+C in the foreground, or `kill %1` if backgrounded with `&`. The firewall disables Fetch interception on shutdown.
+
+## Security Scope
+
+The firewall protects against **page-level attacks** — prompt injection links, redirects, JS navigations, and meta refreshes that happen within the browser session. These are intercepted at the CDP protocol level before the request leaves the browser.
+
+Agent-initiated `browse open` commands use a separate CDP session and are not intercepted by the firewall. This is by design — the agent choosing to navigate is an intentional action, not a page tricking the agent. To maximize protection, agents should use `browse open` only for the initial navigation and interact with pages using `browse act` / `browse extract` for subsequent actions.
 
 ## Troubleshooting
 
