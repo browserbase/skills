@@ -179,7 +179,7 @@ companies.sort((a, b) => (parseInt(b.icp_fit_score) || 0) - (parseInt(a.icp_fit_
 // Deduplicate
 const seen = new Map();
 for (const c of companies) {
-  const name = (c.company_name || '').toLowerCase().replace(/\s*(inc|llc|ltd|corp|co)\s*\.?$/i, '').trim();
+  const name = (c.company_name || '').toLowerCase().replace(/[,\s]+(inc|llc|ltd|corp|co)\.?$/i, '').trim();
   if (!seen.has(name)) seen.set(name, c);
 }
 const deduped = [...seen.values()];
@@ -230,7 +230,7 @@ let indexHtml = template
   .replace(/\{\{HIGH_PCT\}\}/g, String(highPct))
   .replace(/\{\{MEDIUM_PCT\}\}/g, String(mediumPct))
   .replace(/\{\{LOW_PCT\}\}/g, String(lowPct))
-  .replace(/\{\{TABLE_ROWS\}\}/g, tableRows);
+  .replace(/\{\{TABLE_ROWS\}\}/g, () => tableRows);
 
 writeFileSync(join(dir, 'index.html'), indexHtml);
 

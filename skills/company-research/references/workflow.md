@@ -149,8 +149,9 @@ Phase B — Research Loop:
 For each sub-question (or just the homepage in quick mode):
 1. Run bb search with relevant query
 2. Pick 1-2 most relevant URLs from results
-3. Run bb fetch --allow-redirects on selected URLs, pipe through sed to extract text
-4. Smart page discovery: try /llms.txt or /sitemap.xml to find relevant pages — don't guess paths
+3. Extract page content: node {SKILL_DIR}/scripts/extract_page.mjs "URL" --max-chars 3000
+   (auto-handles the JSON envelope, meta tags, and the bb browse fallback)
+4. Smart page discovery: use `bb fetch --allow-redirects` on /sitemap.xml or /llms.txt to find relevant URLs — these are small XML/text files where the raw JSON envelope is fine. For the actual HTML pages you discover, use extract_page.mjs.
 5. Extract findings: factual statements with source, confidence level
 6. Accumulate findings, move to next sub-question
 7. Respect step budget: quick=2-3 calls, deep=5-8, deeper=10-15
@@ -234,7 +235,7 @@ deeper: research_subagents = ceil(expected_urls / 3)
 ### Error Handling
 - If a subagent fails, log the error and continue with remaining batches
 - If >50% of subagents fail in a wave, pause and inform the user
-- If `bb fetch --allow-redirects` fails, try `bb browse` as fallback or skip
+- `extract_page.mjs` already handles the bb fetch → bb browse fallback internally. If it still returns FETCH_OK: false with empty BODY, skip the company and mark product_description as Unknown (do not guess).
 
 ## Report + CSV Compilation
 
