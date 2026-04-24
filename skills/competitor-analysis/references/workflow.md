@@ -83,24 +83,24 @@ Example — main agent issues these three Bash tool calls in parallel in one mes
 
 ```bash
 # Wave A — alternatives
-bb search "alternatives to {user_company}" --num-results 25 --output /tmp/competitor_discovery_batch_A1.json && \
-bb search "{user_company} competitors" --num-results 25 --output /tmp/competitor_discovery_batch_A2.json && \
+bb search "alternatives to {user_company}" --num-results 12 --output /tmp/competitor_discovery_batch_A1.json && \
+bb search "{user_company} competitors" --num-results 12 --output /tmp/competitor_discovery_batch_A2.json && \
 echo "A done"
 ```
 
 ```bash
 # Wave B — precise category
-bb search "{precise_category}" --num-results 25 --output /tmp/competitor_discovery_batch_B1.json && \
-bb search "{compose 3 distinctive tokens}" --num-results 25 --output /tmp/competitor_discovery_batch_B2.json && \
-bb search "{primary_noun} for ai agents" --num-results 25 --output /tmp/competitor_discovery_batch_B3.json && \
+bb search "{precise_category}" --num-results 12 --output /tmp/competitor_discovery_batch_B1.json && \
+bb search "{compose 3 distinctive tokens}" --num-results 12 --output /tmp/competitor_discovery_batch_B2.json && \
+bb search "{primary_noun} for ai agents" --num-results 12 --output /tmp/competitor_discovery_batch_B3.json && \
 echo "B done"
 ```
 
 ```bash
 # Wave C — comparison-page graph
-bb search "{user_company} vs" --num-results 25 --output /tmp/competitor_discovery_batch_C1.json && \
-bb search "{seed1} vs" --num-results 20 --output /tmp/competitor_discovery_batch_C2.json && \
-bb search "{seed2} vs" --num-results 20 --output /tmp/competitor_discovery_batch_C3.json && \
+bb search "{user_company} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C1.json && \
+bb search "{seed1} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C2.json && \
+bb search "{seed2} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C3.json && \
 echo "C done"
 ```
 
@@ -235,10 +235,18 @@ LANE 4 — Strategic Diff vs {user_company} (deeper only):
   - Where you win: ...
   Also fill the `strategic_diff` frontmatter field with a one-line summary.
 
-BUDGETS (respect strictly):
-  quick:  2-3 tool calls per competitor (homepage + 1-2 pages)
-  deep:   5-8 tool calls per competitor (Lane 1 + Lane 2)
-  deeper: 10-15 tool calls per competitor (all 4 lanes)
+HARD TOOL-CALL CAP — count your bb calls and STOP at the cap. Partial output beats blocking the pipeline.
+  quick mode:   3 bb calls max per competitor
+  deep mode:    8 bb calls max per competitor
+  deeper mode:  12 bb calls max per competitor
+
+ENFORCEMENT — at the start of every Bash call, prepend a comment like
+  # bb call N/8 (deep mode)
+After hitting the cap, write the output file with WHAT YOU HAVE — even if a section is thin.
+NEVER do a 9th call in deep mode "to be thorough". The pipeline budgets time on this assumption.
+
+Observed cost of overshoot (Apr 25 Browserbase run): two lanes hit 29-30 calls each, drove
+wall-clock for the whole 30-agent fan-out from 5 min → 12 min. Don't do this.
 
 OUTPUT — write ALL competitor files in a SINGLE Bash call using chained heredocs directly to {OUTPUT_DIR}:
 
