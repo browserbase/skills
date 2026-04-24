@@ -19,7 +19,7 @@ compatibility: Requires bb CLI (@browserbasehq/cli) and BROWSERBASE_API_KEY env 
 allowed-tools: Bash Agent AskUserQuestion
 metadata:
   author: browserbase
-  version: "0.1.0"
+  version: "0.2.0"
 ---
 
 # Competitor Analysis
@@ -149,10 +149,7 @@ Evaluation on Browserbase shows all three waves are additive — skip any and yo
 - After the searches, run `scripts/extract_vs_names.mjs` to parse `"X vs Y"` patterns from result titles — this uniquely surfaces competitors that don't appear as URL hits.
 
 **Process**:
-1. Launch discovery subagents in a single message (up to ~6), split across the three waves. Each subagent runs its queries in ONE Bash call:
-   ```bash
-   bb search "{query}" --num-results 25 --output /tmp/competitor_discovery_batch_{N}.json
-   ```
+1. Issue **3 parallel `bb search` Bash calls** (one per wave) in a SINGLE message — NOT subagents. Each Bash call chains its 2-4 queries with `&&`. See `references/workflow.md` → "Discovery — parallel Bash, not subagents" for the exact recipe. Subagents are too heavy for a workload of 6-12 `bb search` calls.
 2. After all waves complete:
    ```bash
    node {SKILL_DIR}/scripts/list_urls.mjs /tmp --prefix competitor > /tmp/competitor_urls.txt
@@ -234,7 +231,7 @@ For each competitor, launch 5 parallel subagents, one per lane:
 - **E. Technical & Benchmarks** (`technical`): GitHub benchmark repos/PRs, performance posts. Writes Benchmarks + technical Findings.
 
 Budget per lane: deep = 5-8 tool calls, deeper = 10-15.
-Launch all 5 lane-subagents for ONE competitor in a single Agent tool call set (5 parallel). Across 5 competitors = 5 messages.
+**Launch ALL competitor × lane subagents in a SINGLE Agent tool message.** For 10 competitors × 5 lanes = 50 parallel Agent calls in one message. Do NOT split into batches per competitor or per lane — wall clock collapses to the slowest single agent (~3-5 min). Splitting into 5 rounds of 10 cost 25 minutes of wall clock vs 5 minutes parallel on a real measured run; do not do it.
 
 Each subagent writes a partial to `{OUTPUT_DIR}/partials/{slug}.{lane}.md`.
 

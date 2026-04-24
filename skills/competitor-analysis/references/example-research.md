@@ -1,5 +1,10 @@
 # Example Competitor Research File
 
+## Contents
+- [Template](#template) — full worked example for a fictional "Rival Co"
+- [Field Rules](#field-rules) — frontmatter fields, body section order, mention/findings format
+- [Writing via Bash Heredoc](#writing-via-bash-heredoc) — required pattern for subagents to avoid permission prompts
+
 Each enrichment subagent writes one markdown file per competitor to `{OUTPUT_DIR}/{competitor-slug}.md`, where `{OUTPUT_DIR}` is the per-run Desktop directory set up by the main agent in Step 0 (e.g., `~/Desktop/acme_competitors_2026-04-23/`). The YAML frontmatter contains structured fields for report/matrix compilation. The body contains per-section research plus aggregated mentions and benchmarks.
 
 ## Template

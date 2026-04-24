@@ -1,5 +1,15 @@
 # Competitor Analysis — Workflow Reference
 
+## Contents
+- [Discovery Batch JSON Schema](#discovery-batch-json-schema) — bb search output format
+- [Competitor Research Markdown Format](#competitor-research-markdown-format) — frontmatter + body section spec
+- [Extracting Text from HTML](#extracting-text-from-html) — bb fetch | jq | sed pipeline
+- [Discovery — parallel Bash, not subagents](#discovery--parallel-bash-not-subagents) — Wave A/B/C recipes
+- [Enrichment fan-out — 5 subagents PER competitor](#enrichment-fan-out--5-subagents-per-competitor-deepdeeper-modes)
+- [Legacy: Single-subagent template](#legacy-single-subagent-template-quick-mode-only) — quick mode only
+- [Wave Management](#wave-management) — parallelism rule, gate phase, sizing formula
+- [Report Compilation](#report-compilation) — compile_report.mjs invocation
+
 ## Discovery Batch JSON Schema
 
 File: `/tmp/competitor_discovery_batch_{N}.json`
@@ -65,28 +75,36 @@ bb fetch --allow-redirects "https://rivalco.com/pricing" | sed 's/<script[^>]*>.
 
 Limit to ~3000 chars per page to keep subagent context manageable. For JS-heavy pages (client-rendered pricing tables), use `bb browse` instead of `bb fetch`.
 
-## Discovery Subagent Prompt Template
+## Discovery — parallel Bash, not subagents
 
+The main agent runs discovery as **3 parallel `bb search` Bash calls** (one per wave) in a SINGLE message. No subagent layer. Each wave chains its 2-4 queries with `&&` and writes results to `/tmp/competitor_discovery_batch_{wave}{N}.json`.
+
+Example — main agent issues these three Bash tool calls in parallel in one message:
+
+```bash
+# Wave A — alternatives
+bb search "alternatives to {user_company}" --num-results 25 --output /tmp/competitor_discovery_batch_A1.json && \
+bb search "{user_company} competitors" --num-results 25 --output /tmp/competitor_discovery_batch_A2.json && \
+echo "A done"
 ```
-You are a competitor discovery subagent. Run search queries and save results.
 
-TOOL RULES — CRITICAL, FOLLOW EXACTLY:
-1. You may ONLY use the Bash tool. No exceptions.
-2. Run ALL searches in a SINGLE Bash call using && chaining.
-3. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep — ALL BANNED.
-4. NEVER use ~ or $HOME in paths — use full literal paths.
-
-TASK:
-Run ALL of the following searches in ONE Bash command:
-
-bb search "{query1}" --num-results 25 --output /tmp/competitor_discovery_batch_{N1}.json && \
-bb search "{query2}" --num-results 25 --output /tmp/competitor_discovery_batch_{N2}.json && \
-bb search "{query3}" --num-results 25 --output /tmp/competitor_discovery_batch_{N3}.json && \
-echo "Discovery complete"
-
-After the command completes, report back ONLY the count of results per batch.
-Do NOT analyze, summarize, or return the actual results.
+```bash
+# Wave B — precise category
+bb search "{precise_category}" --num-results 25 --output /tmp/competitor_discovery_batch_B1.json && \
+bb search "{compose 3 distinctive tokens}" --num-results 25 --output /tmp/competitor_discovery_batch_B2.json && \
+bb search "{primary_noun} for ai agents" --num-results 25 --output /tmp/competitor_discovery_batch_B3.json && \
+echo "B done"
 ```
+
+```bash
+# Wave C — comparison-page graph
+bb search "{user_company} vs" --num-results 25 --output /tmp/competitor_discovery_batch_C1.json && \
+bb search "{seed1} vs" --num-results 20 --output /tmp/competitor_discovery_batch_C2.json && \
+bb search "{seed2} vs" --num-results 20 --output /tmp/competitor_discovery_batch_C3.json && \
+echo "C done"
+```
+
+Why direct Bash and not subagents: each wave is 2-4 `bb search` calls — agent cold-start + tool-reasoning overhead is bigger than the actual work. Using parallel Bash saves ~1-2 min per run with no quality loss.
 
 ### Discovery query patterns
 
@@ -122,7 +140,7 @@ The 5 lanes:
 | **D. News & Comparisons** | `news` | Comparison pages ("X vs Y"), TechCrunch / Verge / Forbes / VentureBeat / Businesswire, independent blog reviews, Substack. Every mention MUST include a date. |
 | **E. Technical & Benchmarks** | `technical` | GitHub benchmark repos/PRs, performance blog posts, independent tests. Writes Benchmarks bullets AND Findings on technical specifics (CDP support, uptime, concurrency limits, SDKs). |
 
-**Wave management for 5 competitors × 5 lanes = 25 subagents**: launch 5 subagents per competitor in ONE message (all 5 lanes parallel), sequentially per competitor across 5 messages. Or for ≤3 competitors, fit all 15 subagents in 3 messages.
+**Wave management — launch ALL subagents in ONE message**: for N competitors × 5 lanes = 5N subagents, fit them all in a single Agent-tool message. Wall clock then equals the slowest single subagent (~3-5 min) instead of `batches × slowest_per_batch`. On a real 10-competitor run we measured 25 minutes wasted by self-throttling to 10-per-message — the Agent tool happily runs 50+ in parallel; do not split into batches for "politeness". The only cap is that each subagent still batches its own Bash operations into a single call.
 
 **Merge step** (once all partials exist):
 ```bash
@@ -283,11 +301,11 @@ Do NOT return raw data to the main conversation.
 ## Wave Management
 
 ### Key Principle: Maximize Parallelism, Minimize Prompts
-Launch as many subagents as possible in a single message (up to ~6 per message). Each subagent MUST batch all its Bash operations.
+**Launch ALL subagents needed for a phase in ONE message.** No "up to 6 per message" cap — the Agent tool runs them in parallel, so wall clock = slowest single agent regardless of count. On a 10-competitor × 5-lane = 50-subagent enrichment, splitting into 5 batches of 10 cost an extra 20 minutes of wall clock vs one batch of 50 (measured Apr 2026). Each subagent still MUST batch its own Bash operations into a single call.
 
 ### Discovery Phase
-- Launch up to 6 discovery subagents in a single message, split by wave (A/B/C — see "Discovery query patterns" above)
-- Each subagent runs ALL its queries in ONE Bash call with `&&` chaining
+- **Run discovery as parallel `bb search` Bash calls, not subagents.** Subagent overhead (cold start + tool reasoning) is bigger than the work. Three Bash tool calls in one message — one per wave (A/B/C) — chain each wave's searches with `&&`.
+- Each wave's bash call writes its outputs as `/tmp/competitor_discovery_batch_{wave}{N}.json`
 - After all waves complete, run the following in sequence:
   ```bash
   # 1. Dedup URLs from all batches
@@ -352,7 +370,7 @@ Two modes:
 
 - **`quick` mode** — single subagent per batch of competitors. Lane A (marketing) only. ~8 competitors per subagent, 2-3 tool calls each. Writes directly to `{OUTPUT_DIR}/{slug}.md`.
 - **`deep` / `deeper` modes** — 5-subagent fan-out PER competitor. Each subagent owns ONE lane (marketing / discussion / social / news / technical). Writes to `{OUTPUT_DIR}/partials/{slug}.{lane}.md`. Budget: 5-8 calls per subagent (deep), 10-15 (deeper). After all lanes complete, run `scripts/merge_partials.mjs` to consolidate.
-- Launch the 5 lane-subagents for a competitor in ONE Agent tool message (5 parallel Agent calls). Across multiple competitors, batch into 3-5 messages depending on count.
+- **Launch ALL competitor × lane subagents in a SINGLE Agent tool message.** For 10 competitors × 5 lanes = 50 parallel agents in one message. Do NOT split into batches — wall clock becomes the slowest single agent (~3-5 min) instead of batches-times-batch-max (~25 min on 10 competitors split into 5 rounds of 10).
 
 ### Screenshots Phase (after merge, before compile)
 

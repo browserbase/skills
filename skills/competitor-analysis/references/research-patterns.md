@@ -1,5 +1,14 @@
 # Competitor Analysis — Research Patterns
 
+## Contents
+- [Overview](#overview) — two research contexts (self vs target)
+- [Self-Research (User's Company)](#self-research-users-company) — sub-questions, page discovery, synthesis output (precise_category, include keywords, exclusion list)
+- [Competitor Research — 4 Research Lanes](#competitor-research--4-research-lanes) — Marketing / External / Benchmarks / Strategic Diff
+- [Depth Mode Behavior](#depth-mode-behavior) — quick / deep / deeper budgets and scope
+- [Finding Format (per lane)](#finding-format-per-lane) — JSON shape, confidence levels
+- [Research Loop Rules](#research-loop-rules) — 7 meta-rules for the research phase
+- [Synthesis Instructions](#synthesis-instructions) — turn findings into matrix cells
+
 ## Overview
 
 Two research contexts:

@@ -1,5 +1,10 @@
 # Battle Card subagent prompt
 
+## Contents
+- [Placeholders to substitute](#placeholders-to-substitute) — `{OUTPUT_DIR}`, `{COMPETITOR_SLUG}`, etc.
+- [Prompt](#prompt) — full subagent instruction template (paste with placeholders filled in)
+- [Wave management](#wave-management) — launch policy: one Agent message per run, all competitors in parallel
+
 Main agent substitutes placeholders per competitor. Launch AFTER Step 5c fact-check completes — this lane depends on `matrix.json` cells having `sources` URLs.
 
 ## Placeholders to substitute
