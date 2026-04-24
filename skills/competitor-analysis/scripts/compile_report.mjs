@@ -250,38 +250,13 @@ const withPricing = deduped.filter(c => c.pricing_tiers).length;
 const dirName = dir.split('/').pop();
 const title = dirName.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
 const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-const metaLine = `${deduped.length} competitors · ${totalMentions} mentions · ${totalBenchmarks} benchmarks · ${genDate}`;
+// Initial metaLine uses deduped.length as fallback; we rebuild it after filtering the user's
+// own company out of `competitorRows` so the "N competitors" count is accurate.
+let metaLine = `${deduped.length} competitors · ${totalMentions} mentions · ${totalBenchmarks} benchmarks · ${genDate}`;
 
-// ---------- index.html (overview) ----------
-
-function featurePills(featuresStr, max = 4) {
-  const feats = splitPipes(featuresStr).slice(0, max);
-  return feats.map(f => `<span class="pill pill-feature">${escapeHtml(f)}</span>`).join('');
-}
-
-const tableRows = deduped.map(c => {
-  const hasDetail = c.body && c.body.length > 50;
-  const nameHtml = hasDetail
-    ? `<a href="competitors/${c.slug}.html">${escapeHtml(c.competitor_name)}</a>`
-    : escapeHtml(c.competitor_name);
-  const websiteHtml = c.website
-    ? `<span class="muted-line"><a href="${escapeHtml(c.website)}" target="_blank" style="color:var(--muted);">${escapeHtml(c.website.replace(/^https?:\/\/(www\.)?/, ''))}</a></span>`
-    : '';
-  const pricingShort = splitPipes(c.pricing_tiers).slice(0, 3).join(' · ') || '—';
-  return `      <tr>
-        <td><strong>${nameHtml}</strong>${websiteHtml}</td>
-        <td style="max-width:260px;">${escapeHtml(c.tagline || c.positioning || c.product_description || '')}</td>
-        <td style="max-width:180px;">${escapeHtml(pricingShort)}</td>
-        <td style="max-width:260px;">${featurePills(c.key_features)}</td>
-        <td class="muted-line" style="max-width:260px;color:var(--muted);font-size:0.8125rem;">${escapeHtml(c.strategic_diff || '')}</td>
-      </tr>`;
-}).join('\n');
-
-// Prefer a curated taxonomy from `matrix.json` when present — subagents write
-// heterogeneous prose into key_features/integrations frontmatter, so the raw
-// split-by-pipe axis is one-blob-per-competitor (no overlap, no comparison).
-// `matrix.json` defines a shared axis of atomic features and a yes/no mapping
-// per competitor, producing a real comparison.
+// Load the curated matrix EARLY — the overview table needs userCompany.name to filter the
+// user's own company out of the competitor list, and the strategic summary card needs the
+// whole matrix. Keep this block above the first use site to avoid temporal dead zones.
 let curatedMatrix = null;
 try {
   const p = join(dir, 'matrix.json');
@@ -289,6 +264,63 @@ try {
 } catch (err) {
   console.error(`Warning: matrix.json present but unreadable — falling back to pipe split. ${err.message}`);
 }
+
+// ---------- index.html (overview) ----------
+
+function featurePills(featuresStr, max = 4) {
+  // key_features is supposed to be pipe-separated but subagents drift into prose.
+  // If no pipes are present, split on commas as a fallback so we still show something
+  // and cap item length to avoid bleeding wall-of-text into the table.
+  let feats = splitPipes(featuresStr);
+  if (feats.length <= 1 && featuresStr) {
+    feats = featuresStr.split(/[;,]/).map(s => s.trim()).filter(Boolean);
+  }
+  return feats.slice(0, max).map(f => {
+    const short = f.length > 42 ? f.slice(0, 40).replace(/\s+\S*$/, '') + '…' : f;
+    return `<span class="pill pill-feature">${escapeHtml(short)}</span>`;
+  }).join('');
+}
+
+function truncate(str, n) {
+  if (!str) return '';
+  if (str.length <= n) return str;
+  return str.slice(0, n - 1).replace(/\s+\S*$/, '') + '…';
+}
+
+// Exclude the user's own company from the competitor table. matrix.json's userCompany.name
+// wins; fall back to the --user-company CLI arg. Match case-insensitively against the
+// competitor_name AND the slug so we catch "Browserbase" vs "browserbase.md".
+const userNameLower = ((curatedMatrix && curatedMatrix.userCompany && curatedMatrix.userCompany.name) || userCompany || '').toLowerCase();
+const competitorRows = deduped.filter(c => {
+  const nameLower = (c.competitor_name || '').toLowerCase();
+  const slugLower = (c.slug || '').toLowerCase();
+  return !userNameLower || (nameLower !== userNameLower && slugLower !== userNameLower);
+});
+// Rebuild metaLine now that we know the true competitor count (excluding the user's company).
+metaLine = `${competitorRows.length} competitors · ${totalMentions} mentions · ${totalBenchmarks} benchmarks · ${genDate}`;
+
+const tableRows = competitorRows.map(c => {
+  const hasDetail = c.body && c.body.length > 50;
+  const nameHtml = hasDetail
+    ? `<a href="competitors/${c.slug}.html">${escapeHtml(c.competitor_name)}</a>`
+    : escapeHtml(c.competitor_name);
+  const websiteHtml = c.website
+    ? `<span class="muted-line"><a href="${escapeHtml(c.website)}" target="_blank" style="color:var(--muted);">${escapeHtml(c.website.replace(/^https?:\/\/(www\.)?/, ''))}</a></span>`
+    : '';
+  // Pricing: prefer pipe-split summary; if there are no pipes (prose drift), truncate hard.
+  let pricingShort = splitPipes(c.pricing_tiers).slice(0, 3).join(' · ');
+  if (!pricingShort) pricingShort = truncate(c.pricing_tiers || '', 140) || '—';
+  return `      <tr>
+        <td><strong>${nameHtml}</strong>${websiteHtml}</td>
+        <td style="max-width:260px;">${escapeHtml(truncate(c.tagline || c.positioning || c.product_description || '', 140))}</td>
+        <td style="max-width:180px;">${escapeHtml(pricingShort)}</td>
+        <td style="max-width:260px;">${featurePills(c.key_features)}</td>
+        <td class="muted-line" style="max-width:260px;color:var(--muted);font-size:0.8125rem;">${escapeHtml(truncate(c.strategic_diff || '', 160))}</td>
+      </tr>`;
+}).join('\n');
+
+// curatedMatrix was loaded earlier (before the overview table renderer needed userCompany.name).
+// Keeping this comment as a marker for the matrix-axis functions below.
 
 // Strategic summary — "Where are you winning?" / "Where are you losing?"
 // Requires matrix.json to carry a `userCompany` entry with feature flags. We then
@@ -372,7 +404,7 @@ const strategicSummary = buildStrategicSummary();
 let indexHtml = template
   .replace(/\{\{TITLE\}\}/g, escapeHtml(`${title}`))
   .replace(/\{\{META\}\}/g, escapeHtml(metaLine))
-  .replace(/\{\{TOTAL\}\}/g, String(deduped.length))
+  .replace(/\{\{TOTAL\}\}/g, String(competitorRows.length))
   .replace(/\{\{MENTION_COUNT\}\}/g, String(totalMentions))
   .replace(/\{\{BENCHMARK_COUNT\}\}/g, String(totalBenchmarks))
   .replace(/\{\{WITH_PRICING\}\}/g, String(withPricing))
@@ -782,7 +814,7 @@ const mentionsHtml = `<!DOCTYPE html>
 <div class="container">
   <header>
     <h1>Mentions Feed</h1>
-    <div class="meta">${allMentions.length} mentions across ${deduped.length} competitors · ${escapeHtml(genDate)}</div>
+    <div class="meta">${allMentions.length} mentions across ${competitorRows.length} competitors · ${escapeHtml(genDate)}</div>
   </header>
   <nav class="views">
     <a href="index.html">Overview</a>
