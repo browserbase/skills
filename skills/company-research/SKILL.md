@@ -37,12 +37,18 @@ Discover and deeply research companies to sell to. Uses Browserbase Search API f
 
 **CRITICAL — Tool restrictions (applies to main agent AND all subagents)**:
 - All web searches: use `bb search`. NEVER use WebSearch.
-- All page fetches: use `bb fetch --allow-redirects`. NEVER use WebFetch. `bb fetch` returns raw HTML — to extract text, pipe through: `sed 's/<script[^>]*>.*<\/script>//g; s/<style[^>]*>.*<\/style>//g; s/<[^>]*>//g' | tr -s ' \n'`. Has a 1MB response limit — for large or JS-heavy pages, use `bb browse` instead.
+- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `bb fetch`, parses title + meta tags + visible body text, and automatically falls back to `bb browse` when the page is JS-rendered or over 1MB. NEVER hand-roll a `bb fetch | sed` pipeline — it silently strips meta tags and doesn't handle the JSON envelope. NEVER use WebFetch.
 - All research output: subagents write **one markdown file per company** to `{OUTPUT_DIR}/{company-slug}.md` using bash heredoc. NEVER use the Write tool or `python3 -c`. See `references/example-research.md` for the file format.
 - Report + CSV compilation: use `node {SKILL_DIR}/scripts/compile_report.mjs {OUTPUT_DIR} --open` — generates HTML report and CSV in one step, opens overview in browser.
 - URL deduplication: use `node {SKILL_DIR}/scripts/list_urls.mjs /tmp` after discovery.
 - **Subagents must use ONLY the Bash tool. No other tools allowed.**
 - **Main agent NEVER reads raw discovery JSON batch files.** Use `list_urls.mjs` for dedup.
+
+**CRITICAL — Anti-hallucination rules (applies to main agent AND all subagents)**:
+- NEVER infer `product_description`, `industry`, or `target_audience` from a site's fonts, framework (Framer/Next.js/React), design system, or typography. These are cosmetic and say nothing about what the company sells.
+- NEVER let the user's own ICP leak into a target's description. If you don't know what the target does, write `Unknown` — do not pattern-match them onto the ICP.
+- `product_description` MUST quote or paraphrase a specific phrase from `extract_page.mjs` output (TITLE, META_DESCRIPTION, OG_DESCRIPTION, HEADINGS, or BODY). If none of those fields yield a recognizable product statement, write `Unknown — homepage content not accessible`.
+- If `product_description` is `Unknown`, cap `icp_fit_score` at 3 and set `icp_fit_reasoning` to `Insufficient evidence — homepage returned no readable content`.
 
 **CRITICAL — Minimize permission prompts**:
 - Subagents MUST batch ALL file writes into a SINGLE Bash call using chained heredocs. One Bash call = one permission prompt.
@@ -92,12 +98,12 @@ This is the most important step. The quality of everything downstream depends on
 
    **Key research steps:**
    - Search: `bb search "{company name}" --num-results 10`
-   - Fetch homepage: `bb fetch --allow-redirects "{company website}"`
+   - Fetch homepage: `node {SKILL_DIR}/scripts/extract_page.mjs "{company website}"`
    - **Discover site pages via sitemap** (do NOT hardcode paths like `/about` or `/customers`):
-     1. `bb fetch --allow-redirects "{company website}/sitemap.xml"` — primary source
+     1. `bb fetch --allow-redirects "{company website}/sitemap.xml"` — sitemap is small, raw `bb fetch` is fine
      2. Scan for URLs with keywords: `customer`, `case-stud`, `pricing`, `about`, `use-case`, `industry`, `solution`
      3. Optionally also fetch `/llms.txt` for page descriptions
-     4. Pick 3-5 most relevant URLs and fetch those
+     4. Pick 3-5 most relevant URLs and extract with `extract_page.mjs` (NOT raw `bb fetch`)
    - Search for external context and competitors
    - Accumulate findings with confidence levels
 

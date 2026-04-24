@@ -176,3 +176,12 @@ Map findings to enrichment fields:
 - `key_features` → from product page findings
 
 If a field has no supporting findings, leave it empty rather than guessing.
+
+### Anti-Hallucination Rules
+
+Apply these at synthesis time. They exist because the failure mode — especially on Framer/Next.js landing pages with little server-rendered copy — is for the subagent to pattern-match visual cues onto the sender's ICP and fabricate a plausible-sounding description:
+
+1. **Typography is not a product.** Never infer `product_description`, `industry`, or `target_audience` from fonts, design system, framework choice (Framer, Next.js, React), or site polish. "Framer-built" and "uses Geist Mono" are observations about tooling, not signals of what the company sells.
+2. **No ICP leakage.** If the homepage is thin and external search turns up nothing, do NOT default the target's description toward the sender's ICP. Manufacturing AI ≠ browser automation just because both use AI.
+3. **Quote, don't paraphrase from memory.** `product_description` must quote or closely paraphrase a specific phrase from `extract_page.mjs` output (TITLE / META_DESCRIPTION / OG_DESCRIPTION / HEADINGS / BODY) or from an external search result. If no such phrase exists, write `Unknown — homepage content not accessible`.
+4. **Cap scores on thin evidence.** If `product_description` is `Unknown`, set `icp_fit_score` ≤ 3 and `icp_fit_reasoning: Insufficient evidence — homepage returned no readable content`. Do not justify a higher score on inferred signals alone.

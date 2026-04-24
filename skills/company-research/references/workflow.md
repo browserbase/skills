@@ -46,21 +46,43 @@ Each research subagent writes one markdown file per company. See `references/exa
 
 **CRITICAL**: Use consistent field names across all files. The `compile_report.mjs` script reads these fields.
 
-## Extracting Text from HTML
+## Extracting Page Content
 
-`bb fetch --allow-redirects` returns raw HTML. To extract readable text in a subagent Bash call, use:
+Use `extract_page.mjs` for all homepage/product-page content extraction. It fetches via `bb fetch`, parses title + meta + visible body text, and falls back to `bb browse` automatically when the page is JS-rendered or too large for fetch:
 
 ```bash
-# Fetch and extract text in one pipeline
-bb fetch --allow-redirects "https://example.com" | sed 's/<script[^>]*>.*<\/script>//g; s/<style[^>]*>.*<\/style>//g; s/<[^>]*>//g; s/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&nbsp;/ /g; s/&#[0-9]*;//g' | tr -s ' \n' | head -c 3000
+node {SKILL_DIR}/scripts/extract_page.mjs "https://example.com" --max-chars 3000
 ```
 
-Or save to file first and then extract:
-```bash
-bb fetch --allow-redirects "https://example.com" --output /tmp/fetch_example.html && sed 's/<script[^>]*>.*<\/script>//g; s/<style[^>]*>.*<\/style>//g; s/<[^>]*>//g' /tmp/fetch_example.html | tr -s ' \n' | head -c 3000
+Output is a structured block:
+```
+URL: https://example.com
+FETCH_OK: true|false
+FALLBACK_TO_BROWSE: true|false
+TITLE: ...
+META_DESCRIPTION: ...
+OG_TITLE: ...
+OG_DESCRIPTION: ...
+HEADINGS: h1/h2/h3 joined by " | "
+BODY_CHARS: N
+BODY:
+<cleaned visible text, max N chars>
 ```
 
-Limit to ~3000 chars per page to keep subagent context manageable.
+**Why not a raw `bb fetch | sed` pipeline?** `bb fetch` returns a JSON envelope with the HTML embedded as an escaped string — a naive sed pipeline strips `<>` from the JSON wrapper too and destroys the content. It also strips `<meta>` tags, which on Framer/Next.js SPAs are often the only readable content. `extract_page.mjs` handles both correctly.
+
+**When to use raw `bb fetch`**: Only for small structured files where you want the JSON envelope intact — e.g. `sitemap.xml`, `robots.txt`, `llms.txt`. For any HTML page you'd feed to a model, use `extract_page.mjs`.
+
+## Verifying content is real (not hallucinated)
+
+Before writing `product_description`, `industry`, or `target_audience` into a company file, confirm the claim is grounded in `extract_page.mjs` output. Quote or closely paraphrase from TITLE, META_DESCRIPTION, OG_DESCRIPTION, HEADINGS, or BODY.
+
+If `extract_page.mjs` returns `FETCH_OK: false` AND `FALLBACK_TO_BROWSE: false` (or BODY_CHARS < 50), the homepage is inaccessible. Do not fabricate. Write:
+- `product_description: Unknown — homepage content not accessible`
+- `icp_fit_score: 3` (or lower)
+- `icp_fit_reasoning: Insufficient evidence — homepage returned no readable content`
+
+A classic failure mode this prevents: a Framer/Next.js landing page with no server-rendered copy, where the subagent pattern-matches visual cues ("design-forward", "Geist Mono", "Framer-built") onto the user's own ICP. Typography is not a product.
 
 ## Discovery Subagent Prompt Template
 
@@ -104,14 +126,19 @@ URLS TO PROCESS:
 TOOL RULES — CRITICAL, FOLLOW EXACTLY:
 1. You may ONLY use the Bash tool. No exceptions.
 2. All searches: Bash → bb search "..." --num-results 10
-3. All page fetches: Bash → bb fetch --allow-redirects "..."
-   bb fetch returns RAW HTML. To extract text, pipe through:
-   sed 's/<script[^>]*>.*<\/script>//g; s/<style[^>]*>.*<\/style>//g; s/<[^>]*>//g' | tr -s ' \n' | head -c 3000
-   If a page returns thin content or "enable JavaScript", use bb browse instead.
+3. All homepage/product-page content extraction:
+   Bash → node {SKILL_DIR}/scripts/extract_page.mjs "URL" --max-chars 3000
+   This returns structured TITLE / META_DESCRIPTION / OG_DESCRIPTION / HEADINGS / BODY and auto-falls back to bb browse for JS-rendered or >1MB pages.
+   DO NOT hand-roll a `bb fetch | sed` pipeline — it silently strips meta tags and doesn't parse the JSON envelope. Use `bb fetch` raw only for sitemap.xml, robots.txt, llms.txt.
 4. BATCH all file writes: Write ALL markdown files in a SINGLE Bash call using chained heredocs (one permission prompt, not one per file).
 5. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep — ALL BANNED.
    If you use ANY banned tool, the entire run fails. Use ONLY Bash.
 6. NEVER use ~ or $HOME in paths — use full literal paths.
+
+ANTI-HALLUCINATION RULES — CRITICAL:
+- NEVER infer product_description, industry, or target_audience from fonts, framework (Framer/Next.js/React), design system, or visual style. Typography is not a product.
+- NEVER let the sender's ICP leak into a target's description. If you don't know what the target does, write "Unknown" — do not pattern-match them onto the ICP.
+- product_description MUST quote or closely paraphrase a phrase from extract_page.mjs output. If none of TITLE/META/OG/HEADINGS/BODY yield a recognizable product statement, write "Unknown — homepage content not accessible" and cap icp_fit_score at 3.
 
 RESEARCH PATTERN (per company):
 
