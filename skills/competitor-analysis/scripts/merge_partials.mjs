@@ -72,7 +72,17 @@ function parseSections(body) {
 
 function extractBullets(sectionText) {
   if (!sectionText) return [];
-  return sectionText.split('\n').map(l => l.trim()).filter(l => l.startsWith('- '));
+  const out = [];
+  for (const raw of sectionText.split('\n')) {
+    const line = raw.trim();
+    // Accept either "- ..." or numbered-list "1. ..." — normalize both to "- ...".
+    if (line.startsWith('- ')) out.push(line);
+    else {
+      const m = line.match(/^\d+\.\s+(.*)$/);
+      if (m) out.push('- ' + m[1]);
+    }
+  }
+  return out;
 }
 
 function urlOf(bullet) {
@@ -165,12 +175,25 @@ for (const [slug, lanes] of bySlug.entries()) {
     return arr.length ? arr[0] : '';
   }
 
-  // Rebuild frontmatter (marketing's FM wins; other lanes may add `pricing_url` or `strategic_diff`)
-  const mergedFm = { ...marketing.fm };
+  // Rebuild frontmatter — whitelist canonical fields only. Non-marketing lane subagents
+  // sometimes leak ad-hoc meta fields (notes, searches_run, lane, etc.) into their partial's
+  // frontmatter; those are debug/summary fields, not canonical data. Drop them here.
+  const CANONICAL_FIELDS = [
+    'competitor_name', 'website', 'pricing_url',
+    'tagline', 'positioning', 'product_description', 'target_customer',
+    'pricing_model', 'pricing_tiers', 'key_features', 'integrations',
+    'headquarters', 'founded', 'employee_estimate', 'funding_info',
+    'strategic_diff',
+  ];
+  const mergedFm = {};
+  for (const k of CANONICAL_FIELDS) {
+    if (marketing.fm[k]) mergedFm[k] = marketing.fm[k];
+  }
+  // Other lanes may fill in canonical gaps (e.g. funding_info from news, strategic_diff from technical).
   for (const lane of LANES) {
-    if (!lanes[lane] || !lanes[lane].fm) continue;
-    for (const [k, v] of Object.entries(lanes[lane].fm)) {
-      if (!mergedFm[k] && v) mergedFm[k] = v;
+    if (lane === 'marketing' || !lanes[lane] || !lanes[lane].fm) continue;
+    for (const k of CANONICAL_FIELDS) {
+      if (!mergedFm[k] && lanes[lane].fm[k]) mergedFm[k] = lanes[lane].fm[k];
     }
   }
 
