@@ -256,6 +256,8 @@ The main agent fixes this by synthesizing a **shared taxonomy** across competito
      "integrations": [{ "name": "LangChain" }, ...],
      "userCompany": {
        "name": "Exa",
+       "winningSummary": "Exa's moats are its first-party neural index and the integrated Research API — no one else in the set ships a semantic/embeddings-native retrieval primitive alongside a multi-step agentic research endpoint. It's also the only provider with a crawler product bundled in, and ties with SerpAPI on breadth of SDK language coverage.",
+       "losingSummary": "Exa trails competitors on operational transparency — SerpAPI, Serper, and Tavily all publish hourly throughput SLAs, and Exa lacks a dedicated news endpoint that SerpAPI, Serper, and You.com all ship. Image/visual search is also missing vs 4 of 5 competitors.",
        "features": { "Web Search API": true, "Site crawler": true, ... },
        "integrations": { "LangChain": true, ... }
      },
@@ -269,7 +271,9 @@ The main agent fixes this by synthesizing a **shared taxonomy** across competito
    }
    ```
 
-   **`userCompany` is required**. The overview page renders two cards — "Where {user} is winning" (features the user has that ≤1 competitor matches) and "Where {user} is losing" (features the user lacks that ≥3 competitors have). Populate `userCompany.features` and `userCompany.integrations` from the self-research profile (Step 1). Without this field those two cards don't render.
+   **`userCompany` is required**. The overview page renders two cards — "Where {user} is winning" and "Where {user} is losing". Populate `userCompany.features` and `userCompany.integrations` from the self-research profile (Step 1). Without this field those two cards don't render.
+
+   **`userCompany.winningSummary` / `losingSummary` are strongly preferred** (analyst-style prose, 2-4 sentences each). When present, the cards render as paragraphs instead of bulleted lists — reads like a briefing, not a spreadsheet. Write these AFTER the fact-check step below so prose is grounded in verified cells, not raw inference. If absent, the cards fall back to a bulleted list of winning/losing items with who-else-has-it.
 
 If this step is skipped, the matrix view falls back to the raw pipe-split axis (useless for atomic comparison) and the strategic summary doesn't render. Do not skip.
 

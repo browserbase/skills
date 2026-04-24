@@ -345,16 +345,24 @@ function buildStrategicSummary() {
     }).join('')}</ul>`;
   }
 
+  // Prefer the analyst-written prose from matrix.json when present — reads as narrative,
+  // not a spreadsheet. Falls back to the bulleted list when no prose is provided so a
+  // skill run that skipped the prose step still surfaces the boolean comparison.
+  function renderBody(prose, items, emptyMessage) {
+    if (prose && prose.trim()) return `<p class="prose">${escapeHtml(prose)}</p>`;
+    return renderList(items, emptyMessage);
+  }
+
   return `<div class="strategic">
     <div class="card win">
       <h3>Where ${userEsc} is winning <span class="badge win">${allWins.length}</span></h3>
-      <div class="sub">Features and integrations ${userEsc} has that 0–1 competitors match.</div>
-      ${renderList(allWins, 'No clear differentiators found — user has no unique features in the current taxonomy.')}
+      ${user.winningSummary ? '' : `<div class="sub">Features and integrations ${userEsc} has that 0–1 competitors match.</div>`}
+      ${renderBody(user.winningSummary, allWins, 'No clear differentiators found — user has no unique features in the current taxonomy.')}
     </div>
     <div class="card loss">
       <h3>Where ${userEsc} is losing <span class="badge loss">${allLosses.length}</span></h3>
-      <div class="sub">Features and integrations ${userEsc} lacks that 3+ competitors have.</div>
-      ${renderList(allLosses, 'No major gaps found — user keeps up on table-stakes features.')}
+      ${user.losingSummary ? '' : `<div class="sub">Features and integrations ${userEsc} lacks that 3+ competitors have.</div>`}
+      ${renderBody(user.losingSummary, allLosses, 'No major gaps found — user keeps up on table-stakes features.')}
     </div>
   </div>`;
 }
