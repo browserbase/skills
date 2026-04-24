@@ -284,40 +284,65 @@ The main agent fixes this by synthesizing a **shared taxonomy** across competito
 
 If this step is skipped, the matrix view falls back to the raw pipe-split axis (useless for atomic comparison) and the strategic summary doesn't render. Do not skip.
 
-### Fact-check the matrix (MANDATORY)
+### Fact-check the matrix — spot-check the high-stakes cells (default)
 
-**Do not trust the taxonomy pass alone.** It is LLM inference from heterogeneous prose and will make false claims that survive into the "Where you're winning" card, damaging the report's credibility. Observed during Browserbase run 2026-04-23: matrix.json claimed SOC 2 was unique to Browserbase; verification showed Hyperbrowser, Kernel, and Anchor Browser ALL have SOC 2 Type II (confirmed via their own trust portals and compliance blog posts). That single error would have presented a hallucinated moat to a real GTM team.
+**Do not trust the taxonomy pass alone for high-stakes cells.** It is LLM inference from prose and will hallucinate moats. Observed during Browserbase run 2026-04-23: matrix.json claimed SOC 2 was unique to Browserbase; verification showed Hyperbrowser, Kernel, and Anchor Browser all have SOC 2 Type II.
 
-Launch a dedicated **fact-check subagent** (Bash-only) after the taxonomy pass and before compile:
+But verifying every cell is the opposite mistake. A 7-company × 33-axis matrix has 231 cells. The Apr 2026 Browserbase run got stuck at 111+ tool calls in fact-check before interrupt — the subagent kept going on table-stakes cells (Playwright support, CDP, Python SDK) that are universal in the category.
+
+**Default = spot-check, not full sweep.** Only verify cells that meaningfully change the strategic narrative.
+
+Launch a single fact-check subagent (Bash-only) with **a hard 25-call budget** that targets ONLY these high-stakes axes:
+
+1. **Every `userCompany.features` and `userCompany.integrations` cell** (the user's own moats — these go straight into "Where you're winning" prose). Typical: 17 + 16 = 33 cells, but most are obvious (your own product). Focus on:
+   - Anything claimed as a *moat* in `winningSummary`
+   - Anything claimed as a *gap* in `losingSummary`
+   - Compliance (SOC 2, HIPAA, ISO 27001, GDPR)
+   - Open-source license claims (MIT / Apache 2.0 / AGPL — observed wrong on Steel)
+   - Published uptime SLA (status page ≠ SLA)
+
+2. **Across competitors, only the cells that drive the win/loss summary**:
+   - For each "Winning" claim, verify the user has it AND verify the competitors don't.
+   - For each "Losing" claim, verify the named competitors do have it.
+   - Compliance + license + SLA across all competitors (high-trust, frequently wrong).
+
+3. **Do NOT verify**:
+   - Universal table-stakes (Playwright, Puppeteer, CDP, Python SDK) — every cloud browser has these.
+   - `false` cells with no claim being made (no moat lost or won).
+   - Integration cells unless they appear in the win/loss summary.
 
 ```
-You are a matrix-verification subagent. For EACH cell in {OUTPUT_DIR}/matrix.json
-(userCompany + every competitor × every feature × every integration), verify the
-boolean against a concrete source URL.
+You are a matrix spot-check subagent. Budget: 25 bb calls TOTAL across all cells.
+Stop and return what you have when you hit the budget — partial fact-check is
+better than blocking the rest of the pipeline.
 
-TOOL RULES: Bash ONLY. bb search + bb fetch.
+TOOL RULES: Bash ONLY. bb search + bb fetch. Count your calls; stop at 25.
 
-For each cell:
-1. If `true` — find a source that explicitly confirms the feature. Candidates:
-     - The company's own docs / pricing / feature pages
-     - Trust portals (trust.{company}.* / {company}.io/trust)
-     - Official changelog / blog announcements
-     - GitHub repo LICENSE / README for open-source claims
-     - SafeBase / Vanta trust portals for SOC 2 / HIPAA / ISO
-   If no source found, flip to `false` and record why.
-2. If `false` — run ONE targeted bb search to check we didn't miss it. Flip to
-   `true` only on first-party evidence.
-3. Be adversarial: "no mention" ≠ "not supported". But "status page exists" is NOT
-   proof of a published uptime SLA commitment — look for an explicit SLA % number.
+PRIORITY ORDER (highest-stakes first — work down until budget):
+1. Every cell that appears in userCompany.winningSummary or losingSummary
+2. Compliance cells (SOC 2, HIPAA, ISO 27001) for user + every competitor
+3. Open-source / self-hostable + license cells across all competitors
+4. Pricing tier numbers ($X/mo, /hr) for user + competitors named in summaries
+5. Funding / employee_estimate fields (only if cited in summaries)
 
-Output a verified matrix.json with an added `sources` field per cell:
-  { "Feature name": { "value": true, "source": "https://..." } }
+Skip:
+- Universal cells (Playwright, Puppeteer, CDP, Python SDK, etc.)
+- `false` cells where no claim is being made
+- Integration matrix cells unless they appear in summaries
 
-And write a cells-changed log to {OUTPUT_DIR}/matrix_fact_check.md listing every
-flip (was true → now false, or vice versa) with the source URL and quoted evidence.
+For each cell verified:
+- If `true` — find one source URL (docs, trust portal, GitHub LICENSE, etc).
+- If `false` — one targeted bb search. Flip ONLY on first-party evidence.
+
+Output: matrix.json with `sources: { "Feature": "https://..." }` on the
+verified cells (other cells stay as-is). Cells-changed log to
+{OUTPUT_DIR}/matrix_fact_check.md with each flip + URL + quoted evidence.
+Report back: "spot-check: N cells verified, M flipped, B/25 budget used".
 ```
 
-After the subagent completes, the main agent re-reads matrix.json, recompiles the report, and surfaces the `matrix_fact_check.md` delta to the user. **The strategic summary is worthless without this step** — it will confidently state "winning on X" where X is a hallucination.
+**Full-sweep mode (opt-in, slower)**: if the user explicitly says "full fact check" or for a high-stakes deliverable (board deck, press release), set the budget to 80 calls and verify every non-universal cell. Default is spot-check.
+
+After the subagent completes, re-read matrix.json, recompile, and surface `matrix_fact_check.md` delta to the user. The summary is much more trustworthy with spot-check than without — and ships in 3-5 minutes instead of stalling the pipeline.
 
 ### Step 5d: Battle Card synthesis (deep/deeper only, after Step 5c)
 
