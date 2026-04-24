@@ -266,11 +266,10 @@ for (const [slug, lanes] of bySlug.entries()) {
   let battleCardBody = '';
   if (lanes.battle && lanes.battle.body) {
     const body = lanes.battle.body.trim();
-    // Strip any leading `# Battle Card ...` h1 line so we don't double-wrap.
-    battleCardBody = body.replace(/^#\s+Battle Card[^\n]*\n+/m, '').trim();
-    // If the body already has `## Battle Card` as its first h2, drop that leading heading
-    // (we add our own below).
-    battleCardBody = battleCardBody.replace(/^##\s+Battle Card\s*\n+/m, '').trim();
+    // Strip the FIRST heading line if it mentions "Battle Card" — handles h1/h2/h3 and any
+    // suffix (e.g. `## Battle Card — Hyperbrowser`, `# Battle Card: Browsaur`). Otherwise the
+    // canonical `## Battle Card` wrapper added below produces duplicate headings.
+    battleCardBody = body.replace(/^#{1,3}\s+Battle\s*Card\b[^\n]*\n+/m, '').trim();
   }
 
   const out = [

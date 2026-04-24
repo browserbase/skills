@@ -18,7 +18,7 @@ const args = process.argv.slice(2);
 if (args.includes('--help') || args.includes('-h') || args.length === 0) {
   console.error(`Usage: node capture_screenshots.mjs <research-dir> [options]
 
-Reads all .md files in <research-dir>, extracts the `website` field from each
+Reads all .md files in <research-dir>, extracts the "website" field from each
 competitor's YAML frontmatter, and captures a 1280x800 viewport screenshot of the
 homepage. Writes one PNG per competitor as {slug}-hero.png.
 
