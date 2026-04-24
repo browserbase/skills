@@ -108,6 +108,37 @@ function parseSections(body) {
   return sections;
 }
 
+// Normalize subagent-invented source types onto the canonical taxonomy so the mentions
+// feed CSS has a pill class for every entry. Observed drift: HackerNews→HN, VendorBlog→Blog,
+// CompetitorBlog→Blog, GitHubIssue→Blog, Twitter→X. Unknown types fall back to "Blog" to
+// guarantee styled rendering (catch-all). Also handles free-text leaking into the bracket
+// slot (e.g. "Browsaur Blog — ..." — sourceType becomes "Blog" if we can find that token).
+function normalizeSourceType(raw) {
+  if (!raw) return 'Blog';
+  const t = raw.trim();
+  const canonical = new Set([
+    'Benchmark','Comparison','News','Reddit','HN','LinkedIn','YouTube',
+    'Review','Podcast','X','DevTo','Hashnode','Substack','Blog'
+  ]);
+  if (canonical.has(t)) return t;
+  // Alias table for common drifts
+  const aliases = {
+    'Hacker News': 'HN', 'HackerNews': 'HN', 'Show HN': 'HN', 'Ask HN': 'HN',
+    'Twitter': 'X',
+    'Vendor Blog': 'Blog', 'VendorBlog': 'Blog',
+    'Competitor Blog': 'Blog', 'CompetitorBlog': 'Blog',
+    'GitHub Issue': 'Blog', 'GitHubIssue': 'Blog', 'GitHub': 'Blog',
+    'Documentation': 'Blog', 'Docs': 'Blog',
+    'Medium': 'Blog', 'Substack Post': 'Substack',
+  };
+  if (aliases[t]) return aliases[t];
+  // Keyword scan — if the raw contains a canonical token anywhere, use that.
+  for (const c of canonical) {
+    if (new RegExp(`\\b${c}\\b`, 'i').test(t)) return c;
+  }
+  return 'Blog'; // catch-all for fully unknown types (styled via .src-Blog)
+}
+
 // Parse Mentions section into structured entries.
 // Format: `- **[SourceType]** Title | Snippet (source: URL, YYYY-MM-DD)`
 function parseMentions(sectionText) {
@@ -118,7 +149,7 @@ function parseMentions(sectionText) {
     if (!line.startsWith('- ')) continue;
     const typeM = line.match(/^-\s*\*\*\[([^\]]+)\]\*\*\s*(.*)$/);
     if (!typeM) continue;
-    const sourceType = typeM[1].trim();
+    const sourceType = normalizeSourceType(typeM[1].trim());
     let rest = typeM[2];
 
     let url = '';
@@ -719,10 +750,12 @@ writeFileSync(join(dir, 'matrix.html'), matrixHtml);
 
 // ---------- mentions.html (feed + filter) ----------
 
+// Mentions feed: iterate `competitorRows` (user's own company already filtered out earlier)
+// so the chronological feed doesn't mix the user's own mentions with competitors'.
 const allMentions = [];
-for (const c of deduped) {
+for (const c of competitorRows) {
   for (const m of c.mentions) {
-    allMentions.push({ ...m, competitor: c.competitor_name, slug: c.slug });
+    allMentions.push({ ...m, competitor: c.competitor_name || c.slug, slug: c.slug });
   }
 }
 // Sort by date desc (empty dates last)

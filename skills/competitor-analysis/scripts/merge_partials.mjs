@@ -243,15 +243,38 @@ for (const [slug, lanes] of bySlug.entries()) {
     'headquarters', 'founded', 'employee_estimate', 'funding_info',
     'strategic_diff',
   ];
+  // Subagents drift on canonical field names too. Common aliases observed in real runs:
+  // `competitor` → `competitor_name` (browsaur marketing subagent), `homepage` → `website`,
+  // `price_tiers` / `pricing` → `pricing_tiers`. Accept aliases silently.
+  const FIELD_ALIASES = {
+    'competitor': 'competitor_name',
+    'name': 'competitor_name',
+    'company': 'competitor_name',
+    'homepage': 'website',
+    'url': 'website',
+    'price_tiers': 'pricing_tiers',
+    'pricing': 'pricing_tiers',
+  };
+  function canonicalValue(fm, key) {
+    if (fm[key]) return fm[key];
+    for (const [alias, canonical] of Object.entries(FIELD_ALIASES)) {
+      if (canonical === key && fm[alias]) return fm[alias];
+    }
+    return undefined;
+  }
   const mergedFm = {};
   for (const k of CANONICAL_FIELDS) {
-    if (marketing.fm[k]) mergedFm[k] = marketing.fm[k];
+    const v = canonicalValue(marketing.fm, k);
+    if (v) mergedFm[k] = v;
   }
   // Other lanes may fill in canonical gaps (e.g. funding_info from news, strategic_diff from technical).
   for (const lane of LANES) {
     if (lane === 'marketing' || !lanes[lane] || !lanes[lane].fm) continue;
     for (const k of CANONICAL_FIELDS) {
-      if (!mergedFm[k] && lanes[lane].fm[k]) mergedFm[k] = lanes[lane].fm[k];
+      if (!mergedFm[k]) {
+        const v = canonicalValue(lanes[lane].fm, k);
+        if (v) mergedFm[k] = v;
+      }
     }
   }
 
