@@ -61,8 +61,8 @@ Follow these 8 steps in order. Do not skip or reorder.
 4. **Gate** — `scripts/gate_candidates.mjs` bb-fetches each candidate's hero text and drops wrong-category URLs
 5. **Confirm enrichment set with the user** — Present PASS / UNKNOWN / rejected-brand-matches via `AskUserQuestion`. User ticks the real ones, adds any the discovery missed. Skipping this step is wasteful because enrichment is expensive (25 subagents × depth budget) and the gate is imperfect (JS-heavy homepages, Cloudflare challenges, semantic-variant taglines)
 6. **Deep Enrichment (5 subagents per competitor in deep/deeper modes)** — Marketing, Discussion, Social, News, Technical — each lane a separate subagent writing to `partials/`; then `merge_partials.mjs` consolidates
-7. **Screenshots** — `capture_screenshots.mjs` via the `browse` CLI captures homepage hero + full-page pricing for each competitor
-8. **HTML Report** — Overview + per-competitor (with embedded screenshots) + matrix + mentions views
+7. **Screenshots** — `capture_screenshots.mjs` via the `browse` CLI captures a 1280×800 homepage hero per competitor
+8. **HTML Report** — Overview + per-competitor (with embedded hero screenshot) + matrix + mentions views
 
 ---
 
@@ -239,14 +239,14 @@ Unions the 5 partials per competitor into one `{OUTPUT_DIR}/{slug}.md` — dedup
 
 ## Step 6: Screenshots
 
-Capture homepage hero + full-page pricing screenshots for each competitor:
+Capture a homepage hero screenshot per competitor:
 ```bash
 node {SKILL_DIR}/scripts/capture_screenshots.mjs {OUTPUT_DIR} --env remote
 ```
 
-Uses the `browse` CLI (`npm install -g @browserbasehq/browse-cli`) against a Browserbase remote session. Writes PNGs to `{OUTPUT_DIR}/screenshots/{slug}-{hero,pricing}.png`. The compile step in Step 7 auto-embeds them on each per-competitor HTML page.
+Uses the `browse` CLI — a separate package from `bb` (`npm install -g @browserbasehq/browse-cli`). Connects to a Browserbase remote session by default. Writes one PNG per competitor to `{OUTPUT_DIR}/screenshots/{slug}-hero.png`. The compile step in Step 7 auto-embeds the hero on each per-competitor HTML page.
 
-Cost: ~15-20s per competitor. ~90s for 5 competitors.
+Cost: ~10-20s per competitor. ~60s for 5 competitors.
 
 ## Step 7: HTML Report
 

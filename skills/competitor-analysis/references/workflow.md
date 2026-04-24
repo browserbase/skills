@@ -356,13 +356,13 @@ Two modes:
 
 ### Screenshots Phase (after merge, before compile)
 
-Capture homepage hero + full-page pricing screenshots for each competitor:
+Capture homepage hero screenshot for each competitor:
 ```bash
 node {SKILL_DIR}/scripts/capture_screenshots.mjs {OUTPUT_DIR} --env remote --concurrency 1
 ```
-Requires the `browse` CLI (`npm install -g @browserbasehq/browse-cli`). `--env remote` uses a Browserbase session. Writes PNGs to `{OUTPUT_DIR}/screenshots/{slug}-hero.png` and `{slug}-pricing.png`. `compile_report.mjs` auto-embeds them in per-competitor HTML pages when present.
+Requires the `browse` CLI (`npm install -g @browserbasehq/browse-cli` — separate package from `bb`). `--env remote` uses a Browserbase session. Writes one PNG per competitor to `{OUTPUT_DIR}/screenshots/{slug}-hero.png`. `compile_report.mjs` auto-embeds the hero in the per-competitor HTML page when present.
 
-Cost: ~15-20s per competitor (serial). Total for 5 competitors ≈ 90s.
+Cost: ~10-20s per competitor (serial). Total for 5 competitors ≈ 60s.
 
 ### Sizing Formula
 ```

@@ -335,12 +335,10 @@ const perCompetitorCss = `
   .src-Hashnode { background:#eef4ff; color:#2962ff; border-color:#c6d8ff; }
   .src-Substack { background:#fff4e5; color:#ff6719; border-color:#ffd4b7; }
   .src-Blog { background:#f6f3ee; color:#6a5d45; border-color:#e1dbcc; }
-  .shots { display:grid; grid-template-columns:1fr 1fr; gap:1rem; margin-bottom:1.5rem; }
-  @media (max-width:720px) { .shots { grid-template-columns:1fr; } }
+  .shots { margin-bottom:1.5rem; }
   .shot { background:var(--card); border:1px solid var(--border); border-radius:4px; overflow:hidden; }
   .shot-label { font-size:0.6875rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); font-weight:600; padding:0.5rem 0.75rem; border-bottom:1px solid var(--border); background:#fafafa; }
   .shot img { display:block; width:100%; height:auto; }
-  .shot-pricing img { max-height:560px; object-fit:cover; object-position:top; }
   footer { margin-top:3rem; padding-top:1.5rem; border-top:1px solid var(--border); text-align:center; font-size:0.75rem; color:var(--muted); }
   footer a { color:var(--brand); text-decoration:none; font-weight:500; }
 `;
@@ -374,13 +372,11 @@ for (const c of deduped) {
   const comparisonHtml = comparisonKey ? `<h2>${escapeHtml(comparisonKey)}</h2>${mdToHtml(c.sections[comparisonKey])}` : '';
   const findingsHtml = c.sections['Research Findings'] ? `<h2>Research Findings</h2>${mdToHtml(c.sections['Research Findings'])}` : '';
 
-  // Screenshots — filenames match capture_screenshots.mjs output.
+  // Screenshot — filename matches capture_screenshots.mjs output.
   const heroShot = existsSync(join(dir, 'screenshots', `${c.slug}-hero.png`));
-  const pricingShot = existsSync(join(dir, 'screenshots', `${c.slug}-pricing.png`));
-  const screenshotsHtml = (heroShot || pricingShot) ? `
+  const screenshotsHtml = heroShot ? `
   <div class="shots">
-    ${heroShot ? `<div class="shot shot-hero"><div class="shot-label">Homepage hero</div><img src="../screenshots/${escapeHtml(c.slug)}-hero.png" alt="${escapeHtml(c.competitor_name)} homepage hero" loading="lazy"></div>` : ''}
-    ${pricingShot ? `<div class="shot shot-pricing"><div class="shot-label">Pricing page</div><img src="../screenshots/${escapeHtml(c.slug)}-pricing.png" alt="${escapeHtml(c.competitor_name)} pricing page" loading="lazy"></div>` : ''}
+    <div class="shot shot-hero"><div class="shot-label">Homepage</div><img src="../screenshots/${escapeHtml(c.slug)}-hero.png" alt="${escapeHtml(c.competitor_name)} homepage hero" loading="lazy"></div>
   </div>` : '';
 
   const companyHtml = `<!DOCTYPE html>
