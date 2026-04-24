@@ -493,11 +493,11 @@ function competitorHas(c, field, label) {
 
 function matrixSection(heading, axis, field) {
   if (!axis.length) return '';
-  // Competitor names tilted 35° (more legible than full vertical). Row label (feature name) is the sticky
-  // left column so users can scroll horizontally without losing context on many-competitor tables.
+  // Horizontal competitor-name headers — simpler to read than rotated. Row label (feature name) is
+  // the sticky left column so users can scroll horizontally without losing context on wide tables.
   const header = `<tr>
     <th class="mx-feature-h">${escapeHtml(heading)}</th>
-    ${deduped.map(c => `<th class="mx-comp-h"><div class="mx-comp-h-inner"><a href="competitors/${escapeHtml(c.slug)}.html">${escapeHtml(c.competitor_name)}</a></div></th>`).join('')}
+    ${deduped.map(c => `<th class="mx-comp-h"><a href="competitors/${escapeHtml(c.slug)}.html">${escapeHtml(c.competitor_name)}</a></th>`).join('')}
   </tr>`;
   const rows = axis.map(a => {
     const cells = deduped.map(c => competitorHas(c, field, a.label)
@@ -549,15 +549,14 @@ const matrixHtml = `<!DOCTYPE html>
   .mx-table th, .mx-table td { border:1px solid var(--border); padding:0; }
   .mx-table tr:hover td:not(.mx-feature) { background:#fdf7f5; }
   .mx-table tr:hover .mx-feature { background:#fdfcfb; }
-  .mx-feature-h { position:sticky; left:0; z-index:3; background:#fafafa; text-align:left; min-width:220px; padding:0.5rem 0.75rem !important; border-bottom:1px solid var(--border); vertical-align:bottom; }
-  .mx-comp-h { height:150px; vertical-align:bottom; padding:0 !important; background:#fafafa; min-width:52px; max-width:52px; border-bottom:1px solid var(--border); position:relative; overflow:visible; }
-  .mx-comp-h-inner { position:absolute; right:4px; bottom:8px; transform:rotate(-55deg); transform-origin:right bottom; white-space:nowrap; font-size:0.8125rem; font-weight:600; color:var(--text); letter-spacing:0; }
-  .mx-comp-h-inner a { color:var(--text); text-decoration:none; }
-  .mx-comp-h-inner a:hover { color:var(--brand); }
-  .mx-feature { position:sticky; left:0; z-index:2; background:var(--card); min-width:220px; font-size:0.8125rem; padding:0.45rem 0.75rem !important; display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
+  .mx-feature-h { position:sticky; left:0; z-index:3; background:#fafafa; text-align:left; min-width:240px; padding:0.75rem !important; border-bottom:1px solid var(--border); font-size:0.6875rem; text-transform:uppercase; letter-spacing:0.05em; color:var(--muted); font-weight:600; }
+  .mx-comp-h { padding:0.75rem 0.5rem !important; background:#fafafa; min-width:110px; max-width:140px; border-bottom:1px solid var(--border); text-align:center; font-size:0.8125rem; font-weight:600; text-transform:none; letter-spacing:0; color:var(--text); white-space:nowrap; }
+  .mx-comp-h a { color:var(--text); text-decoration:none; }
+  .mx-comp-h a:hover { color:var(--brand); }
+  .mx-feature { position:sticky; left:0; z-index:2; background:var(--card); min-width:240px; font-size:0.8125rem; padding:0.45rem 0.75rem !important; display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
   .mx-feature-label { flex:1; }
   .mx-count { color:var(--muted); font-size:0.7rem; font-weight:600; background:#f4f1ee; padding:0 6px; border-radius:999px; }
-  .mx-cell { text-align:center; font-weight:700; min-width:52px; max-width:52px; padding:0.45rem 0 !important; font-size:0.9rem; }
+  .mx-cell { text-align:center; font-weight:700; min-width:110px; max-width:140px; padding:0.5rem 0 !important; font-size:0.95rem; }
   .mx-yes { color:#5a8a1a; background:rgba(144,201,77,0.06); }
   .mx-no  { color:#e0dcd7; }
 
