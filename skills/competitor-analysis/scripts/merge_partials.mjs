@@ -85,6 +85,63 @@ function extractBullets(sectionText) {
   return out;
 }
 
+// Normalize Mentions bullet lines to the canonical format that `compile_report.mjs`
+// parses: `- **[SourceType]** Title | Snippet (source: URL, YYYY-MM-DD)`.
+//
+// Lane subagents deviate in practice — we've observed at least three variants:
+//   A) discussion-style:   `- **HN** — [Title](url) — snippet`
+//   B) news-style:         `- **2025-08-06** — [News] Outlet — "title" — url`
+//   C) canonical:          `- **[SourceType]** Title | Snippet (source: URL, YYYY-MM-DD)`
+// Rather than fighting prompt drift, normalize at merge time so downstream stays clean.
+function normalizeMentionBullet(line) {
+  // Already canonical — nothing to do.
+  if (/^-\s*\*\*\[\w+\]\*\*/.test(line)) return line;
+
+  const urlMatch = line.match(/https?:\/\/\S+/);
+  const url = urlMatch ? urlMatch[0].replace(/[).,\]\s]+$/, '') : '';
+  const dateMatch = line.match(/\b(\d{4}-\d{2}-\d{2})\b/);
+  const date = dateMatch ? dateMatch[1] : '';
+
+  // Pattern A — `- **SourceType** — [Title](url) — snippet`  (e.g. discussion lane)
+  //   **SourceType** is bold but without the brackets we want in canonical form.
+  let m = line.match(/^-\s*\*\*([^*]+)\*\*\s*[—\-]\s*\[([^\]]+)\]\(([^)]+)\)\s*(?:[—\-]\s*(.*))?$/);
+  if (m) {
+    const [, rawType, title, linkUrl, snippet] = m;
+    const sourceType = rawType.trim().replace(/^\[|\]$/g, '');
+    const snippetStr = snippet && snippet.trim() ? ` | ${snippet.trim()}` : '';
+    const dateStr = date ? `, ${date}` : '';
+    return `- **[${sourceType}]** ${title.trim()}${snippetStr} (source: ${linkUrl}${dateStr})`;
+  }
+
+  // Pattern B — `- **YYYY-MM-DD** — [SourceType] Outlet — "title" — url`  (e.g. news lane)
+  m = line.match(/^-\s*\*\*(\d{4}-\d{2}-\d{2})\*\*\s*[—\-]\s*\[(\w+)\]\s+([^—]+?)\s*[—\-]\s*"?([^"]+?)"?\s*(?:[—\-]\s*(\S+))?\s*$/);
+  if (m) {
+    const [, dateStr, sourceType, outlet, title, trailingUrl] = m;
+    const finalUrl = trailingUrl && trailingUrl.startsWith('http') ? trailingUrl : url;
+    const snippet = outlet.trim();
+    return `- **[${sourceType}]** ${title.trim()}${snippet ? ` | ${snippet}` : ''} (source: ${finalUrl || ''}, ${dateStr})`;
+  }
+
+  // Pattern C — generic fallback: find any `**X**` tag + URL and format canonically.
+  m = line.match(/^-\s*\*\*([^*]+)\*\*\s*(.*)/);
+  if (m && url) {
+    const rawType = m[1].trim().replace(/^\[|\]$/g, '');
+    // If the leading token is a date, try to pull a later **type** off the rest.
+    let sourceType = rawType;
+    if (/^\d{4}-\d{2}-\d{2}$/.test(rawType)) {
+      const innerType = m[2].match(/\[(\w+)\]/);
+      if (innerType) sourceType = innerType[1];
+    }
+    const linkTextM = m[2].match(/\[([^\]]+)\]/);
+    const title = linkTextM ? linkTextM[1] : m[2].replace(url, '').replace(/[—"]+/g, '').replace(/^\W+|\W+$/g, '').slice(0, 100);
+    const dateStr = date ? `, ${date}` : '';
+    return `- **[${sourceType}]** ${title.trim()} (source: ${url}${dateStr})`;
+  }
+
+  // Last resort — leave line untouched (preserves data even if un-parseable).
+  return line;
+}
+
 function urlOf(bullet) {
   const m = bullet.match(/\(source:\s*([^,)]+)/);
   return m ? m[1].trim() : null;
@@ -134,8 +191,9 @@ for (const [slug, lanes] of bySlug.entries()) {
     }
   }
 
-  // Dedup Mentions by URL, sort by date desc
-  const mentionBullets = (allSections['Mentions'] || []).flatMap(s => extractBullets(s));
+  // Normalize → dedup Mentions by URL, sort by date desc
+  const rawBullets = (allSections['Mentions'] || []).flatMap(s => extractBullets(s));
+  const mentionBullets = rawBullets.map(normalizeMentionBullet);
   const seenUrls = new Set();
   const dedupedMentions = [];
   for (const b of mentionBullets) {
