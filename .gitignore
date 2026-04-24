@@ -46,4 +46,7 @@ agent/downloads/*
 tmp/.cache/.chrome-pid
 
 # Chrome PID
-.chrome-pid 
+.chrome-pid
+
+# Per-skill local Claude Code settings (contains user-specific permission approvals)
+skills/*/.claude/settings.local.json
