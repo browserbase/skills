@@ -549,15 +549,15 @@ const matrixHtml = `<!DOCTYPE html>
   .mx-table th, .mx-table td { border:1px solid var(--border); padding:0; }
   .mx-table tr:hover td:not(.mx-feature) { background:#fdf7f5; }
   .mx-table tr:hover .mx-feature { background:#fdfcfb; }
-  .mx-feature-h { position:sticky; left:0; z-index:3; background:#fafafa; text-align:left; min-width:220px; padding:0.5rem 0.75rem !important; border-bottom:1px solid var(--border); }
-  .mx-comp-h { height:130px; vertical-align:bottom; padding:0 !important; background:#fafafa; min-width:44px; max-width:44px; border-bottom:1px solid var(--border); }
-  .mx-comp-h-inner { transform:rotate(-35deg); transform-origin:left top; white-space:nowrap; font-size:0.75rem; font-weight:600; color:var(--text); text-transform:none; letter-spacing:0; padding:0.35rem 0.5rem; width:160px; margin-left:18px; margin-top:118px; }
+  .mx-feature-h { position:sticky; left:0; z-index:3; background:#fafafa; text-align:left; min-width:220px; padding:0.5rem 0.75rem !important; border-bottom:1px solid var(--border); vertical-align:bottom; }
+  .mx-comp-h { height:150px; vertical-align:bottom; padding:0 !important; background:#fafafa; min-width:52px; max-width:52px; border-bottom:1px solid var(--border); position:relative; overflow:visible; }
+  .mx-comp-h-inner { position:absolute; right:4px; bottom:8px; transform:rotate(-55deg); transform-origin:right bottom; white-space:nowrap; font-size:0.8125rem; font-weight:600; color:var(--text); letter-spacing:0; }
   .mx-comp-h-inner a { color:var(--text); text-decoration:none; }
   .mx-comp-h-inner a:hover { color:var(--brand); }
   .mx-feature { position:sticky; left:0; z-index:2; background:var(--card); min-width:220px; font-size:0.8125rem; padding:0.45rem 0.75rem !important; display:flex; align-items:center; justify-content:space-between; gap:0.5rem; }
   .mx-feature-label { flex:1; }
   .mx-count { color:var(--muted); font-size:0.7rem; font-weight:600; background:#f4f1ee; padding:0 6px; border-radius:999px; }
-  .mx-cell { text-align:center; font-weight:700; min-width:44px; max-width:44px; padding:0.45rem 0 !important; font-size:0.9rem; }
+  .mx-cell { text-align:center; font-weight:700; min-width:52px; max-width:52px; padding:0.45rem 0 !important; font-size:0.9rem; }
   .mx-yes { color:#5a8a1a; background:rgba(144,201,77,0.06); }
   .mx-no  { color:#e0dcd7; }
 
