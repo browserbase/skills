@@ -273,6 +273,41 @@ The main agent fixes this by synthesizing a **shared taxonomy** across competito
 
 If this step is skipped, the matrix view falls back to the raw pipe-split axis (useless for atomic comparison) and the strategic summary doesn't render. Do not skip.
 
+### Fact-check the matrix (MANDATORY)
+
+**Do not trust the taxonomy pass alone.** It is LLM inference from heterogeneous prose and will make false claims that survive into the "Where you're winning" card, damaging the report's credibility. Observed during Browserbase run 2026-04-23: matrix.json claimed SOC 2 was unique to Browserbase; verification showed Hyperbrowser, Kernel, and Anchor Browser ALL have SOC 2 Type II (confirmed via their own trust portals and compliance blog posts). That single error would have presented a hallucinated moat to a real GTM team.
+
+Launch a dedicated **fact-check subagent** (Bash-only) after the taxonomy pass and before compile:
+
+```
+You are a matrix-verification subagent. For EACH cell in {OUTPUT_DIR}/matrix.json
+(userCompany + every competitor × every feature × every integration), verify the
+boolean against a concrete source URL.
+
+TOOL RULES: Bash ONLY. bb search + bb fetch.
+
+For each cell:
+1. If `true` — find a source that explicitly confirms the feature. Candidates:
+     - The company's own docs / pricing / feature pages
+     - Trust portals (trust.{company}.* / {company}.io/trust)
+     - Official changelog / blog announcements
+     - GitHub repo LICENSE / README for open-source claims
+     - SafeBase / Vanta trust portals for SOC 2 / HIPAA / ISO
+   If no source found, flip to `false` and record why.
+2. If `false` — run ONE targeted bb search to check we didn't miss it. Flip to
+   `true` only on first-party evidence.
+3. Be adversarial: "no mention" ≠ "not supported". But "status page exists" is NOT
+   proof of a published uptime SLA commitment — look for an explicit SLA % number.
+
+Output a verified matrix.json with an added `sources` field per cell:
+  { "Feature name": { "value": true, "source": "https://..." } }
+
+And write a cells-changed log to {OUTPUT_DIR}/matrix_fact_check.md listing every
+flip (was true → now false, or vice versa) with the source URL and quoted evidence.
+```
+
+After the subagent completes, the main agent re-reads matrix.json, recompiles the report, and surfaces the `matrix_fact_check.md` delta to the user. **The strategic summary is worthless without this step** — it will confidently state "winning on X" where X is a hallucination.
+
 ## Step 6: Screenshots
 
 Capture a homepage hero screenshot per competitor:
