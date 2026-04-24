@@ -297,13 +297,6 @@ async function main() {
       const params = msg.params;
       requestId = params.requestId;
       const url = params.request?.url || "";
-      const resourceType = params.resourceType || "";
-
-      // Pass through non-Document resources
-      if (resourceType !== "Document" && resourceType !== "") {
-        await sendCDP("Fetch.continueRequest", { requestId });
-        return;
-      }
 
       // Pass through internal URLs
       if (url.startsWith("chrome") || url.startsWith("about:")) {
@@ -364,7 +357,12 @@ async function main() {
   });
 
   // 4. Enable Fetch interception (after handler is registered)
-  await sendCDP("Fetch.enable", { patterns: [{ urlPattern: "*" }] });
+  //    Filter to Document only — navigations and iframe loads. Sub-resources
+  //    (images, scripts, CSS) would otherwise round-trip through our handler
+  //    just to be continued unconditionally.
+  await sendCDP("Fetch.enable", {
+    patterns: [{ urlPattern: "*", resourceType: "Document" }],
+  });
   console.error(`[firewall] Listening for navigations...\n`);
 
   // 5. Graceful shutdown
