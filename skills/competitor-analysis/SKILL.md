@@ -237,6 +237,35 @@ node {SKILL_DIR}/scripts/merge_partials.mjs {OUTPUT_DIR}
 ```
 Unions the 5 partials per competitor into one `{OUTPUT_DIR}/{slug}.md` — dedup'd Mentions (sorted by date desc), dedup'd Benchmarks, merged Findings, canonical frontmatter from the marketing lane.
 
+### Synthesize the comparison matrix (write `matrix.json`)
+
+**Subagents write `key_features` and `integrations` as prose**, not as pipe-separated atomic feature labels. So a naive `|`-split axis becomes one-blob-per-competitor with no overlap — the rendered matrix shows a useless diagonal.
+
+The main agent fixes this by synthesizing a **shared taxonomy** across competitors and writing `{OUTPUT_DIR}/matrix.json`. `compile_report.mjs` auto-detects this file and renders the matrix from it instead of from the pipe split.
+
+**Process** — main agent:
+1. Read all `{slug}.md` files. Focus on the `key_features`, `integrations`, and `## Features` sections.
+2. Produce a canonical list of 12-20 *atomic* features — each must be a yes/no proposition a competitor either has or doesn't (e.g. "MCP server", "SOC 2", "Site crawler", "Reranker"). Avoid sentence-length features. Avoid features only one competitor has.
+3. Produce a canonical list of 10-20 integrations (frameworks, marketplaces, SDK languages).
+4. For each competitor, map each taxonomy entry to `true` / `false` based on the enrichment data. Be conservative — if not mentioned, leave `false`.
+5. Write the result to `{OUTPUT_DIR}/matrix.json` in this shape:
+   ```json
+   {
+     "category": "AI search APIs",
+     "features": [{ "name": "Web Search API", "description": "..." }, ...],
+     "integrations": [{ "name": "LangChain" }, ...],
+     "competitors": {
+       "tavily": {
+         "features": { "Web Search API": true, "Site crawler": true, ... },
+         "integrations": { "LangChain": true, "Databricks Marketplace": true, ... }
+       },
+       "serpapi": { "features": {...}, "integrations": {...} }
+     }
+   }
+   ```
+
+If this step is skipped, the matrix view falls back to the raw pipe-split axis (mostly useless for atomic comparison). Do not skip.
+
 ## Step 6: Screenshots
 
 Capture a homepage hero screenshot per competitor:
