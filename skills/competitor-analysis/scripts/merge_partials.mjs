@@ -259,9 +259,19 @@ for (const [slug, lanes] of bySlug.entries()) {
 
   // Comparison heading may be "Comparison vs Browserbase" etc — find any key starting with "Comparison"
   const comparisonKey = Object.keys(allSections).find(k => k.startsWith('Comparison'));
-  // Battle lane produces a `## Battle Card` section — sales enablement synthesized from verified
-  // partials + fact-checked matrix (runs AFTER Step 5c fact-check, see SKILL.md Step 5d).
-  const battleCardKey = Object.keys(allSections).find(k => k === 'Battle Card' || k.startsWith('Battle'));
+  // Battle lane is format-drifty: subagents emit `## Battle Card`, `# Battle Card: X vs Y`
+  // (h1 — not picked up by parseSections), or skip the wrapper and lead with `## Landmines`.
+  // Treat the ENTIRE battle partial body as the Battle Card section regardless of heading style,
+  // so sales enablement content always lands in the merged file.
+  let battleCardBody = '';
+  if (lanes.battle && lanes.battle.body) {
+    const body = lanes.battle.body.trim();
+    // Strip any leading `# Battle Card ...` h1 line so we don't double-wrap.
+    battleCardBody = body.replace(/^#\s+Battle Card[^\n]*\n+/m, '').trim();
+    // If the body already has `## Battle Card` as its first h2, drop that leading heading
+    // (we add our own below).
+    battleCardBody = battleCardBody.replace(/^##\s+Battle Card\s*\n+/m, '').trim();
+  }
 
   const out = [
     '---',
@@ -273,7 +283,7 @@ for (const [slug, lanes] of bySlug.entries()) {
     first('Features') ? `## Features\n${first('Features')}\n` : '',
     first('Positioning') ? `## Positioning\n${first('Positioning')}\n` : '',
     comparisonKey && allSections[comparisonKey].length ? `## ${comparisonKey}\n${allSections[comparisonKey][0]}\n` : '',
-    battleCardKey && allSections[battleCardKey].length ? `## ${battleCardKey}\n${allSections[battleCardKey][0]}\n` : '',
+    battleCardBody ? `## Battle Card\n${battleCardBody}\n` : '',
     dedupedMentions.length ? `## Mentions\n${dedupedMentions.join('\n')}\n` : '',
     dedupedBench.length ? `## Benchmarks\n${dedupedBench.join('\n')}\n` : '',
     dedupedFindings.length ? `## Research Findings\n${dedupedFindings.join('\n')}\n` : '',
