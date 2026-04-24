@@ -403,9 +403,13 @@ const perCompetitorCss = `
   .research { background:var(--card); border:1px solid var(--border); border-radius:4px; padding:1.5rem; margin-bottom:1.25rem; }
   .research h2 { font-size:1.125rem; font-weight:600; margin:1.5rem 0 0.5rem 0; color:var(--black); }
   .research h2:first-child { margin-top:0; }
+  .research h3 { font-size:0.9375rem; font-weight:600; margin:1rem 0 0.375rem 0; color:var(--black); }
   .research p { margin-bottom:0.75rem; }
   .research ul { margin:0.5rem 0 1rem 1.25rem; }
   .research li { margin-bottom:0.375rem; font-size:0.875rem; }
+  .research.battle { border-left:3px solid var(--brand); }
+  .research.battle h2 { color:var(--brand); }
+  .research.battle h3 { text-transform:uppercase; letter-spacing:0.04em; font-size:0.75rem; color:var(--muted); margin-top:1.25rem; }
   .confidence { font-size:0.75rem; font-weight:600; padding:1px 6px; border-radius:2px; }
   .confidence.high { background:rgba(144,201,77,0.12); color:#5a8a1a; }
   .confidence.medium { background:rgba(244,186,65,0.12); color:#9a7520; }
@@ -463,6 +467,10 @@ for (const c of deduped) {
   const positioningHtml = c.sections['Positioning'] ? `<h2>Positioning</h2>${mdToHtml(c.sections['Positioning'])}` : '';
   const comparisonKey = Object.keys(c.sections).find(k => k.startsWith('Comparison'));
   const comparisonHtml = comparisonKey ? `<h2>${escapeHtml(comparisonKey)}</h2>${mdToHtml(c.sections[comparisonKey])}` : '';
+  // Battle Card — synthesized by the Battle lane subagent (Step 5d) after fact-check completes.
+  // Contains Landmines / Objection Handlers / Talk Tracks — sales-enablement-grade output.
+  const battleCardKey = Object.keys(c.sections).find(k => k === 'Battle Card' || k.startsWith('Battle'));
+  const battleCardHtml = battleCardKey ? `<h2>${escapeHtml(battleCardKey)}</h2>${mdToHtml(c.sections[battleCardKey])}` : '';
   const findingsHtml = c.sections['Research Findings'] ? `<h2>Research Findings</h2>${mdToHtml(c.sections['Research Findings'])}` : '';
 
   // Screenshot — filename matches capture_screenshots.mjs output.
@@ -512,6 +520,7 @@ for (const c of deduped) {
     ${positioningHtml}
     ${comparisonHtml}
   </div>
+  ${battleCardHtml ? `<div class="research battle">${battleCardHtml}</div>` : ''}
   <div class="research">
     <h2>Mentions</h2>
     ${mentionsHtml}

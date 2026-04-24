@@ -60,9 +60,9 @@ Follow these 8 steps in order. Do not skip or reorder.
 3. **Discovery (3 parallel waves)** — Wave A (alternatives), Wave B (precise category), Wave C (comparison-page graph via "X vs Y" title parsing)
 4. **Gate** — `scripts/gate_candidates.mjs` bb-fetches each candidate's hero text and drops wrong-category URLs
 5. **Confirm enrichment set with the user** — Present PASS / UNKNOWN / rejected-brand-matches via `AskUserQuestion`. User ticks the real ones, adds any the discovery missed. Skipping this step is wasteful because enrichment is expensive (25 subagents × depth budget) and the gate is imperfect (JS-heavy homepages, Cloudflare challenges, semantic-variant taglines)
-6. **Deep Enrichment (5 subagents per competitor in deep/deeper modes)** — Marketing, Discussion, Social, News, Technical — each lane a separate subagent writing to `partials/`; then `merge_partials.mjs` consolidates
+6. **Deep Enrichment (5 subagents per competitor in deep/deeper modes)** — Marketing, Discussion, Social, News, Technical — each lane a separate subagent writing to `partials/`; then `merge_partials.mjs` consolidates. In deep/deeper modes, **Step 5d** adds a 6th Battle Card synthesis lane AFTER Step 5c fact-check completes — produces per-competitor Landmines / Objection Handlers / Talk Tracks grounded in cited evidence.
 7. **Screenshots** — `capture_screenshots.mjs` via the `browse` CLI captures a 1280×800 homepage hero per competitor
-8. **HTML Report** — Overview + per-competitor (with embedded hero screenshot) + matrix + mentions views
+8. **HTML Report** — Overview + per-competitor (with embedded hero screenshot + Battle Card card) + matrix + mentions views
 
 ---
 
@@ -321,6 +321,18 @@ flip (was true → now false, or vice versa) with the source URL and quoted evid
 ```
 
 After the subagent completes, the main agent re-reads matrix.json, recompiles the report, and surfaces the `matrix_fact_check.md` delta to the user. **The strategic summary is worthless without this step** — it will confidently state "winning on X" where X is a hallucination.
+
+### Step 5d: Battle Card synthesis (deep/deeper only, after Step 5c)
+
+**Depends on fact-checked matrix.json from Step 5c.** This is a sales-enablement lane. For each competitor, launch a Bash-only synthesis subagent (no new `bb` calls) that reads all 5 existing partials + the user's merged `.md` + fact-checked `matrix.json`, and produces per-competitor Landmines / Objection Handlers / Talk Tracks grounded in cited evidence.
+
+Prompt template: `references/battle-card-subagent.md` (substitute `{COMPETITOR_SLUG}` / `{COMPETITOR_NAME}` / `{USER_COMPANY_NAME}` / `{USER_WINNING_SUMMARY}` per competitor). Format spec: `references/battle-card.md`.
+
+Output: `{OUTPUT_DIR}/partials/{slug}.battle.md` with a `## Battle Card` section. `merge_partials.mjs` unions this into the consolidated `{slug}.md`. `compile_report.mjs` renders it as a brand-accented card on the per-competitor HTML page.
+
+**Why this lane is synthesis-only** — battle cards must be grounded in facts that already survived Step 5c. Letting the subagent do fresh `bb` searches would reintroduce the hallucinated-moat problem the fact-check step exists to prevent. The subagent's adversarial self-check explicitly rejects claims not traceable to an input partial bullet or a `sources`-backed matrix cell.
+
+Parallelism: 1 subagent per competitor, all in one Agent-tool message (synthesis is fast, ~3-5 Bash calls per subagent). Skip this step in `quick` mode — there isn't enough research depth to ground the cards credibly.
 
 ## Step 6: Screenshots
 

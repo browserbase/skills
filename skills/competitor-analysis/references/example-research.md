@@ -70,6 +70,19 @@ Marketing emphasizes "AI-native" and developer-first DX. Landing page hero:
 - **[high]** Series seed, $5M raised Nov 2024 (source: TechCrunch)
 - **[medium]** CEO LinkedIn emphasizes AI-agent use cases (source: linkedin.com/in/rivalco-ceo)
 - **[low]** Possibly a team under 20 based on careers page (source: rivalco.com/careers)
+
+## Battle Card
+
+### Landmines
+- **Rival Co scores 73% on the computesdk stealth benchmark (4th of 7 tested)** — use against stealth-forward prospects; they rank below Browserbase and Hyperbrowser on the same test. (source: https://github.com/computesdk/benchmarks/pull/92)
+- **G2 average 4.3/5 with "flaky sessions" as top complaint across 31 reviews** — cite when prospect raises reliability concerns. (source: https://g2.com/products/rival-co)
+
+### Objection Handlers
+- If they say: "Rival Co is $99/mo — cheaper than your Pro tier"
+  You say: "Cheaper upfront, but compare total cost of stealth incidents — their 73% benchmark pass rate means ~1 in 4 requests hits a challenge page you'll need to retry, and retries aren't free." (evidence: https://github.com/computesdk/benchmarks/pull/92)
+
+### Talk Tracks
+1. For production workloads where session reliability matters, Browserbase ships session inspector + video recording as table stakes; Rival Co has neither in their 2024 product set.
 ```
 
 ## Field Rules
@@ -78,7 +91,7 @@ Marketing emphasizes "AI-native" and developer-first DX. Landing page hero:
 - **`pricing_tiers`**: Pipe-separated (`|`) with tier name + short price. `compile_report.mjs` parses on `|` for the matrix view.
 - **`key_features`**, **`integrations`**: Pipe-separated lists.
 - **`strategic_diff`**: One-line summary (shown in overview table).
-- **Body sections**: `## Product`, `## Pricing`, `## Features`, `## Positioning`, `## Comparison vs {user_company}`, `## Mentions`, `## Benchmarks`, `## Research Findings`.
+- **Body sections**: `## Product`, `## Pricing`, `## Features`, `## Positioning`, `## Comparison vs {user_company}`, `## Mentions`, `## Benchmarks`, `## Research Findings`, `## Battle Card` (deep/deeper modes only; synthesized by the Battle lane after fact-check).
 - **Mentions format**: `- **[SourceType]** title | snippet (source: url, date)` — `SourceType` is one of `Benchmark`, `Comparison`, `News`, `Reddit`, `HN`, `LinkedIn`, `YouTube`, `Review`, `Podcast`, `X`.
 - **Findings format**: `- **[confidence]** fact (source: url)` — `confidence` is `high`, `medium`, or `low`.
 - **Filename**: `{OUTPUT_DIR}/{competitor-slug}.md` where slug is lowercase, hyphenated.

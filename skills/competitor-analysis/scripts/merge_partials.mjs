@@ -33,7 +33,7 @@ Reads {dir}/partials/{slug}.{lane}.md files and writes consolidated
 const dir = args[0];
 const partialsDir = join(dir, 'partials');
 
-const LANES = ['marketing', 'discussion', 'social', 'news', 'technical'];
+const LANES = ['marketing', 'discussion', 'social', 'news', 'technical', 'battle'];
 
 function parseFrontmatter(content) {
   const m = content.match(/^---\n([\s\S]*?)\n---/);
@@ -259,6 +259,9 @@ for (const [slug, lanes] of bySlug.entries()) {
 
   // Comparison heading may be "Comparison vs Browserbase" etc — find any key starting with "Comparison"
   const comparisonKey = Object.keys(allSections).find(k => k.startsWith('Comparison'));
+  // Battle lane produces a `## Battle Card` section — sales enablement synthesized from verified
+  // partials + fact-checked matrix (runs AFTER Step 5c fact-check, see SKILL.md Step 5d).
+  const battleCardKey = Object.keys(allSections).find(k => k === 'Battle Card' || k.startsWith('Battle'));
 
   const out = [
     '---',
@@ -270,6 +273,7 @@ for (const [slug, lanes] of bySlug.entries()) {
     first('Features') ? `## Features\n${first('Features')}\n` : '',
     first('Positioning') ? `## Positioning\n${first('Positioning')}\n` : '',
     comparisonKey && allSections[comparisonKey].length ? `## ${comparisonKey}\n${allSections[comparisonKey][0]}\n` : '',
+    battleCardKey && allSections[battleCardKey].length ? `## ${battleCardKey}\n${allSections[battleCardKey][0]}\n` : '',
     dedupedMentions.length ? `## Mentions\n${dedupedMentions.join('\n')}\n` : '',
     dedupedBench.length ? `## Benchmarks\n${dedupedBench.join('\n')}\n` : '',
     dedupedFindings.length ? `## Research Findings\n${dedupedFindings.join('\n')}\n` : '',
