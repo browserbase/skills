@@ -8,55 +8,15 @@
 
 ## Invoking Deployed Functions
 
-### Via curl
+### Via CLI
 
 ```bash
-# Start invocation
-curl -X POST "https://api.browserbase.com/v1/functions/FUNCTION_ID/invoke" \
-  -H "Content-Type: application/json" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY" \
-  -d '{"params": {"url": "https://example.com"}}'
-
-# Response: {"id": "INVOCATION_ID"}
-
-# Poll for result
-curl "https://api.browserbase.com/v1/functions/invocations/INVOCATION_ID" \
-  -H "x-bb-api-key: $BROWSERBASE_API_KEY"
+bb functions invoke FUNCTION_ID --params '{"url": "https://example.com"}'
+bb functions invoke FUNCTION_ID --params '{"url": "https://example.com"}' --no-wait
+bb functions invoke --check-status INVOCATION_ID
 ```
 
-### Via Code
-
-```typescript
-async function invokeFunction(functionId: string, params: object) {
-  // Start invocation
-  const invokeRes = await fetch(
-    `https://api.browserbase.com/v1/functions/${functionId}/invoke`,
-    {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-bb-api-key': process.env.BROWSERBASE_API_KEY!,
-      },
-      body: JSON.stringify({ params }),
-    }
-  );
-  const { id: invocationId } = await invokeRes.json();
-
-  // Poll until complete
-  while (true) {
-    await new Promise(r => setTimeout(r, 5000));
-
-    const statusRes = await fetch(
-      `https://api.browserbase.com/v1/functions/invocations/${invocationId}`,
-      { headers: { 'x-bb-api-key': process.env.BROWSERBASE_API_KEY! } }
-    );
-    const result = await statusRes.json();
-
-    if (result.status === 'COMPLETED') return result.results;
-    if (result.status === 'FAILED') throw new Error(result.error);
-  }
-}
-```
+If `bb` is not installed: `npm install -g @browserbasehq/cli`
 
 ## Common Patterns
 

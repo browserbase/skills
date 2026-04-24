@@ -2,65 +2,27 @@
 
 ## Table of Contents
 
-- [Endpoint](#endpoint)
-- [Authentication](#authentication)
-- [Request](#request)
+- [CLI](#cli)
+- [CLI Options](#cli-options)
 - [Response](#response)
 - [Error Responses](#error-responses)
 - [Configuration](#configuration)
 
-## Endpoint
-
-```
-POST https://api.browserbase.com/v1/search
-```
-
-Search the web and return structured results with titles, URLs, and metadata.
-
-## Authentication
-
-All requests require the `X-BB-API-Key` header:
+## CLI
 
 ```bash
-curl -X POST "https://api.browserbase.com/v1/search" \
-  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{"query": "example search"}'
+bb search "example search"
+bb search "browser automation" --num-results 5
+bb search "AI agents" --output results.json
 ```
 
-Get your API key from https://browserbase.com/settings.
+## CLI Options
 
-## Request
-
-**Content-Type:** `application/json`
-
-### Body Parameters
-
-| Parameter | Type | Required | Default | Description |
-|-----------|------|----------|---------|-------------|
-| `query` | `string` | Yes | — | The search query |
-| `numResults` | `integer` | No | `10` | Number of results to return (1-25) |
-
-### Minimal Request
-
-```bash
-curl -X POST "https://api.browserbase.com/v1/search" \
-  -H "Content-Type: application/json" \
-  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
-  -d '{"query": "browser automation"}'
-```
-
-### Full Request
-
-```bash
-curl -X POST "https://api.browserbase.com/v1/search" \
-  -H "Content-Type: application/json" \
-  -H "X-BB-API-Key: $BROWSERBASE_API_KEY" \
-  -d '{
-    "query": "browser automation",
-    "numResults": 5
-  }'
-```
+| Flag | Type | Default | Description |
+|------|------|---------|-------------|
+| `<query>` | `string` | *required* | The search query |
+| `--num-results` | `integer` | `10` | Number of results to return (1-25) |
+| `--output <file>` | `string` | stdout | Save results to a file |
 
 ## Response
 
@@ -125,27 +87,11 @@ Each result object:
 
 Invalid request body. Check that `query` is a non-empty string and `numResults` is between 1 and 25.
 
-```json
-{
-  "statusCode": 400,
-  "error": "Bad Request",
-  "message": "Invalid query"
-}
-```
-
-**Fix**: Ensure the `query` field is provided and is a non-empty string.
+**Fix**: Ensure the query is provided and is a non-empty string.
 
 ### 403 Forbidden
 
 Invalid or missing API key.
-
-```json
-{
-  "statusCode": 403,
-  "error": "Forbidden",
-  "message": "Invalid API key"
-}
-```
 
 **Fix**: Check that `BROWSERBASE_API_KEY` is set correctly. Get your key from https://browserbase.com/settings.
 
@@ -153,27 +99,11 @@ Invalid or missing API key.
 
 Rate limit exceeded. Wait and retry.
 
-```json
-{
-  "statusCode": 429,
-  "error": "Too Many Requests",
-  "message": "Rate limit exceeded"
-}
-```
-
 **Fix**: Reduce request frequency or contact support for higher limits.
 
 ### 500 Internal Server Error
 
 Unexpected server error.
-
-```json
-{
-  "statusCode": 500,
-  "error": "Internal Server Error",
-  "message": "An unexpected error occurred"
-}
-```
 
 **Fix**: Retry the request. If the error persists, contact support.
 
@@ -191,4 +121,4 @@ Search requests are rate-limited per account. If you hit 429 errors, reduce requ
 
 ### SDK Support
 
-The `@browserbasehq/sdk` does not yet include a search method. Use cURL or direct HTTP calls with the `X-BB-API-Key` header for now.
+The `@browserbasehq/sdk` does not yet include a search method. Use `bb search`.
