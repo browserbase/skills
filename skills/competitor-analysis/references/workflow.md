@@ -302,6 +302,23 @@ Launch as many subagents as possible in a single message (up to ~6 per message).
 - For names from `extract_vs_names.mjs` that didn't resolve to a domain, optionally run `bb search "{name}" --num-results 3` to resolve the top domain; skip if ambiguous.
 - **Merge**: filtered-URL list ∪ resolved `vs_names` domains ∪ user-provided seed URLs. Dedup by hostname into `/tmp/competitor_candidates.txt`.
 
+### User-confirm phase (between gate and enrichment — mandatory)
+
+After the gate writes `/tmp/competitor_gated.jsonl`, the main agent MUST ask the user to confirm the enrichment set before launching subagents. Enrichment is 25 subagents × depth budget per competitor — too expensive to run on guesses.
+
+Present three buckets to the user:
+1. **PASS** — status=PASS rows with title
+2. **UNKNOWN** — status=UNKNOWN (fetch failed; always a silent miss risk — JS-heavy homepages, Cloudflare challenges)
+3. **Rejected-brand matches** — top ~10 REJECT rows whose title contains a seed token or that showed up repeatedly in the Wave C "X vs Y" graph
+
+Then `AskUserQuestion` with a checkbox list + free-text "add more". Write the confirmed set to `/tmp/competitor_enrichment_set.txt` (one URL per line). That file — not `/tmp/competitor_passed.txt` — is the input to the enrichment subagents.
+
+Known gate blind spots to surface aggressively:
+- JS-heavy landing pages return near-empty hero text → gate's keyword matcher has nothing to bite on
+- Cloudflare challenge titles ("Just a moment...") → obvious false negative
+- "Search foundation" / "retrieval backbone" / "agent runtime" — semantic variants of the category don't lexically match
+- Apex domain vs product subdomain (e.g. `brave.com` the browser vs `api-dashboard.search.brave.com` the actual API product)
+
 ### Gate Phase (between discovery and enrichment)
 
 Drop wrong-category candidates BEFORE enrichment burns tool calls on them.

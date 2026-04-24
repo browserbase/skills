@@ -53,15 +53,16 @@ Analyze a user's competitors. Uses Browserbase Search API for discovery and a 4-
 
 ## Pipeline Overview
 
-Follow these 7 steps in order. Do not skip or reorder.
+Follow these 8 steps in order. Do not skip or reorder.
 
 1. **User Company Research** — Deeply understand the user's company, produce `precise_category` + `category_include_keywords` + `exclusion_list`
 2. **Depth Mode + Seed Input** — Choose depth, accept optional seed competitor URLs
 3. **Discovery (3 parallel waves)** — Wave A (alternatives), Wave B (precise category), Wave C (comparison-page graph via "X vs Y" title parsing)
 4. **Gate** — `scripts/gate_candidates.mjs` bb-fetches each candidate's hero text and drops wrong-category URLs
-5. **Deep Enrichment (5 subagents per competitor in deep/deeper modes)** — Marketing, Discussion, Social, News, Technical — each lane a separate subagent writing to `partials/`; then `merge_partials.mjs` consolidates
-6. **Screenshots** — `capture_screenshots.mjs` via the `browse` CLI captures homepage hero + full-page pricing for each competitor
-7. **HTML Report** — Overview + per-competitor (with embedded screenshots) + matrix + mentions views
+5. **Confirm enrichment set with the user** — Present PASS / UNKNOWN / rejected-brand-matches via `AskUserQuestion`. User ticks the real ones, adds any the discovery missed. Skipping this step is wasteful because enrichment is expensive (25 subagents × depth budget) and the gate is imperfect (JS-heavy homepages, Cloudflare challenges, semantic-variant taglines)
+6. **Deep Enrichment (5 subagents per competitor in deep/deeper modes)** — Marketing, Discussion, Social, News, Technical — each lane a separate subagent writing to `partials/`; then `merge_partials.mjs` consolidates
+7. **Screenshots** — `capture_screenshots.mjs` via the `browse` CLI captures homepage hero + full-page pricing for each competitor
+8. **HTML Report** — Overview + per-competitor (with embedded screenshots) + matrix + mentions views
 
 ---
 
@@ -172,16 +173,45 @@ grep '"status":"PASS"' /tmp/competitor_gated.jsonl \
 
 The gate fetches each candidate's homepage via `bb fetch --allow-redirects`, extracts the first 800 chars of visible text, and classifies position-aware: exclude in `<title>` → REJECT; include in `<title>` → PASS; hybrid title → hero200 tiebreak; otherwise fall through.
 
-**Review the PASS/REJECT split** in `/tmp/competitor_gated.jsonl`. Spot-check for miscategorizations. If a known direct competitor was REJECTED because their marketing straddles categories (e.g. browser + scraping), manually add their URL to `/tmp/competitor_passed.txt`.
-
 **Evaluated on Browserbase** with 12 mixed candidates: 7/7 real competitors passed, 4/4 wrong-category rejected, 1 known-hybrid edge case rejected.
+
+## Step 4.5: Confirm enrichment set with the user
+
+**This step is mandatory. Do NOT skip to enrichment just because the gate ran.**
+
+Enrichment is expensive: 5 competitors × 5 lane-subagents = 25 subagents, ~10-15 minutes of wall clock, ~300 `bb` calls. Running it on the wrong set wastes all of that. The gate also has known blind spots:
+
+- **JS-heavy homepages** (e.g. Tavily, Firecrawl) — `bb fetch` returns near-empty text, so keyword matching has nothing to match on → REJECT or UNKNOWN
+- **Cloudflare challenge pages** (e.g. Perplexity) — title becomes "Just a moment..." → no category signal
+- **Semantic variants** — "search foundation" / "retrieval backbone" don't lexically match a list centered on "search API"
+- **Domain ambiguity** — `brave.com` (the browser) vs `api-dashboard.search.brave.com` (the actual API product) can confuse classification
+
+The user almost always has domain knowledge the skill lacks. Ask them.
+
+**Process** — the main agent:
+
+1. Read `/tmp/competitor_gated.jsonl` and group rows:
+   - **PASS bucket**: everything with status=PASS.
+   - **UNKNOWN bucket**: status=UNKNOWN (fetch failed — always surface, these are the silent misses).
+   - **Rejected-brand bucket**: top ~10 REJECT rows whose title mentions a well-known brand pattern (e.g. contains the token from a user-supplied seed list, or appears frequently in the Wave C "X vs Y" graph).
+
+2. Present the buckets to the user, one table per bucket, with URL + title + reason (for rejects).
+
+3. Use `AskUserQuestion` with a checkbox list of all candidates across the three buckets, plus a free-text "add more" field. The prompt should be explicit:
+   > "Here are the gate's picks plus a few it was unsure about. Tick the ones that are real competitors in your space, and paste any URLs I missed (comma-separated). Enrichment will run on ONLY the ticked set."
+
+4. Write the confirmed set to `/tmp/competitor_enrichment_set.txt` (one URL per line). This is the input for Step 5 — not `/tmp/competitor_passed.txt`.
+
+**If the user doesn't respond** or explicitly says "just run it", fall back to `/tmp/competitor_passed.txt` as-is, but warn in chat that the run may waste budget on wrong-category hits.
+
+**Exa test, 2026-04-24**: gate auto-passed 22 of 101 candidates but missed Tavily (generic title), Jina AI (semantic mismatch — "search foundation"), Firecrawl (JS-heavy fetch failure), and Perplexity (Cloudflare challenge). All four are real direct competitors. This step catches them.
 
 ## Step 5: Deep Enrichment
 
 Two modes. See `references/workflow.md` for prompt templates and wave management. See `references/research-patterns.md` for the lane-by-lane methodology.
 
 ### Quick mode — single subagent per batch
-- Input: `/tmp/competitor_passed.txt` (gate survivors), ~8 competitors per subagent.
+- Input: `/tmp/competitor_enrichment_set.txt` (user-confirmed set from Step 4.5), ~8 competitors per subagent.
 - One subagent runs Lane A only (marketing surface). 2-3 tool calls each.
 - Writes directly to `{OUTPUT_DIR}/{slug}.md`.
 
