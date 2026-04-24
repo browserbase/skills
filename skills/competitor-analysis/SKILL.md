@@ -254,6 +254,11 @@ The main agent fixes this by synthesizing a **shared taxonomy** across competito
      "category": "AI search APIs",
      "features": [{ "name": "Web Search API", "description": "..." }, ...],
      "integrations": [{ "name": "LangChain" }, ...],
+     "userCompany": {
+       "name": "Exa",
+       "features": { "Web Search API": true, "Site crawler": true, ... },
+       "integrations": { "LangChain": true, ... }
+     },
      "competitors": {
        "tavily": {
          "features": { "Web Search API": true, "Site crawler": true, ... },
@@ -264,7 +269,9 @@ The main agent fixes this by synthesizing a **shared taxonomy** across competito
    }
    ```
 
-If this step is skipped, the matrix view falls back to the raw pipe-split axis (mostly useless for atomic comparison). Do not skip.
+   **`userCompany` is required**. The overview page renders two cards — "Where {user} is winning" (features the user has that ≤1 competitor matches) and "Where {user} is losing" (features the user lacks that ≥3 competitors have). Populate `userCompany.features` and `userCompany.integrations` from the self-research profile (Step 1). Without this field those two cards don't render.
+
+If this step is skipped, the matrix view falls back to the raw pipe-split axis (useless for atomic comparison) and the strategic summary doesn't render. Do not skip.
 
 ## Step 6: Screenshots
 
