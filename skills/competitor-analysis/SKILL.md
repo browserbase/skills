@@ -82,24 +82,34 @@ rm -f /tmp/competitor_discovery_batch_*.json
 
 ## Step 1: User Company Research
 
-This step sets the baseline for what "competitor" means.
+This step sets the baseline for what "competitor" means AND produces the verified data the Step 5b matrix will use for the `userCompany` row.
+
+**Rule**: The user's company gets the same 5-lane research depth as competitors. Do NOT fill `userCompany` in matrix.json from memory — it will ship false claims to the user's own team. On the Browserbase run 2026-04-23, skipping this step produced a matrix that claimed Browserbase had a "published uptime SLA" (there is no numeric public SLA — only a status page) and marked Stagehand's MIT-licensed OSS SDK as `open-source: false` (the repo is github.com/browserbase/stagehand, LICENSE confirmed MIT). Both errors would have surfaced in the "Where you're winning" card as fabricated moats.
+
+Process:
 
 1. Ask the user for their company name or URL.
 
-2. **Check for an existing profile** at `{SKILL_DIR}/profiles/{company-slug}.json`. If it exists, load it and confirm with the user: "I have your profile from {researched_at}. Still accurate?" — if yes, skip to Step 2.
+2. **Check for an existing profile** at `{SKILL_DIR}/profiles/{company-slug}.json`. If it exists, load it and confirm with the user: "I have your profile from {researched_at}. Still accurate?" — if yes, skip to Step 2 BUT still run the partial-lane enrichment below so matrix synthesis has fresh feature evidence.
    The profile format is shared with `company-research` (same shape). If a user already has a profile saved under `company-research/profiles/`, you may copy it into this skill's profiles directory rather than re-researching.
 
-3. **No profile exists** → run the self-research flow. See `references/research-patterns.md` → "Self-Research" for sub-questions and page-discovery rules.
+3. **Run the full 5-lane enrichment on the user's company** — identical to the competitor pattern in Step 5. For each lane, spawn a Bash-only subagent that writes to `{OUTPUT_DIR}/partials/{user-slug}.{lane}.md`:
+   - **marketing** — tagline, positioning, pricing tiers, features, integrations, open-source components (SDK repos + licenses), regions offered, compliance (SOC 2 / HIPAA / trust portal URL)
+   - **technical** — CDP / Playwright / Puppeteer / Selenium driver support (with docs URLs), SDK languages, MCP server URL, stealth product name + tier, session replay + video recording specifics, published uptime SLA (actual %, not status page), third-party benchmarks
+   - **discussion**, **social**, **news** — optional in quick mode, recommended in deep+
+   See `references/research-patterns.md` → "Self-Research" for sub-questions. Each finding MUST cite a URL.
 
-4. Synthesize into a profile: Company, Product, Existing Customers, Competitors (seed list), Use Cases, **precise_category**, **category_include_keywords**, **exclusion_list**. Do NOT include ICP — this skill doesn't need it.
+4. Run `merge_partials.mjs` on the user's partials too — produces `{OUTPUT_DIR}/{user-slug}.md`, the canonical source Step 5b reads from for `userCompany` flags.
+
+5. Synthesize into a profile: Company, Product, Existing Customers, Competitors (seed list), Use Cases, **precise_category**, **category_include_keywords**, **exclusion_list**. Do NOT include ICP — this skill doesn't need it.
    - `precise_category`: one sentence describing the category. e.g., "cloud headless browser infrastructure for AI agents with CDP". Avoid vague words like "tools" / "platform".
    - `category_include_keywords`: 8-15 phrases a direct competitor's marketing would likely contain (hero or title). Include semantic variants.
    - `exclusion_list`: phrases that indicate a *different* category — used by the gate to reject false positives (e.g. `antidetect browser`, `scraping api`, `screenshot api`, `residential proxy`).
    See `references/research-patterns.md` → "Synthesis Output" for the exact format and Browserbase as a worked example.
 
-5. Present the profile to the user. Do not proceed until confirmed.
+6. Present the profile + the user-company `.md` to the user for confirmation. Do not proceed until confirmed.
 
-6. **Save the confirmed profile** to `{SKILL_DIR}/profiles/{company-slug}.json`.
+7. **Save the confirmed profile** to `{SKILL_DIR}/profiles/{company-slug}.json`.
 
 ## Step 2: Depth Mode + Seed Input
 
@@ -244,10 +254,10 @@ Unions the 5 partials per competitor into one `{OUTPUT_DIR}/{slug}.md` — dedup
 The main agent fixes this by synthesizing a **shared taxonomy** across competitors and writing `{OUTPUT_DIR}/matrix.json`. `compile_report.mjs` auto-detects this file and renders the matrix from it instead of from the pipe split.
 
 **Process** — main agent:
-1. Read all `{slug}.md` files. Focus on the `key_features`, `integrations`, and `## Features` sections.
+1. Read ALL `{slug}.md` files, INCLUDING the user's company file `{user-slug}.md` produced in Step 1. The user is competitor #0 for matrix purposes — treat with identical rigor.
 2. Produce a canonical list of 12-20 *atomic* features — each must be a yes/no proposition a competitor either has or doesn't (e.g. "MCP server", "SOC 2", "Site crawler", "Reranker"). Avoid sentence-length features. Avoid features only one competitor has.
 3. Produce a canonical list of 10-20 integrations (frameworks, marketplaces, SDK languages).
-4. For each competitor, map each taxonomy entry to `true` / `false` based on the enrichment data. Be conservative — if not mentioned, leave `false`.
+4. For each company INCLUDING THE USER, map each taxonomy entry to `true` / `false` based on the enrichment data in their `.md` file. **Every flag must be traceable to a Research Findings bullet with a cited URL.** If the user's file says "Stagehand MIT-licensed (github.com/browserbase/stagehand)", the Open-source feature is `true` with that URL as the source. If not mentioned, leave `false`.
 5. Write the result to `{OUTPUT_DIR}/matrix.json` in this shape:
    ```json
    {
