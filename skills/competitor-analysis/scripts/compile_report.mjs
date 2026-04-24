@@ -277,6 +277,90 @@ const tableRows = deduped.map(c => {
       </tr>`;
 }).join('\n');
 
+// Prefer a curated taxonomy from `matrix.json` when present — subagents write
+// heterogeneous prose into key_features/integrations frontmatter, so the raw
+// split-by-pipe axis is one-blob-per-competitor (no overlap, no comparison).
+// `matrix.json` defines a shared axis of atomic features and a yes/no mapping
+// per competitor, producing a real comparison.
+let curatedMatrix = null;
+try {
+  const p = join(dir, 'matrix.json');
+  if (existsSync(p)) curatedMatrix = JSON.parse(readFileSync(p, 'utf-8'));
+} catch (err) {
+  console.error(`Warning: matrix.json present but unreadable — falling back to pipe split. ${err.message}`);
+}
+
+// Strategic summary — "Where are you winning?" / "Where are you losing?"
+// Requires matrix.json to carry a `userCompany` entry with feature flags. We then
+// compare the user's flag per feature against how many competitors also have it.
+//   - Winning: user has the feature + at most 1 competitor has it (differentiated).
+//   - Losing:  user LACKS the feature + 3 or more competitors have it (common gap).
+// If userCompany is absent we render nothing — a skill run that skipped Step 5's
+// matrix synthesis shouldn't get a broken/empty block here.
+function buildStrategicSummary() {
+  if (!curatedMatrix || !curatedMatrix.userCompany) return '';
+  const user = curatedMatrix.userCompany;
+  const userName = user.name || userCompany || 'You';
+  const userEsc = escapeHtml(userName);
+
+  function analyze(kind) {
+    const axis = curatedMatrix[kind] || [];
+    const compMap = curatedMatrix.competitors || {};
+    const userFlags = user[kind] || {};
+    const wins = [];
+    const losses = [];
+    for (const entry of axis) {
+      const label = entry.name;
+      const userHas = !!userFlags[label];
+      const whoElseHas = [];
+      for (const c of deduped) {
+        const compEntry = compMap[c.slug];
+        if (compEntry && compEntry[kind] && compEntry[kind][label]) whoElseHas.push(c.competitor_name);
+      }
+      const competitorCount = whoElseHas.length;
+      if (userHas && competitorCount <= 1) {
+        wins.push({ label, whoElseHas });
+      } else if (!userHas && competitorCount >= 3) {
+        losses.push({ label, whoElseHas });
+      }
+    }
+    // Order wins by rarity (fewest competitors have it first → most differentiated).
+    wins.sort((a, b) => a.whoElseHas.length - b.whoElseHas.length);
+    // Order losses by how many competitors have it (more = bigger gap).
+    losses.sort((a, b) => b.whoElseHas.length - a.whoElseHas.length);
+    return { wins, losses };
+  }
+
+  const featureAnalysis = analyze('features');
+  const integrationAnalysis = analyze('integrations');
+  const allWins = [...featureAnalysis.wins, ...integrationAnalysis.wins];
+  const allLosses = [...featureAnalysis.losses, ...integrationAnalysis.losses];
+
+  function renderList(items, emptyMessage) {
+    if (!items.length) return `<div class="empty">${escapeHtml(emptyMessage)}</div>`;
+    return `<ul>${items.slice(0, 10).map(it => {
+      const n = it.whoElseHas.length;
+      const who = n === 0 ? 'only you' : (n <= 3 ? it.whoElseHas.join(', ') : `${n} competitors`);
+      return `<li><span class="label">${escapeHtml(it.label)}</span><span class="who">${escapeHtml(who)}</span></li>`;
+    }).join('')}</ul>`;
+  }
+
+  return `<div class="strategic">
+    <div class="card win">
+      <h3>Where ${userEsc} is winning <span class="badge win">${allWins.length}</span></h3>
+      <div class="sub">Features and integrations ${userEsc} has that 0–1 competitors match.</div>
+      ${renderList(allWins, 'No clear differentiators found — user has no unique features in the current taxonomy.')}
+    </div>
+    <div class="card loss">
+      <h3>Where ${userEsc} is losing <span class="badge loss">${allLosses.length}</span></h3>
+      <div class="sub">Features and integrations ${userEsc} lacks that 3+ competitors have.</div>
+      ${renderList(allLosses, 'No major gaps found — user keeps up on table-stakes features.')}
+    </div>
+  </div>`;
+}
+
+const strategicSummary = buildStrategicSummary();
+
 let indexHtml = template
   .replace(/\{\{TITLE\}\}/g, escapeHtml(`${title}`))
   .replace(/\{\{META\}\}/g, escapeHtml(metaLine))
@@ -284,6 +368,7 @@ let indexHtml = template
   .replace(/\{\{MENTION_COUNT\}\}/g, String(totalMentions))
   .replace(/\{\{BENCHMARK_COUNT\}\}/g, String(totalBenchmarks))
   .replace(/\{\{WITH_PRICING\}\}/g, String(withPricing))
+  .replace(/\{\{STRATEGIC_SUMMARY\}\}/g, strategicSummary)
   .replace(/\{\{TABLE_ROWS\}\}/g, tableRows);
 
 writeFileSync(join(dir, 'index.html'), indexHtml);
@@ -435,18 +520,8 @@ for (const c of deduped) {
 
 // ---------- matrix.html (side-by-side) ----------
 
-// Prefer a curated taxonomy from `matrix.json` when present — subagents write
-// heterogeneous prose into key_features/integrations frontmatter, so the raw
-// split-by-pipe axis is one-blob-per-competitor (no overlap, no comparison).
-// `matrix.json` defines a shared axis of atomic features and a yes/no mapping
-// per competitor, producing a real comparison.
-let curatedMatrix = null;
-try {
-  const p = join(dir, 'matrix.json');
-  if (existsSync(p)) curatedMatrix = JSON.parse(readFileSync(p, 'utf-8'));
-} catch (err) {
-  console.error(`Warning: matrix.json present but unreadable — falling back to pipe split. ${err.message}`);
-}
+// curatedMatrix is loaded earlier (before the index.html section) because the
+// strategic summary on the overview page reads userCompany from it.
 
 function buildMatrixAxisFromCurated(kind) {
   if (!curatedMatrix || !curatedMatrix[kind]) return [];
