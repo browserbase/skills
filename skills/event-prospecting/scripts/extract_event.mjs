@@ -94,6 +94,35 @@ if (recon.strategy === 'next-data-eval') {
 // Add a slug
 people = people.map(p => ({ ...p, slug: slugify(p.name) }));
 
+// Filter event-host employees and obvious noise. The host org domain is derived
+// from the event URL — for stripesessions.com, that's stripe.
+const hostOrg = (() => {
+  try {
+    const h = new URL(recon.url).hostname.replace(/^www\./, '');
+    // 'stripesessions.com' → 'stripe' (drop the 'sessions' suffix or take the first chunk)
+    return h.split('.')[0].replace(/sessions?$/, '').replace(/conf$/, '');
+  } catch { return null; }
+})();
+
+const filterArgs = process.argv.slice(2);
+const userCompanyArg = (() => {
+  const i = filterArgs.indexOf('--user-company');
+  return i !== -1 ? filterArgs[i + 1] : null;
+})();
+
+const dropList = new Set([
+  hostOrg && hostOrg.toLowerCase(),
+  userCompanyArg && userCompanyArg.toLowerCase(),
+].filter(Boolean));
+
+const filtered = people.filter(p => {
+  if (!p.company) return true; // keep "unknown company" — synth assigns later
+  return !dropList.has(p.company.toLowerCase());
+});
+
+console.error(`Filtered ${people.length - filtered.length} host-org / user-company employees`);
+people = filtered;
+
 // Write people.jsonl
 const peopleFile = join(outDir, 'people.jsonl');
 writeFileSync(peopleFile, people.map(p => JSON.stringify(p)).join('\n') + '\n');
