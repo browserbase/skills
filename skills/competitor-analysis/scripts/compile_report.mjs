@@ -238,7 +238,16 @@ function mdToHtml(md) {
       let text = escapeHtml(trimmed.slice(2));
       text = text.replace(/\*\*\[(\w+)\]\*\*/g, '<span class="confidence $1">[$1]</span>');
       text = text.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
-      text = text.replace(/(https?:\/\/\S+)/g, '<a href="$1" target="_blank">$1</a>');
+      text = text.replace(/(https?:\/\/\S+)/g, (_, raw) => {
+        let url = raw;
+        let trail = '';
+        while (url && /[)\],.;:!?]$/.test(url)) {
+          trail = url.slice(-1) + trail;
+          url = url.slice(0, -1);
+        }
+        if (!url) return raw;
+        return `<a href="${url}" target="_blank">${url}</a>${trail}`;
+      });
       out.push(`<li>${text}</li>`);
       continue;
     }
@@ -605,11 +614,12 @@ for (const c of competitorRows) {
 
 function buildMatrixAxisFromCurated(kind) {
   if (!curatedMatrix || !curatedMatrix[kind]) return [];
+  const compMap = curatedMatrix.competitors || {};
   return curatedMatrix[kind].map(entry => {
     const label = entry.name;
     let count = 0;
     for (const c of competitorRows) {
-      const compKey = curatedMatrix.competitors[c.slug];
+      const compKey = compMap[c.slug];
       if (compKey && compKey[kind] && compKey[kind][label]) count += 1;
     }
     return { label, count, description: entry.description || '' };
@@ -638,7 +648,8 @@ const integrationAxis = curatedMatrix
 function competitorHas(c, field, label) {
   // Curated mode: look up in matrix.json (field is 'features' or 'integrations').
   if (curatedMatrix) {
-    const compEntry = curatedMatrix.competitors[c.slug];
+    const compMap = curatedMatrix.competitors || {};
+    const compEntry = compMap[c.slug];
     return !!(compEntry && compEntry[field] && compEntry[field][label]);
   }
   // Fallback: raw pipe-split match.
