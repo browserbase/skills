@@ -300,6 +300,39 @@ git commit -m "feat(event-prospecting): recon.mjs detects Next.js + locates spea
 
 ---
 
+### Task A5: Create references/event-platforms.md (was missing — gap fix)
+
+**Why:** Document per-platform extractor strategies so future contributors can add a new event platform without touching `recon.mjs` core code. Required by the design doc; missed in initial plan write.
+
+**Files:**
+- Create: `skills/event-prospecting/references/event-platforms.md`
+
+**Step 1: Add a TOC at the top** (skill-creator: required for files >100 lines)
+
+```markdown
+# Event-Prospecting — Platform Reference
+
+## Contents
+- [Detection Priority](#detection-priority) — order recon.mjs probes
+- [Next.js / `__NEXT_DATA__`](#nextjs--__next_data__) — Stripe Sessions class
+- [Sessionize](#sessionize) — public JSON API
+- [Lu.ma](#luma) — JSON-LD Event block
+- [Eventbrite](#eventbrite) — JSON-LD Event block
+- [Custom / Markdown Fallback](#custom--markdown-fallback) — last resort
+- [Adding a New Platform](#adding-a-new-platform) — contributor guide
+```
+
+**Step 2: Write each section with: detection signature, extraction strategy, sample output shape, known gotchas**
+
+**Step 3: Commit**
+
+```bash
+git add skills/event-prospecting/references/event-platforms.md
+git commit -m "docs(event-prospecting): per-platform extractor reference"
+```
+
+---
+
 ### Task A4: Add fallback platform detectors (markdown extraction)
 
 The Next.js detector covers Stripe-class events. We need at least the markdown fallback to handle "unknown" sites without crashing. Sessionize / Lu.ma / Eventbrite branches are stubs that just set the strategy field — actual extractors come in Phase B.
@@ -603,16 +636,35 @@ ICP triage is one tool call per company. We dispatch ~10 subagents each handling
 **Files:**
 - Create: `skills/event-prospecting/references/research-patterns.md`
 
-**Step 1: Reference company-research's research-patterns.md**
+**Step 1: Copy the canonical Plan→Research→Synthesize block from company-research VERBATIM** (skill-creator: skills must be self-contained; don't depend on a sibling skill's filesystem location at runtime)
 
-The Plan→Research→Synthesize pattern is identical. Don't duplicate; reference and add the event-specific deltas.
+```bash
+# Read the source so it's at hand
+cat /Users/jay/skills/skills/company-research/references/research-patterns.md
+```
+
+Copy the full Plan→Research→Synthesize section into the new file. Cite the source as a comment at the top:
+
+```markdown
+<!-- Plan→Research→Synthesize pattern adapted from company-research v1.1.0 (2026-04-25). -->
+<!-- Keep in sync if the canonical pattern there changes meaningfully. -->
+```
+
+**Step 1.5: Add a TOC at the top** (skill-creator: required for files >100 lines)
 
 ```markdown
 # Event-Prospecting — Research Patterns
 
-The deep-research pattern is identical to company-research's Plan→Research→Synthesize. See `/Users/jay/skills/skills/company-research/references/research-patterns.md` for the canonical pattern.
+## Contents
+- [Plan→Research→Synthesize](#planresearchsynthesize) — canonical pattern
+- [ICP Triage (Step 5)](#icp-triage-step-5--fast-pass) — fast company-level scoring
+- [Deep Research (Step 7)](#deep-research-step-7--full-pass) — full pattern on ICP fits
+- [Person Enrichment (Step 8)](#person-enrichment-step-8--speakers-at-icp-fits-only) — per-person lanes
+```
 
-This file documents the *deltas* for event-prospecting:
+**Step 2: Append the event-specific deltas**
+
+Below the copied canonical pattern:
 
 ## ICP Triage (Step 5 — fast pass)
 
