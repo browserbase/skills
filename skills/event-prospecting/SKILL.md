@@ -147,21 +147,51 @@ Expected: roughly 0.4-0.6× the speaker count (most events have ~2 speakers per 
 
 **Fast pass — one tool call per company, no deep research.** Score every company in `seed_companies.txt` against the user's ICP and write a thin triage stub to `companies/{slug}.md`. Companies with `icp_fit_score >= --icp-threshold` (default 6) advance to Step 7's deep research; the rest stay as triage stubs.
 
-**Dispatch pattern**: split `seed_companies.txt` into batches of ~10 and fan out N subagents in a single Agent batch. Each subagent runs the prompt from `references/workflow.md` → "ICP Triage Subagent". Hard cap: **1 tool call per company** (just `extract_page.mjs` on the homepage), enforced via the `# bb call N/1` comment pattern.
+**Dispatch pattern**: split `seed_companies.txt` into batches of ~10 and fan out N subagents in a SINGLE Agent batch (multiple Agent tool calls in one message). Each subagent runs the prompt from `references/workflow.md` → "ICP Triage" section. Hard cap: **1 tool call per company** (just `extract_page.mjs` on the homepage), enforced via the `# bb call N/1` comment pattern.
 
 ```bash
-# Split seed_companies.txt into ~10-company batches
-split -l 10 {OUTPUT_DIR}/seed_companies.txt {OUTPUT_DIR}/_batch_triage_
+# Build batch files: each batch line is "name|website" so subagents have homepage URLs
+# (seed_companies.txt only has names; we need URLs from people.jsonl)
+node -e '
+const fs = require("fs");
+const people = fs.readFileSync("{OUTPUT_DIR}/people.jsonl", "utf-8").split("\n").filter(Boolean).map(JSON.parse);
+const seed = fs.readFileSync("{OUTPUT_DIR}/seed_companies.txt", "utf-8").split("\n").filter(Boolean);
+const url = {};
+for (const p of people) if (p.company && !url[p.company]) url[p.company] = p.companyUrl || p.website || "";
+const lines = seed.map(c => `${c}|${url[c] || ""}`);
+fs.writeFileSync("{OUTPUT_DIR}/_seed_with_urls.txt", lines.join("\n") + "\n");
+'
 
-# Count batches → number of subagents to dispatch
+# Split into ~10-company batches
+split -l 10 {OUTPUT_DIR}/_seed_with_urls.txt {OUTPUT_DIR}/_batch_triage_
+
+# Count batches → number of subagents to dispatch (cap at 6 per message; second wave for the rest)
 ls {OUTPUT_DIR}/_batch_triage_* | wc -l
 ```
 
-Then in a single message, dispatch one Agent call per batch. Each Agent gets the prompt from `references/workflow.md` → "ICP Triage Subagent" with these substitutions:
-- `{SKILL_DIR}` → full literal skill path
+Then in a single message, dispatch one Agent call per batch (up to 6 in parallel; subsequent waves after the first returns). Each Agent gets the prompt from `references/workflow.md` → "ICP Triage" with these substitutions before sending:
+- `{SKILL_DIR}` → full literal skill path (e.g. `/Users/jay/skills/skills/event-prospecting`)
 - `{OUTPUT_DIR}` → full literal output path
 - `{USER_COMPANY}`, `{USER_PRODUCT}`, `{ICP_DESCRIPTION}` → from the loaded profile
-- `{COMPANY_LIST}` → contents of `_batch_triage_aa` (or whichever batch this subagent owns)
+- `{EVENT_NAME}` → `recon.json` `.title`
+- `{COMPANY_LIST}` → contents of the batch file (e.g. `cat {OUTPUT_DIR}/_batch_triage_aa`)
+- `{TOTAL}` → number of lines in this batch (substitute into `# bb call N/{TOTAL}`)
+
+**Agent dispatch (skeleton, repeat per batch in one message)**:
+
+```
+Agent(
+  description: "ICP triage batch aa",
+  prompt: <ICP Triage prompt from workflow.md with all placeholders substituted>,
+  subagent_type: "general-purpose"
+)
+Agent(
+  description: "ICP triage batch ab",
+  prompt: <same prompt template, COMPANY_LIST swapped to batch ab>,
+  subagent_type: "general-purpose"
+)
+... up to 6 per message
+```
 
 After all subagents return, verify every company in `seed_companies.txt` has a corresponding `companies/{slug}.md`:
 
@@ -194,22 +224,38 @@ Expected: 20-40% of `seed_companies.txt`. If the survival rate is < 10%, the thr
 
 Full Plan→Research→Synthesize on ICP-fit companies only. Hard cap: **5 tool calls per company** (homepage extract + 2-3 sub-question searches + 1-2 supplementary fetches). Subagents OVERWRITE the existing `companies/{slug}.md` triage stub with the richer deep-research version (frontmatter `triage_only: false`).
 
-**Dispatch pattern**: split `icp_fits.txt` into batches of ~5 (deep mode default) and fan out one Agent per batch. Each Agent gets the prompt from `references/workflow.md` → "Deep Research Subagent" with these substitutions:
-- `{SKILL_DIR}`, `{OUTPUT_DIR}`, `{USER_COMPANY}`, `{USER_PRODUCT}`, `{ICP_DESCRIPTION}`, `{EVENT_NAME}` (from `recon.json` title)
-- `{COMPANY_LIST}` → contents of the batch file
+**Dispatch pattern**: split `icp_fits.txt` into batches of ~5 (deep mode default) and fan out one Agent per batch in a SINGLE message (up to 6 Agents per message). Each Agent gets the prompt from `references/workflow.md` → "Deep Research" with these substitutions:
+- `{SKILL_DIR}`, `{OUTPUT_DIR}`, `{USER_COMPANY}`, `{USER_PRODUCT}`, `{ICP_DESCRIPTION}`
+- `{EVENT_NAME}` (from `recon.json` `.title`), `{EVENT_CONTEXT}` (track / topic, manually inferred from the event homepage)
+- `{COMPANY_LIST}` → contents of the batch file (each line `slug|website`)
 
 ```bash
-# Build {company-slug, website} pairs by reading frontmatter from each triage stub
+# Build {company-slug|website} pairs by reading frontmatter from each triage stub
 while read slug; do
   website=$(awk '/^website:/{print $2; exit}' {OUTPUT_DIR}/companies/${slug}.md)
   echo "${slug}|${website}"
 done < {OUTPUT_DIR}/icp_fits.txt > {OUTPUT_DIR}/_deep_targets.txt
 
-# Split into ~5-company batches
+# Split into ~5-company batches (deep mode)
 split -l 5 {OUTPUT_DIR}/_deep_targets.txt {OUTPUT_DIR}/_batch_deep_
+ls {OUTPUT_DIR}/_batch_deep_* | wc -l
 ```
 
-Then in a single message, dispatch one Agent call per batch with the "Deep Research Subagent" prompt.
+**Agent dispatch (skeleton, repeat per batch in one message)**:
+
+```
+Agent(
+  description: "Deep research batch aa",
+  prompt: <Deep Research prompt from workflow.md with all placeholders substituted; COMPANY_LIST = cat _batch_deep_aa>,
+  subagent_type: "general-purpose"
+)
+Agent(
+  description: "Deep research batch ab",
+  prompt: <same template, COMPANY_LIST = cat _batch_deep_ab>,
+  subagent_type: "general-purpose"
+)
+... up to 6 per message; second wave after the first returns
+```
 
 After all subagents return, verify the deep-research files exist and have `triage_only: false`:
 
@@ -257,11 +303,28 @@ console.error(`Enriching ${keep.length} of ${lines.length} speakers`);
 split -l 5 {OUTPUT_DIR}/_people_to_enrich.jsonl {OUTPUT_DIR}/_batch_people_
 ```
 
-Then in a single message, dispatch one Agent call per batch with the prompt from `references/workflow.md` → "Person Enrichment Subagent". Each subagent's prompt should include:
+Then in a single message, dispatch one Agent call per batch (up to 6 per message) with the prompt from `references/workflow.md` → "Person Enrichment". Each subagent's prompt should include:
 - `{SKILL_DIR}`, `{OUTPUT_DIR}`, `{DEPTH}` (`deep` | `deeper`)
 - `{USER_COMPANY}`, `{USER_PRODUCT}`, `{ICP_DESCRIPTION}`
-- `{EVENT_NAME}` (from `recon.json` title)
+- `{EVENT_NAME}` (from `recon.json` `.title`)
+- `{LANES}` → `2` for deep mode, `4` for deeper mode (substituted into `# bb call N/{LANES}`)
 - `{PEOPLE_BATCH}` → contents of `_batch_people_aa` (each line a JSON record from `people.jsonl`)
+
+**Agent dispatch (skeleton, repeat per batch in one message)**:
+
+```
+Agent(
+  description: "Person enrichment batch aa",
+  prompt: <Person Enrichment prompt from workflow.md with all placeholders substituted; PEOPLE_BATCH = cat _batch_people_aa>,
+  subagent_type: "general-purpose"
+)
+Agent(
+  description: "Person enrichment batch ab",
+  prompt: <same template, PEOPLE_BATCH = cat _batch_people_ab>,
+  subagent_type: "general-purpose"
+)
+... up to 6 per message
+```
 
 After all subagents return, verify the people files exist:
 
