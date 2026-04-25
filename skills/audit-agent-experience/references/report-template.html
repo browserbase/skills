@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Audit Agent Experience — {{TITLE}}</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --brand: #F03603;
+    --grade-a: #22c55e;
+    --grade-b: #3b82f6;
+    --grade-c: #eab308;
+    --grade-d: #f97316;
+    --grade-f: #ef4444;
+    --black: #100D0D;
+    --gray: #514F4F;
+    --muted-gray: #8a8787;
+    --border: #edebeb;
+    --bg: #F9F6F4;
+    --card: #ffffff;
+    --text: #100D0D;
+    --muted: #514F4F;
+    --blue-info: #4DA9E4;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; font-size: 16px; }
+  .container { max-width: 960px; margin: 0 auto; padding: 2rem 1.5rem; }
+  code { font-family: 'Geist Mono', 'SF Mono', 'Fira Code', monospace; font-size: 0.8125em; background: #f6f5f5; padding: 0.125em 0.375em; border-radius: 2px; border: 1px solid var(--border); }
+  blockquote { border-left: 3px solid var(--border); padding: 0.5rem 0.875rem; color: var(--muted); font-style: italic; margin: 0.5rem 0; background: #fafaf9; border-radius: 0 3px 3px 0; }
+
+  /* Header */
+  header { margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+  .header-left h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--black); }
+  .header-left h1 a { color: var(--brand); text-decoration: none; }
+  .header-left h1 a:hover { text-decoration: underline; }
+  .header-left .meta { color: var(--muted); font-size: 0.875rem; word-break: break-all; }
+  .header-logo { flex-shrink: 0; }
+
+  /* Scorecard */
+  .scorecard { display: grid; grid-template-columns: auto 1fr; gap: 1.5rem; align-items: center; background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 1.75rem 2rem; margin-bottom: 1.5rem; }
+  .grade-badge { width: 120px; height: 120px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-family: Inter, sans-serif; font-weight: 800; font-size: 4rem; line-height: 1; border: 4px solid; }
+  .grade-badge.grade-a { color: var(--grade-a); border-color: var(--grade-a); background: rgba(34,197,94,0.08); }
+  .grade-badge.grade-b { color: var(--grade-b); border-color: var(--grade-b); background: rgba(59,130,246,0.08); }
+  .grade-badge.grade-c { color: var(--grade-c); border-color: var(--grade-c); background: rgba(234,179,8,0.08); }
+  .grade-badge.grade-d { color: var(--grade-d); border-color: var(--grade-d); background: rgba(249,115,22,0.08); }
+  .grade-badge.grade-f { color: var(--grade-f); border-color: var(--grade-f); background: rgba(239,68,68,0.08); }
+  .scorecard .score-block .score-label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-bottom: 0.25rem; }
+  .scorecard .score-block .score-value { font-size: 2rem; font-weight: 700; color: var(--black); font-variant-numeric: tabular-nums; margin-bottom: 0.25rem; }
+  .scorecard .score-block .score-sub { font-size: 0.875rem; color: var(--muted); }
+
+  /* Agent stat grid */
+  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 2rem; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; }
+  .stat .label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-bottom: 0.25rem; }
+  .stat .value { font-size: 1.5rem; font-weight: 700; color: var(--black); font-variant-numeric: tabular-nums; }
+  .stat .value.ok { color: var(--grade-a); }
+  .stat .value.warn { color: var(--grade-d); }
+  .stat .value.bad { color: var(--grade-f); }
+
+  /* Section */
+  .section { margin-bottom: 2rem; }
+  .section h2 { font-size: 1rem; font-weight: 600; margin-bottom: 0.75rem; display: flex; align-items: center; gap: 0.5rem; color: var(--black); }
+  .section h2 .count { font-size: 0.6875rem; font-weight: 600; border-radius: 2px; padding: 0.125rem 0.5rem; border: 1px solid var(--border); background: #f6f5f5; color: var(--muted); }
+  .section-body { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1.25rem 1.5rem; }
+
+  /* Executive summary */
+  .exec-summary { font-size: 1rem; line-height: 1.7; color: var(--text); }
+
+  /* Two-column lists */
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+  .two-col .col { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; }
+  .two-col .col h3 { font-size: 0.8125rem; font-weight: 600; margin-bottom: 0.75rem; text-transform: uppercase; letter-spacing: 0.05em; display: flex; align-items: center; gap: 0.5rem; }
+  .two-col .col.good h3 { color: var(--grade-a); }
+  .two-col .col.bad h3 { color: var(--grade-f); }
+  .two-col .col ul { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .two-col .col li { font-size: 0.875rem; padding-left: 1rem; position: relative; color: var(--text); }
+  .two-col .col.good li::before { content: '+'; position: absolute; left: 0; color: var(--grade-a); font-weight: 700; }
+  .two-col .col.bad li::before { content: '−'; position: absolute; left: 0; color: var(--grade-f); font-weight: 700; }
+
+  /* Dimension breakdown */
+  .dimension { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; margin-bottom: 0.5rem; }
+  .dimension-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.5rem; gap: 1rem; flex-wrap: wrap; }
+  .dimension-name { font-size: 0.9375rem; font-weight: 600; color: var(--black); }
+  .dimension-weight { font-size: 0.75rem; color: var(--muted); margin-left: 0.5rem; font-weight: 400; }
+  .dimension-score { font-family: Inter, sans-serif; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.125rem; }
+  .dimension-bar-track { height: 6px; background: #f6f5f5; border-radius: 3px; overflow: hidden; margin-bottom: 0.5rem; }
+  .dimension-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
+  .dimension-bar-fill.grade-a { background: var(--grade-a); }
+  .dimension-bar-fill.grade-b { background: var(--grade-b); }
+  .dimension-bar-fill.grade-c { background: var(--grade-c); }
+  .dimension-bar-fill.grade-d { background: var(--grade-d); }
+  .dimension-bar-fill.grade-f { background: var(--grade-f); }
+  .dimension-rationale { font-size: 0.875rem; color: var(--muted); }
+
+  /* Agent cards */
+  .agent-card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; overflow: hidden; }
+  .agent-card.completed { border-left: 3px solid var(--grade-a); }
+  .agent-card.stuck { border-left: 3px solid var(--grade-d); }
+  .agent-card.wrong-result { border-left: 3px solid var(--grade-f); }
+  .agent-card.errored { border-left: 3px solid var(--muted-gray); }
+  .agent-card summary { padding: 0.875rem 1.25rem; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; list-style: none; flex-wrap: wrap; }
+  .agent-card summary::-webkit-details-marker { display: none; }
+  .agent-card summary::before { content: '▶'; font-size: 0.5rem; color: var(--muted); transition: transform 0.15s; flex-shrink: 0; }
+  .agent-card[open] summary::before { transform: rotate(90deg); }
+  .agent-card .badge { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 10px; border-radius: 2px; flex-shrink: 0; }
+  .agent-card .badge.completed { background: rgba(34,197,94,0.12); color: #166534; border: 1px solid rgba(34,197,94,0.3); }
+  .agent-card .badge.stuck { background: rgba(249,115,22,0.1); color: #9a3412; border: 1px solid rgba(249,115,22,0.25); }
+  .agent-card .badge.wrong-result { background: rgba(239,68,68,0.08); color: var(--grade-f); border: 1px solid rgba(239,68,68,0.2); }
+  .agent-card .badge.errored { background: rgba(138,135,135,0.1); color: var(--muted); border: 1px solid rgba(138,135,135,0.25); }
+  .agent-card .chip { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.75rem; padding: 1px 8px; border-radius: 2px; background: #f6f5f5; color: var(--text); border: 1px solid var(--border); }
+  .agent-card .turns { font-size: 0.75rem; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
+  .agent-card .body { padding: 0 1.25rem 1.25rem 1.25rem; border-top: 1px solid var(--border); padding-top: 0.875rem; }
+  .agent-card .body h4 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-top: 1rem; margin-bottom: 0.5rem; }
+  .agent-card .body h4:first-child { margin-top: 0; }
+  .agent-card .body ul { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
+  .agent-card .body li { font-size: 0.875rem; }
+  .agent-card .body .confusion { padding: 0.5rem 0.75rem; background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); border-radius: 3px; }
+  .agent-card .body .confusion .section-tag { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.75rem; color: var(--grade-f); font-weight: 500; }
+  .agent-card .body .confusion .issue { margin-top: 0.25rem; color: var(--text); }
+  .agent-card .body .positive { padding: 0.5rem 0.75rem; background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2); border-radius: 3px; color: var(--text); }
+  .agent-card .body .suggestion { padding: 0.5rem 0.75rem; background: rgba(77,169,228,0.06); border: 1px solid rgba(77,169,228,0.2); border-radius: 3px; color: #2a7ab5; }
+
+  /* Failure pattern cards */
+  .pattern { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; margin-bottom: 0.5rem; border-left: 3px solid var(--grade-d); }
+  .pattern-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.5rem; gap: 1rem; }
+  .pattern-section { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.8125rem; font-weight: 600; color: var(--text); }
+  .pattern-hits { font-size: 0.75rem; color: var(--grade-f); font-weight: 600; background: rgba(239,68,68,0.08); padding: 2px 8px; border-radius: 2px; white-space: nowrap; }
+  .pattern-body { font-size: 0.875rem; color: var(--text); }
+  .pattern-quotes { margin-top: 0.5rem; display: flex; flex-direction: column; gap: 0.375rem; }
+
+  /* Fix list */
+  .fix { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; margin-bottom: 0.5rem; }
+  .fix-head { display: flex; align-items: baseline; gap: 0.75rem; margin-bottom: 0.5rem; flex-wrap: wrap; }
+  .fix-num { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.8125rem; font-weight: 700; color: var(--brand); }
+  .fix-section { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.8125rem; color: var(--text); background: #f6f5f5; padding: 1px 8px; border-radius: 2px; border: 1px solid var(--border); }
+  .fix-priority { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 1px 8px; border-radius: 2px; }
+  .fix-priority.high { background: rgba(239,68,68,0.1); color: var(--grade-f); border: 1px solid rgba(239,68,68,0.25); }
+  .fix-priority.medium { background: rgba(234,179,8,0.12); color: #854d0e; border: 1px solid rgba(234,179,8,0.3); }
+  .fix-priority.low { background: rgba(77,169,228,0.1); color: #2a7ab5; border: 1px solid rgba(77,169,228,0.25); }
+  .fix-issue { font-size: 0.875rem; color: var(--muted); margin-bottom: 0.5rem; }
+  .fix-suggestion { font-size: 0.875rem; color: var(--text); padding: 0.625rem 0.875rem; background: rgba(77,169,228,0.06); border: 1px solid rgba(77,169,228,0.2); border-radius: 3px; }
+
+  /* Footer */
+  /* Metrics grid (quantitative) */
+  .metrics-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 0.5rem; margin-bottom: 2rem; }
+  .metric { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 0.875rem 1rem; }
+  .metric .label { font-size: 0.625rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-bottom: 0.25rem; }
+  .metric .value { font-size: 1.25rem; font-weight: 700; color: var(--black); font-variant-numeric: tabular-nums; }
+  .metric .sub { font-size: 0.6875rem; color: var(--muted); margin-top: 0.125rem; }
+
+  /* Session timeline */
+  .timeline { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; }
+  .timeline-bar { display: flex; height: 28px; border-radius: 3px; overflow: hidden; margin-bottom: 0.875rem; }
+  .phase { display: flex; align-items: center; justify-content: center; font-size: 0.6875rem; font-weight: 600; color: #fff; text-transform: uppercase; letter-spacing: 0.05em; min-width: 40px; }
+  .phase.research { background: #3b82f6; }
+  .phase.setup { background: #10b981; }
+  .phase.execution { background: #8b5cf6; }
+  .phase.validation { background: #06b6d4; }
+  .phase.interrupt { background: #f59e0b; }
+  .timeline-rows { display: flex; flex-direction: column; gap: 0.375rem; }
+  .timeline-row { display: grid; grid-template-columns: 60px 110px 1fr; gap: 0.875rem; font-size: 0.8125rem; align-items: baseline; }
+  .timeline-row .dur { font-variant-numeric: tabular-nums; color: var(--muted); font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.75rem; }
+  .timeline-row .phase-chip { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 2px; color: #fff; width: fit-content; }
+  .timeline-row .phase-chip.research { background: #3b82f6; }
+  .timeline-row .phase-chip.setup { background: #10b981; }
+  .timeline-row .phase-chip.execution { background: #8b5cf6; }
+  .timeline-row .phase-chip.validation { background: #06b6d4; }
+  .timeline-row .phase-chip.interrupt { background: #f59e0b; }
+
+  /* Tool call breakdown */
+  .tool-breakdown { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; display: flex; flex-direction: column; gap: 0.5rem; }
+  .tool-row { display: grid; grid-template-columns: 110px 1fr 50px; gap: 0.75rem; align-items: center; font-size: 0.8125rem; }
+  .tool-row .name { font-family: 'Geist Mono', 'SF Mono', monospace; color: var(--text); font-weight: 500; }
+  .tool-row .bar-track { height: 8px; background: #f6f5f5; border-radius: 2px; overflow: hidden; }
+  .tool-row .bar-fill { height: 100%; background: var(--brand); border-radius: 2px; }
+  .tool-row .count { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
+
+  /* Error list on agent card */
+  .agent-card .body .error { padding: 0.5rem 0.75rem; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); border-radius: 3px; font-size: 0.8125rem; }
+  .agent-card .body .error .stage { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.6875rem; color: var(--grade-f); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.5rem; }
+  .agent-card .body .error .msg { color: var(--text); }
+  .agent-card .body .error .recovered { font-size: 0.6875rem; padding: 1px 6px; border-radius: 2px; margin-left: 0.5rem; }
+  .agent-card .body .error .recovered.yes { background: rgba(34,197,94,0.12); color: #166534; }
+  .agent-card .body .error .recovered.no { background: rgba(239,68,68,0.12); color: var(--grade-f); }
+
+  footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted); }
+  footer a { color: var(--brand); text-decoration: none; font-weight: 500; }
+  footer a:hover { text-decoration: underline; }
+
+  @media (max-width: 720px) {
+    .scorecard { grid-template-columns: 1fr; justify-items: center; text-align: center; }
+    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .metrics-grid { grid-template-columns: repeat(2, 1fr); }
+    .two-col { grid-template-columns: 1fr; }
+    .timeline-row { grid-template-columns: 50px 90px 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <header>
+    <div class="header-left">
+      <h1>Audit Agent Experience</h1>
+      <div class="meta">{{TARGET_REF}}</div>
+      <div class="meta" style="margin-top:0.25rem;">{{META}}</div>
+    </div>
+    <div class="header-logo" style="display:flex;align-items:center;gap:0.5rem;color:var(--muted);font-size:0.8125rem;font-weight:500;">
+      <span>audit-agent-experience</span>
+    </div>
+  </header>
+
+  <div class="scorecard">
+    <div class="grade-badge {{GRADE_CLASS}}">{{GRADE_LETTER}}</div>
+    <div class="score-block">
+      <div class="score-label">Overall DX Score</div>
+      <div class="score-value">{{OVERALL_SCORE}} / 100</div>
+      <div class="score-sub">Weighted across 5 dimensions · {{AGENT_COUNT}} agents tested</div>
+    </div>
+  </div>
+
+  <div class="stat-grid">
+    <div class="stat"><div class="label">Agents</div><div class="value">{{AGENT_COUNT}}</div></div>
+    <div class="stat"><div class="label">Completed</div><div class="value ok">{{COMPLETED_COUNT}}</div></div>
+    <div class="stat"><div class="label">Stuck</div><div class="value warn">{{STUCK_COUNT}}</div></div>
+    <div class="stat"><div class="label">Errored</div><div class="value bad">{{ERRORED_COUNT}}</div></div>
+  </div>
+
+  <div class="section">
+    <h2>Quantitative Metrics</h2>
+    {{METRICS_GRID}}
+  </div>
+
+  <div class="section">
+    <h2>Executive Summary</h2>
+    <div class="section-body">
+      <p class="exec-summary">{{EXEC_SUMMARY}}</p>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>What Agents Said</h2>
+    <div class="two-col">
+      <div class="col good">
+        <h3>What worked</h3>
+        <ul>{{WENT_WELL_ITEMS}}</ul>
+      </div>
+      <div class="col bad">
+        <h3>What didn't</h3>
+        <ul>{{DIDNT_GO_WELL_ITEMS}}</ul>
+      </div>
+    </div>
+  </div>
+
+  <div class="section">
+    <h2>Dimension Breakdown</h2>
+    {{DIMENSION_ROWS}}
+  </div>
+
+  <div class="section">
+    <h2>Session Timeline</h2>
+    {{TIMELINE_SECTION}}
+  </div>
+
+  <div class="section">
+    <h2>Tool Call Breakdown</h2>
+    {{TOOL_BREAKDOWN_SECTION}}
+  </div>
+
+  {{PATTERNS_SECTION}}
+
+  <div class="section">
+    <h2>Recommended Fixes</h2>
+    {{FIXES_LIST}}
+  </div>
+
+  <div class="section">
+    <h2>Per-agent Runs <span class="count">{{AGENT_COUNT}}</span></h2>
+    {{AGENT_CARDS}}
+  </div>
+
+</div>
+
+<footer>
+  Generated by <a href="https://github.com/jay/audit-agent-experience">audit-agent-experience</a>
+</footer>
+
+</body>
+</html>
