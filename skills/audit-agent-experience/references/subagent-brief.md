@@ -43,7 +43,7 @@ Write your working thoughts, attempts, and final outcome in free prose. Then —
   "language": "<language-label>",
   "task_prompt": "<the one-sentence task you received>",
   "onboarding_status": "completed | partial | stuck | blocked-on-credentials",
-  "primary_outcome_achieved": "<one short sentence describing what you actually did — e.g. 'Created a cloud browser session, navigated to browserbase.com, took a screenshot, closed.'>",
+  "primary_outcome_achieved": "<one short sentence describing what you actually did — e.g. 'Made a test API call and printed the response payload.'>",
   "success_criterion_from_docs": "<one sentence stating what the docs themselves define as 'you've completed the getting-started guide' — extract this from the docs verbatim if possible>",
   "docs_promise_met": <true | false — does your primary_outcome_achieved match the success_criterion_from_docs?>,
   "evidence": "<concrete proof — stdout line, file path, session ID, printed result, etc>",

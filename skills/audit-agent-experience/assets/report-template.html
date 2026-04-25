@@ -68,6 +68,11 @@
   /* Executive summary */
   .exec-summary { font-size: 1rem; line-height: 1.7; color: var(--text); }
 
+  /* Narrative review — top finding from cross-agent prose review */
+  .narrative-review { background: var(--card); border: 1px solid var(--border); border-left: 4px solid var(--brand); border-radius: 4px; padding: 1.25rem 1.5rem; margin-bottom: 2rem; }
+  .narrative-review .label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--brand); font-weight: 700; margin-bottom: 0.5rem; }
+  .narrative-review .body { font-size: 0.9375rem; line-height: 1.7; color: var(--text); }
+
   /* Two-column lists */
   .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
   .two-col .col { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; }
@@ -121,6 +126,22 @@
   .agent-card .body .confusion .issue { margin-top: 0.25rem; color: var(--text); }
   .agent-card .body .positive { padding: 0.5rem 0.75rem; background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2); border-radius: 3px; color: var(--text); }
   .agent-card .body .suggestion { padding: 0.5rem 0.75rem; background: rgba(77,169,228,0.06); border: 1px solid rgba(77,169,228,0.2); border-radius: 3px; color: #2a7ab5; }
+
+  /* Per-agent results summary table */
+  .agent-results-table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; background: var(--card); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; font-size: 0.8125rem; }
+  .agent-results-table th { text-align: left; padding: 0.625rem 0.875rem; background: #faf9f8; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  .agent-results-table td { padding: 0.625rem 0.875rem; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .agent-results-table tr:last-child td { border-bottom: none; }
+  .agent-results-table tr:hover td { background: #fafaf9; }
+  .agent-results-table .num { font-variant-numeric: tabular-nums; font-family: 'Geist Mono', 'SF Mono', monospace; color: var(--muted); }
+  .agent-results-table .col-num { width: 2.5rem; text-align: right; }
+  .agent-results-table .col-tools, .agent-results-table .col-time { text-align: right; font-variant-numeric: tabular-nums; font-family: 'Geist Mono', 'SF Mono', monospace; }
+  .agent-results-table .status-pill { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 8px; border-radius: 2px; }
+  .agent-results-table .status-pill.completed { background: rgba(34,197,94,0.12); color: #166534; border: 1px solid rgba(34,197,94,0.3); }
+  .agent-results-table .status-pill.partial { background: rgba(249,115,22,0.1); color: #9a3412; border: 1px solid rgba(249,115,22,0.25); }
+  .agent-results-table .status-pill.stuck { background: rgba(249,115,22,0.1); color: #9a3412; border: 1px solid rgba(249,115,22,0.25); }
+  .agent-results-table .status-pill.errored { background: rgba(138,135,135,0.1); color: var(--muted); border: 1px solid rgba(138,135,135,0.25); }
+  .agent-results-table .status-pill.blocked-on-credentials { background: rgba(239,68,68,0.08); color: var(--grade-f); border: 1px solid rgba(239,68,68,0.2); }
 
   /* Failure pattern cards */
   .pattern { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; margin-bottom: 0.5rem; border-left: 3px solid var(--grade-d); }
@@ -229,16 +250,18 @@
     <div class="stat"><div class="label">Errored</div><div class="value bad">{{ERRORED_COUNT}}</div></div>
   </div>
 
-  <div class="section">
-    <h2>Quantitative Metrics</h2>
-    {{METRICS_GRID}}
-  </div>
+  {{NARRATIVE_REVIEW_SECTION}}
 
   <div class="section">
     <h2>Executive Summary</h2>
     <div class="section-body">
       <p class="exec-summary">{{EXEC_SUMMARY}}</p>
     </div>
+  </div>
+
+  <div class="section">
+    <h2>Recommended Fixes</h2>
+    {{FIXES_LIST}}
   </div>
 
   <div class="section">
@@ -255,9 +278,16 @@
     </div>
   </div>
 
+  {{PATTERNS_SECTION}}
+
   <div class="section">
-    <h2>Dimension Breakdown</h2>
-    {{DIMENSION_ROWS}}
+    <h2>Quantitative Metrics</h2>
+    {{METRICS_GRID}}
+  </div>
+
+  <div class="section">
+    <h2>Tool Call Breakdown</h2>
+    {{TOOL_BREAKDOWN_SECTION}}
   </div>
 
   <div class="section">
@@ -266,19 +296,8 @@
   </div>
 
   <div class="section">
-    <h2>Tool Call Breakdown</h2>
-    {{TOOL_BREAKDOWN_SECTION}}
-  </div>
-
-  {{PATTERNS_SECTION}}
-
-  <div class="section">
-    <h2>Recommended Fixes</h2>
-    {{FIXES_LIST}}
-  </div>
-
-  <div class="section">
     <h2>Per-agent Runs <span class="count">{{AGENT_COUNT}}</span></h2>
+    {{AGENT_RESULTS_TABLE}}
     {{AGENT_CARDS}}
   </div>
 

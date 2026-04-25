@@ -16,7 +16,7 @@ The skill spawns multiple subagents in parallel, captures each one's tool-call t
 
 ## Core principle
 
-**Do not spoonfeed.** The subagent gets a tiny prompt like *"Get started with Browserbase and run a browser session"*. It must discover the docs, choose the path, and hit real failures. A good doc survives this; a bad doc does not.
+**Do not spoonfeed.** The subagent gets a tiny prompt like *"Get started with {product} and {do its primary thing}"*. It must discover the docs, choose the path, and hit real failures. A good doc survives this; a bad doc does not.
 
 ## Workflow
 
@@ -24,22 +24,24 @@ Execute these steps in order. Do not skip ahead.
 
 ### Step 1 — Identify the target and define the abstract goal
 
-Resolve what the user is asking to audit:
+Resolve what the user is asking to audit. The target may arrive in one of three forms:
 
-- **URL** (most common) — e.g., `https://docs.browserbase.com`. This is the *seed* the subagents start from.
+- **URL** — a docs site or product page (e.g., `https://docs.example.com`). This is the *seed* the subagents start from.
 - **Repo / file path** — for SKILL.md audits or SDK repos.
 - **Product name** — if the user is vague ("test my product"), ask via `AskUserQuestion` for the URL or repo.
 
-**Research lightly.** 1 WebFetch max, enough to confirm: what is this product, and does it have a getting-started guide? You're identifying *that there is a flow to follow*, not extracting the steps. The whole point is to let the docs dictate the path.
+**This skill is product-agnostic. Never assume what the user wants to audit.** Do not infer a target from environment signals (operator's email domain, git remote, repo name, recent files, memory, CLAUDE.md). Even if context strongly suggests a particular company, the user-facing question must NOT pre-fill or default to any specific product, URL, or company name. Ask open-endedly with neutral options only: e.g., "Paste a URL", "Paste a local path", "Type a product name". If the user did not name a target in their invocation, ask them — start fresh, no priors.
+
+**Research lightly** *after* the user has named a target. 1 WebFetch max, enough to confirm: what is this product, and does it have a getting-started guide? You're identifying *that there is a flow to follow*, not extracting the steps. The whole point is to let the docs dictate the path.
 
 **Define ONE abstract goal, not a step-by-step checklist.** The goal should be at the level of "complete the onboarding" or "make the product do its primary thing once" — NOT a list of specific actions.
 
 Why: prescriptive checklists steer agents. If you tell them "navigate to example.com" but the docs' quickstart navigates to a different URL, the agent is torn between your instruction and the docs. That pollutes the test.
 
-Examples of good abstract goals:
-- Browserbase → *"Complete the Browserbase getting-started guide end-to-end. Success = you have code that runs a cloud browser session using whatever approach the docs recommend."*
-- Stripe → *"Complete Stripe's getting-started flow for making a test charge. Success = you have a charge ID or equivalent confirmation."*
-- Exa → *"Complete the Exa getting-started guide. Success = your code successfully calls the API and prints whatever the docs treat as a meaningful result."*
+Examples of good abstract goals (the target product is supplied by the user — the examples below are illustrative only, not defaults):
+- A search API → *"Complete the getting-started guide. Success = your code successfully calls the API and prints whatever the docs treat as a meaningful result."*
+- A payments API → *"Complete the getting-started flow for making a test charge. Success = you have a charge ID or equivalent confirmation."*
+- A browser-automation SDK → *"Complete the getting-started guide end-to-end. Success = you have code that runs a cloud browser session using whatever approach the docs recommend."*
 - A SKILL.md → *"Follow the skill's instructions and produce a successful outcome for its advertised job."*
 
 Examples of BAD goals (too prescriptive — don't do this):
@@ -68,8 +70,6 @@ Use `AskUserQuestion` in a **single call with 4 questions**. Options: max 4 per 
    - `Thorough` — read the docs end-to-end before coding
    - `Skeptical` — verify claims the docs make
 
-(The prior `Minimal-context` persona has been merged into `Standard` — Standard agents naturally minimize unnecessary reading without the performance theatre of "as little reading as possible".)
-
 4. **Execution mode** (single-select, header: `"Exec mode"`):
    - `Allow Bash (Recommended)` — subagents can run `npm install`, `curl`, etc. on your machine. Most realistic.
    - `Draft-only` — subagents may fetch docs and write code but won't execute anything. Safer.
@@ -89,10 +89,11 @@ After the user answers, you have: `depth` (N), `languages[]`, `personas[]`, `exe
 **If `exec_mode = "Allow Bash"`**, follow up with a second AskUserQuestion asking about credentials:
 
 - **Credentials** (single-select, header: `"Credentials"`):
+  - `Auto-discover (Recommended)` — skill checks the user's env vars, common dotfiles, and credential managers; only prompts for paste if nothing found. Best for repeat use and for cases where another operator is running the audit.
   - `None — let agents block (friction test)` — agents hit the credential wall, counts as Setup Friction. Best for pure docs audits.
-  - `Provide once for auto-inject` — you'll paste keys; skill injects them so agents can execute end-to-end. Best for testing whether the code actually works.
+  - `Paste manually` — you paste keys directly; skill injects them. Use when you don't have keys stored locally yet.
 
-If user picks auto-inject, AskUserQuestion asks for the credential **values** — not the names. The skill then writes them to each workspace `.env` using **generic, product-agnostic names**:
+If user picks `Auto-discover`, run **Step 2.5** below before continuing. If `Paste manually` (or auto-discover falls back), AskUserQuestion asks for the credential **values** — not the names. The skill then writes them to each workspace `.env` using **generic, product-agnostic names**:
 
 - Primary credential → `API_KEY`
 - Secondary (e.g. project/org ID) → `PROJECT_ID`
@@ -104,6 +105,68 @@ If user picks auto-inject, AskUserQuestion asks for the credential **values** �
 2. Map the generic `API_KEY` value into whatever form the SDK requires — either re-export (`export BROWSERBASE_API_KEY=$API_KEY`) or pass inline in code (`new Browserbase({ apiKey: process.env.API_KEY })`).
 
 If an agent fails to figure out the mapping, that's a doc quality signal — the docs weren't clear about credential naming.
+
+### Step 2.5 — Credential auto-discovery (only if user picked `Auto-discover`)
+
+Run a tiered lookup. **Stop at the first tier that produces a usable candidate.** Never print credential values to chat — only names and source paths. The user picks by name; the skill internally maps name → value → workspace `.env`.
+
+**Derive the product slug** from the target URL/repo to bias toward relevant matches. e.g. `https://docs.browserbase.com` → slug `browserbase`. Use lowercase substring match (case-insensitive) when ranking candidates.
+
+**Tier 1 — Already-exported env vars (free, zero side effects):**
+
+```bash
+printenv | grep -iE '^[A-Z][A-Z0-9_]*_(API_KEY|TOKEN|SECRET|KEY)=' | cut -d= -f1
+```
+
+This returns names only. If any names contain the product slug, those are top candidates.
+
+**Tier 2 — Narrow dotfile scan (a hardcoded short list, NOT a recursive grep):**
+
+```bash
+grep -hE '^[[:space:]]*export[[:space:]]+[A-Z][A-Z0-9_]*_(API_KEY|TOKEN|SECRET|KEY)=' \
+  ~/.zshrc ~/.bashrc ~/.bash_profile ~/.zprofile ~/.env ./.env ./.envrc 2>/dev/null \
+  | sed -E 's/^[[:space:]]*export[[:space:]]+([A-Z0-9_]+)=.*/\1/' \
+  | sort -u
+```
+
+Files allowed: `~/.zshrc`, `~/.bashrc`, `~/.bash_profile`, `~/.zprofile`, `~/.env`, `./.env`, `./.envrc`. **Do NOT expand this list. Do NOT recurse. Do NOT scan `~/Library`, `~/.config/`, `~/Documents`, etc.** This is the entire allowlist; anything else is out of scope and risks leaking unrelated secrets.
+
+For each match, record `(NAME, source_path)`. Read the value lazily — only when the user has confirmed the choice — by re-grepping the specific source file for that exact name.
+
+**Tier 3 — Credential manager (only if `op` or `security` is on PATH AND tiers 1–2 had no good match):**
+
+- 1Password CLI: skip unless `op account list` exits 0 (i.e. user is signed in). Don't trigger an interactive auth flow inside the skill.
+- macOS Keychain: `security find-generic-password -l "<expected-name>" -w` — try once with the most likely name (e.g. `BROWSERBASE_API_KEY`); silent failure means not stored.
+
+If a credential manager produces hits, list them as candidates the same way as tiers 1–2.
+
+**Tier 4 — Fallback to paste:** If all tiers above produced zero candidates, fall through to the manual paste flow described in Step 2.
+
+**Presenting candidates to the user.** After tiers 1–3:
+
+- **If exactly 1 candidate** and its name contains the product slug → use it silently. Log a one-line confirmation in chat: `Using BROWSERBASE_API_KEY from ~/.zshrc.` (Name + source only — never the value.)
+- **If multiple candidates**, AskUserQuestion (single-select, header: `"Use which credential?"`) with up to 4 options:
+  - One option per top candidate, formatted `<NAME> (from <source>)`
+  - Plus a `Paste manually instead` escape hatch
+  - If >3 candidates, show the top 3 by slug-relevance and add a `Show all` option that re-asks with the rest.
+- **If no candidates** → fall through to Tier 4 (paste).
+
+**Reading the value.** Once the user has confirmed a choice (or it was auto-selected), read the value:
+- Tier 1: `printenv <NAME>` (capture stdout, do not echo).
+- Tier 2: re-grep the specific source file for the exact `export <NAME>=` line and parse the RHS, stripping surrounding quotes.
+- Tier 3: `op read "op://<vault>/<item>/<field>"` or `security find-generic-password -l <NAME> -w`.
+
+Write the value into per-agent workspace `.env` files using the same generic names (`API_KEY`, `PROJECT_ID`, `SECRET`) as the paste flow — see Step 2. The discovery layer is upstream of injection; downstream behavior (generic names, agent must read docs to map them) is unchanged.
+
+**Orchestrator-retained credentials.** After writing per-agent `.env` files, the orchestrator keeps the **original product-specific names → values** (e.g. `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`) available to itself for downstream verification work in Steps 6 / 6.5 / 8 — for example, calling the product's API with `curl` to confirm that a session ID an agent reported actually resolves, or fetching session metadata to enrich the report. The orchestrator can read them with `printenv` (no need to store anywhere — the parent shell already has them since auto-discover sourced them from there).
+
+This is asymmetric on purpose: the subagents see only generic `API_KEY` / `PROJECT_ID` / `SECRET` so the doc-quality test stays honest (they must read the docs to discover the real var name). The orchestrator is not being audited, so it can use the real names freely for verification.
+
+**Privacy guarantees the skill must uphold:**
+- Never write a credential value to chat output, the trace, the report, or any file outside the per-agent workspace `.env`.
+- Never re-export the value into a **subagent's** workspace under a product-specific name. Subagents only see the generic names.
+- Treat values as opaque strings — do not log length, prefix, or fingerprint.
+- The HTML report records that auto-discovery happened (and which name was used) but never the value.
 
 ### Step 3 — Safety check
 
@@ -121,10 +184,10 @@ Template:
 {persona_prefix} follow {product}'s getting-started guide using {language}. You've completed it when you've done whatever the guide treats as the primary successful outcome.
 ```
 
-Examples:
-- Pragmatic × TypeScript → *"Get started with Browserbase using TypeScript (Node.js). Complete whatever the getting-started guide considers a successful first run."*
-- Thorough × Python → *"Read Exa's getting-started guide and follow it end-to-end using Python. You're done when the guide's expected outcome is achieved."*
-- Skeptical × Shell → *"Figure out how to complete Stripe's getting-started flow using bash/curl. Note anything in the docs that seems wrong as you go."*
+Examples (using `Acme` as a placeholder — substitute the user-supplied product name):
+- Pragmatic × TypeScript → *"Get started with Acme using TypeScript (Node.js). Complete whatever the getting-started guide considers a successful first run."*
+- Thorough × Python → *"Read Acme's getting-started guide and follow it end-to-end using Python. You're done when the guide's expected outcome is achieved."*
+- Skeptical × Shell → *"Figure out how to complete Acme's getting-started flow using bash/curl. Note anything in the docs that seems wrong as you go."*
 
 The subagent is NOT told what the success outcome is — they have to read the docs to figure that out. That's the point: if the docs are good, they'll convey it clearly. If the docs are bad, the agent won't know when they're done, which IS a finding.
 
@@ -145,6 +208,10 @@ For each variant, invoke the `Agent` tool (subagent_type: `general-purpose`). Pa
 All N calls in **one message** so they run in parallel.
 
 The subagent's prompt = the brief + their tiny task. The brief passes through `exec_mode` so the subagent knows whether Bash is available.
+
+**Wait for all N agents to return before continuing to Step 6.** When agents are run in the background, completion notifications arrive one at a time and it is easy to lose count. Maintain a simple in-memory tally of returned-vs-spawned and, when the last agent reports back, print one explicit milestone line to chat: *"All N agents returned — moving to trace parsing."* Do not start Step 6 until that line has been printed. If the user asks "are the agents still running?" mid-flight, answer with the current `<returned>/<spawned>` count from your tally, not from re-counting prior chat output.
+
+**Verification of agent claims using orchestrator credentials.** Before scoring, if Step 2.5 retained product-specific credentials, the orchestrator may use them to spot-check claims that subagents made (e.g. confirming a session ID with `curl -H "X-BB-API-Key: $BROWSERBASE_API_KEY" https://api.browserbase.com/v1/sessions/<id>`). Treat any unresolved IDs as evidence the agent may have hallucinated. Never include the credential header in the report — only the verification result (resolved / not resolved).
 
 ### Step 6 — Parse structured traces AND keep the full prose
 
@@ -228,9 +295,38 @@ Produce:
 
 ### Step 9 — Render the HTML report
 
-Read `references/report-template.html`. Fill placeholders:
+Read `assets/report-template.html`. Fill placeholders:
 
-`{{TITLE}}`, `{{TARGET_REF}}`, `{{META}}`, `{{GRADE_LETTER}}`, `{{GRADE_CLASS}}`, `{{OVERALL_SCORE}}`, `{{AGENT_COUNT}}`, `{{COMPLETED_COUNT}}`, `{{STUCK_COUNT}}`, `{{ERRORED_COUNT}}`, `{{NARRATIVE_REVIEW_SECTION}}` (the 3–5 sentence cross-agent narrative summary from Step 6.5 — place this high in the report, right after the scorecard), `{{EXEC_SUMMARY}}`, `{{WENT_WELL_ITEMS}}`, `{{DIDNT_GO_WELL_ITEMS}}`, `{{DIMENSION_ROWS}}`, `{{TIMELINE_SECTION}}`, `{{TOOL_BREAKDOWN_SECTION}}`, `{{METRICS_GRID}}`, `{{PATTERNS_SECTION}}`, `{{FIXES_LIST}}`, `{{AGENT_TRACES_SECTION}}` (full collapsible per-agent trace cards — see format below), `{{AGENT_CARDS}}`.
+`{{TITLE}}`, `{{TARGET_REF}}`, `{{META}}`, `{{GRADE_LETTER}}`, `{{GRADE_CLASS}}`, `{{OVERALL_SCORE}}`, `{{AGENT_COUNT}}`, `{{COMPLETED_COUNT}}`, `{{STUCK_COUNT}}`, `{{ERRORED_COUNT}}`, `{{NARRATIVE_REVIEW_SECTION}}` (see format below), `{{EXEC_SUMMARY}}`, `{{WENT_WELL_ITEMS}}`, `{{DIDNT_GO_WELL_ITEMS}}`, `{{TIMELINE_SECTION}}`, `{{TOOL_BREAKDOWN_SECTION}}`, `{{METRICS_GRID}}`, `{{PATTERNS_SECTION}}`, `{{FIXES_LIST}}`, `{{AGENT_RESULTS_TABLE}}` (at-a-glance summary table — see format below), `{{AGENT_TRACES_SECTION}}` (full collapsible per-agent trace cards — see format below), `{{AGENT_CARDS}}`.
+
+**Section order in the rendered report** (the template enforces this — do not reorder):
+1. Scorecard + agent-status stat grid
+2. Narrative Review (`{{NARRATIVE_REVIEW_SECTION}}`)
+3. Executive Summary
+4. Recommended Fixes
+5. What Agents Said (worked / didn't)
+6. Common Friction Patterns (`{{PATTERNS_SECTION}}`)
+7. Quantitative Metrics
+8. Tool Call Breakdown
+9. Session Timeline
+10. Per-agent Runs (results table + cards)
+
+Rationale: opinion before data. The reader needs the verdict (narrative + exec summary) and the actionable fix list before being asked to absorb metrics or timelines. Reference-y sections (timeline, tool breakdown) sit near the bottom for verification, not framing.
+
+**`{{NARRATIVE_REVIEW_SECTION}}` format.** A `<div class="narrative-review">` containing a `<div class="label">Narrative Review</div>` and a `<div class="body">…</div>` with the 3–5 sentence cross-agent summary from Step 6.5. This is the highest-value finding of the audit — keep prose tight, lead with the strongest observation. If Step 6.5 produced no notable cross-agent finding, render the section with a one-line body: `No cross-agent patterns of note — agents converged on the docs' intended path with minor individual variation.` Do not omit the section.
+
+The 5 dimension scores are still computed (they feed the overall weighted score and letter grade), but **do not render a per-dimension breakdown section** — it adds visual weight without giving the reader anything actionable beyond what the narrative review and recommended fixes already cover. Keep dimension scoring internal.
+
+**`{{AGENT_RESULTS_TABLE}}` format.** A `<table class="agent-results-table">` rendered immediately above the per-agent cards. One row per agent with these columns (in order):
+
+1. **#** — slot index (1-based), right-aligned, monospace.
+2. **Persona × Language** — e.g. `Standard · TypeScript`. Use the values from the agent's JSON trace.
+3. **Model** — render this column ONLY when `model = Mixed` (otherwise omit the column entirely; the single model is named in the header `{{META}}` line).
+4. **Status** — a `<span class="status-pill {{status}}">` matching `onboarding_status` from the JSON (`completed`, `partial`, `stuck`, `blocked-on-credentials`). Map `errored` (parser-failed traces) to its own pill.
+5. **Tool calls** — sum of `count` across the agent's `tool_calls[]` array. Right-aligned, monospace.
+6. **Time** — `wall_time_estimate_sec` from the JSON, formatted as `92s` (or `2m 14s` if ≥120s). Right-aligned, monospace.
+
+Rationale: the cards below are detailed but require expanding each one. The table gives a one-screen comparison so the reader can spot outliers (the agent that took 3× as long, the one that fired 2× the tool calls) before drilling in.
 
 **`{{AGENT_TRACES_SECTION}}` format.** One `<details class="trace-card">` per agent. Each card's summary line MUST include the model used (e.g. `<span class="chip">opus</span>`) alongside persona/language chips. The card expands to show:
 
@@ -263,7 +359,7 @@ Read `references/report-template.html`. Fill placeholders:
      - `[PROMPT]`: gold
      - `[MILESTONE]`: blue
      - `[THOUGHT]`: violet (body text also italic + muted)
-     - `[TOOL USE]`: Browserbase orange
+     - `[TOOL USE]`: orange (`#ff6b35` or whatever brand accent the report uses)
      - `[TOOL RESULT]`: green (or red if errored)
      - `[ERROR]`: red (body also red)
      - `[RESULT ✓]`: green (body green, bold)
@@ -289,8 +385,8 @@ The event log is the star of the show — this is what gives users the same "I c
 HTML-escape all user-supplied strings. Doc quotes go in `<code>` or `<blockquote>`.
 
 **All URLs must be clickable.** When the report references:
-- Relative doc paths (e.g. `/quickstart/playwright`) → wrap as `<a class="doc-link" href="{TARGET_BASE_URL}{path}" target="_blank" rel="noopener"><code>{path}</code></a>` where `{TARGET_BASE_URL}` is the audit target's origin (e.g. `https://docs.browserbase.com`)
-- Session/resource IDs (e.g. `f0ec58cc`) → link to the full resource URL (e.g. `https://browserbase.com/sessions/{full-id}`) with a `↗` suffix indicating external link
+- Relative doc paths (e.g. `/quickstart`) → wrap as `<a class="doc-link" href="{TARGET_BASE_URL}{path}" target="_blank" rel="noopener"><code>{path}</code></a>` where `{TARGET_BASE_URL}` is the audit target's origin (e.g. `https://docs.example.com`)
+- Session/resource IDs (e.g. `f0ec58cc`) → link to the full resource URL (e.g. `https://app.example.com/sessions/{full-id}`) with a `↗` suffix indicating external link
 - Full URLs appearing in prose → already linkable, just ensure they're wrapped in `<a>` not just `<code>`
 
 The CSS for these link classes:
@@ -333,12 +429,16 @@ If `exec_mode = "Draft-only"`, no cleanup is needed (no files were written outsi
 - **`references/evaluation-rubric.md`** — 5-dimension scoring rubric (Arena methodology).
 - **`references/prompt-variants.md`** — Persona prefix library and core-task heuristics.
 - **`references/subagent-brief.md`** — Verbatim brief + trace JSON schema.
-- **`references/report-template.html`** — HTML template with placeholders.
+
+## Assets
+
+- **`assets/report-template.html`** — HTML template with placeholders, stamped into the final report.
 
 ## Constraints
 
 - Never paste the target doc into the subagent's prompt — that's the whole point.
 - `exec_mode = Draft-only` must disable Bash execution in the subagent brief.
 - Never test a target the user didn't explicitly name.
+- **Never pre-fill a product, URL, or company in any user-facing question.** Ignore environment signals (email domain, git remote, repo name, memory). Start fresh — the operator may be auditing anyone.
 - If a subagent asks for credentials, **that counts as friction** in the score — don't "help" it by auto-providing. Let the agent hit the wall and record it.
 - Never write to files outside cwd except the HTML report.

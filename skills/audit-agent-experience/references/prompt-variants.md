@@ -32,22 +32,18 @@ Behavioural hint: reads end-to-end before coding. Surfaces ambiguity. Catches do
 
 Behavioural hint: verifies claims. Calls out marketing vs. code.
 
-### Minimal-context
-> With as little reading as possible, follow
-
-Behavioural hint: tries to use training-data intuition first, reads only when stuck. Exposes whether docs can pick up a lost agent.
-
 ## Core task (single phrase — derived from the target)
 
 Pick **one** core task for the whole audit. All subagents do the same task — only persona and language change.
 
 Heuristics:
 
-- **SDK / product with docs site** → "use it to do its primary function once"
-  - Browserbase → "run a cloud browser session"
-  - Stripe → "charge a test card"
-  - Clerk → "sign up a user"
-  - Supabase → "insert a row and read it back"
+- **SDK / product with docs site** → "use it to do its primary function once". Examples of how to derive the core task (illustrative only — apply the same logic to whatever product the user named):
+  - A payments API → "charge a test card"
+  - An auth provider → "sign up a user"
+  - A database/backend → "insert a row and read it back"
+  - A browser-automation SDK → "run a session"
+  - A search API → "make one query and parse the result"
 - **SKILL.md** → "use this skill to do its advertised job"
 - **API reference page** → "make one representative call and handle the response"
 - **Tutorial / guide** → "follow the guide to completion"
@@ -66,12 +62,14 @@ Append after the core task:
 
 ## Final shape — examples
 
-Target: Browserbase (`https://docs.browserbase.com`)
+Substitute `{product}` with whatever the user named in Step 1. The shape is identical regardless of target.
 
-- **Pragmatic × TypeScript** → *"Follow Browserbase's getting-started guide using TypeScript (Node.js). You've completed it when you've done whatever the guide treats as its primary successful outcome."*
-- **Thorough × Python** → *"Read and then follow Browserbase's getting-started guide using Python. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
-- **Skeptical × Go** → *"Follow Browserbase's getting-started guide using Go — note anything in the docs that seems wrong or unclear as you go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
-- **Minimal-context × Shell** → *"With as little reading as possible, follow Browserbase's getting-started guide using bash/curl only. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
+Worked example with `{product} = Acme` (placeholder — not a default):
+
+- **Standard × TypeScript** → *"Follow Acme's getting-started guide using TypeScript (Node.js). You've completed it when you've done whatever the guide treats as its primary successful outcome."*
+- **Pragmatic × Python** → *"Follow Acme's getting-started guide using Python. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
+- **Thorough × Go** → *"Read and then follow Acme's getting-started guide using Go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
+- **Skeptical × Shell** → *"Follow Acme's getting-started guide using bash/curl only — note anything in the docs that seems wrong or unclear as you go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
 
 Each agent figures out on its own what the success outcome is from the docs.
 
