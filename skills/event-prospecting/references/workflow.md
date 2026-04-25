@@ -40,14 +40,18 @@ CONTEXT:
 - Event name: {EVENT_NAME}
 - Output directory: {OUTPUT_DIR}    ← write company files HERE, full literal path
 
-COMPANIES TO TRIAGE (one per line — name and homepage URL):
+COMPANIES TO TRIAGE (one per line — `name|guessed_homepage|slug`):
 {COMPANY_LIST}
+
+The guessed_homepage is a heuristic (`https://{lowercased company name without spaces}.com`). For most companies it's correct. For a few it 404s — that's expected and the fallback is documented in rule 3 below.
+
+The slug is the canonical filename to write to: `{OUTPUT_DIR}/companies/{slug}.md`. Use it verbatim — do not re-slugify the name yourself or you'll create duplicate files.
 
 TOOL RULES — CRITICAL, FOLLOW EXACTLY:
 1. You may ONLY use the Bash tool. No exceptions.
 2. The ONLY allowed extraction call is:
      node {SKILL_DIR}/scripts/extract_page.mjs "<homepage_url>" --max-chars 2000
-3. HARD TOOL-CALL CAP: ONE call per company. If a homepage returns FETCH_OK: false with empty BODY, write product_description: "Unknown — homepage content not accessible" and cap icp_fit_score at 3. DO NOT attempt a second call to "save" the company.
+3. HARD TOOL-CALL CAP: ONE call per company. If a homepage returns FETCH_OK: false with empty BODY (e.g. the guessed URL 404s), write product_description: "Unknown — homepage content not accessible" and cap icp_fit_score at 3. DO NOT attempt a second call to "save" the company.
 4. ENFORCEMENT — at the start of EVERY Bash call, prepend a comment like `# bb call N/{TOTAL}` where N counts up and TOTAL is the number of companies in your batch. Example for a 10-company batch:
      # bb call 1/10
      node {SKILL_DIR}/scripts/extract_page.mjs "https://openai.com" --max-chars 2000

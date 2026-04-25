@@ -150,15 +150,22 @@ Expected: roughly 0.4-0.6× the speaker count (most events have ~2 speakers per 
 **Dispatch pattern**: split `seed_companies.txt` into batches of ~10 and fan out N subagents in a SINGLE Agent batch (multiple Agent tool calls in one message). Each subagent runs the prompt from `references/workflow.md` → "ICP Triage" section. Hard cap: **1 tool call per company** (just `extract_page.mjs` on the homepage), enforced via the `# bb call N/1` comment pattern.
 
 ```bash
-# Build batch files: each batch line is "name|website" so subagents have homepage URLs
-# (seed_companies.txt only has names; we need URLs from people.jsonl)
+# Build batch files: each batch line is "name|guessed_homepage|slug".
+# extract_event.mjs only emits company NAMES (no URLs), so we slugify and guess
+# https://{slug-without-spaces}.com as the canonical homepage. The triage subagent
+# is allowed to write product_description: "Unknown — homepage content not accessible"
+# and cap score at 3 if the guessed URL 404s — that's the documented fallback in
+# workflow.md (rule 3 of the ICP Triage prompt). Burning a real bb search to
+# discover the URL would bust the 1-call-per-company HARD CAP.
 node -e '
 const fs = require("fs");
-const people = fs.readFileSync("{OUTPUT_DIR}/people.jsonl", "utf-8").split("\n").filter(Boolean).map(JSON.parse);
+const slugify = (s) => (s || "").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
 const seed = fs.readFileSync("{OUTPUT_DIR}/seed_companies.txt", "utf-8").split("\n").filter(Boolean);
-const url = {};
-for (const p of people) if (p.company && !url[p.company]) url[p.company] = p.companyUrl || p.website || "";
-const lines = seed.map(c => `${c}|${url[c] || ""}`);
+const lines = seed.map(c => {
+  const slug = slugify(c);
+  const guessedHost = c.toLowerCase().replace(/[^a-z0-9]/g, "");
+  return `${c}|https://${guessedHost}.com|${slug}`;
+});
 fs.writeFileSync("{OUTPUT_DIR}/_seed_with_urls.txt", lines.join("\n") + "\n");
 '
 
