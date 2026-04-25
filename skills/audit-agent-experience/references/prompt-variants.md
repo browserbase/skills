@@ -18,7 +18,7 @@ No checklist. No prescriptive steps. The agent reads the docs and decides what "
 No adjectives, no role-play, no behavioral hint. Just the task. Use this as the neutral baseline — removes the Hawthorne effect of telling the agent "you are X type of developer" and lets you measure the docs against an agent doing its natural thing.
 
 ### Pragmatic
-> Follow
+> Skim and then follow
 
 Behavioural hint: shortest path to working. Skips docs when possible. Flags friction bluntly.
 
@@ -67,7 +67,7 @@ Substitute `{product}` with whatever the user named in Step 1. The shape is iden
 Worked example with `{product} = Acme` (placeholder — not a default):
 
 - **Standard × TypeScript** → *"Follow Acme's getting-started guide using TypeScript (Node.js). You've completed it when you've done whatever the guide treats as its primary successful outcome."*
-- **Pragmatic × Python** → *"Follow Acme's getting-started guide using Python. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
+- **Pragmatic × Python** → *"Skim and then follow Acme's getting-started guide using Python. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
 - **Thorough × Go** → *"Read and then follow Acme's getting-started guide using Go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
 - **Skeptical × Shell** → *"Follow Acme's getting-started guide using bash/curl only — note anything in the docs that seems wrong or unclear as you go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
 

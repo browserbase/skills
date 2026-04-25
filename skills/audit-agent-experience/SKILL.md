@@ -181,7 +181,7 @@ For each of N variants, produce a `(persona, language, prompt)` tuple. The promp
 Template:
 
 ```
-{persona_prefix} follow {product}'s getting-started guide using {language}. You've completed it when you've done whatever the guide treats as the primary successful outcome.
+{persona_prefix} {product}'s getting-started guide using {language}. You've completed it when you've done whatever the guide treats as the primary successful outcome.
 ```
 
 Examples (using `Acme` as a placeholder — substitute the user-supplied product name):
@@ -271,7 +271,7 @@ Write a 3–5 sentence **Narrative Review** summary and include it prominently i
 
 Read `references/evaluation-rubric.md` for full criteria. Score 0–100 based on aggregated evidence.
 
-**Onboarding success rate is the primary sanity check.** If <60% of agents completed onboarding, the docs fundamentally failed — no dimension should score above 60 regardless of other evidence.
+**Onboarding success rate is the primary sanity check.** See `references/evaluation-rubric.md` § 0 for the exact cap tiers — at <50% completion, every dimension is capped at 55 regardless of other evidence.
 
 - **Setup Friction (25%)** — credential prompts, auth retries, install errors. Goal items in the "setup" phase failing = big hit.
 - **Speed (20%)** — total wall time, time-to-first-working-code.
@@ -297,7 +297,7 @@ Produce:
 
 Read `assets/report-template.html`. Fill placeholders:
 
-`{{TITLE}}`, `{{TARGET_REF}}`, `{{META}}`, `{{GRADE_LETTER}}`, `{{GRADE_CLASS}}`, `{{OVERALL_SCORE}}`, `{{AGENT_COUNT}}`, `{{COMPLETED_COUNT}}`, `{{STUCK_COUNT}}`, `{{ERRORED_COUNT}}`, `{{NARRATIVE_REVIEW_SECTION}}` (see format below), `{{EXEC_SUMMARY}}`, `{{WENT_WELL_ITEMS}}`, `{{DIDNT_GO_WELL_ITEMS}}`, `{{TIMELINE_SECTION}}`, `{{TOOL_BREAKDOWN_SECTION}}`, `{{METRICS_GRID}}`, `{{PATTERNS_SECTION}}`, `{{FIXES_LIST}}`, `{{AGENT_RESULTS_TABLE}}` (at-a-glance summary table — see format below), `{{AGENT_TRACES_SECTION}}` (full collapsible per-agent trace cards — see format below), `{{AGENT_CARDS}}`.
+`{{TITLE}}`, `{{TARGET_REF}}`, `{{META}}`, `{{GRADE_LETTER}}`, `{{GRADE_CLASS}}`, `{{OVERALL_SCORE}}`, `{{AGENT_COUNT}}`, `{{COMPLETED_COUNT}}`, `{{STUCK_COUNT}}`, `{{ERRORED_COUNT}}`, `{{NARRATIVE_REVIEW_SECTION}}` (see format below), `{{EXEC_SUMMARY}}`, `{{WENT_WELL_ITEMS}}`, `{{DIDNT_GO_WELL_ITEMS}}`, `{{TIMELINE_SECTION}}`, `{{TOOL_BREAKDOWN_SECTION}}`, `{{METRICS_GRID}}`, `{{PATTERNS_SECTION}}`, `{{FIXES_LIST}}`, `{{AGENT_RESULTS_TABLE}}` (at-a-glance summary table — see format below), `{{AGENT_TRACES_SECTION}}` (full collapsible per-agent trace cards — see format below).
 
 **Section order in the rendered report** (the template enforces this — do not reorder):
 1. Scorecard + agent-status stat grid
@@ -309,7 +309,7 @@ Read `assets/report-template.html`. Fill placeholders:
 7. Quantitative Metrics
 8. Tool Call Breakdown
 9. Session Timeline
-10. Per-agent Runs (results table + cards)
+10. Per-agent Runs (results table + traces)
 
 Rationale: opinion before data. The reader needs the verdict (narrative + exec summary) and the actionable fix list before being asked to absorb metrics or timelines. Reference-y sections (timeline, tool breakdown) sit near the bottom for verification, not framing.
 
@@ -420,7 +420,7 @@ rm -rf ./dx-audit-tmp/
 
 Rationale: agents install node_modules, venvs, Go modules, etc. — often tens of MB per agent. Leaving them around pollutes the user's repo and wastes disk.
 
-**Exception:** if a subagent's `completion_status` is `stuck` or `errored`, leave that agent's subdir in place and note it in chat — the user may want to inspect the failing state. Delete only the completed / blocked-on-creds agents' dirs.
+**Exception:** if a subagent's `onboarding_status` is `stuck`, or its trace was marked `errored` (JSON parse failed), leave that agent's subdir in place and note it in chat — the user may want to inspect the failing state. Delete only the completed / blocked-on-creds agents' dirs.
 
 If `exec_mode = "Draft-only"`, no cleanup is needed (no files were written outside the report).
 

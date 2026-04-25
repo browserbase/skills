@@ -127,6 +127,53 @@
   .agent-card .body .positive { padding: 0.5rem 0.75rem; background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2); border-radius: 3px; color: var(--text); }
   .agent-card .body .suggestion { padding: 0.5rem 0.75rem; background: rgba(77,169,228,0.06); border: 1px solid rgba(77,169,228,0.2); border-radius: 3px; color: #2a7ab5; }
 
+  /* Per-agent trace cards (Arena-style event log) */
+  .trace-card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; overflow: hidden; }
+  .trace-card.completed { border-left: 3px solid var(--grade-a); }
+  .trace-card.partial, .trace-card.stuck { border-left: 3px solid var(--grade-d); }
+  .trace-card.errored { border-left: 3px solid var(--muted-gray); }
+  .trace-card.blocked-on-credentials { border-left: 3px solid var(--grade-f); }
+  .trace-card summary { padding: 0.875rem 1.25rem; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; list-style: none; flex-wrap: wrap; }
+  .trace-card summary::-webkit-details-marker { display: none; }
+  .trace-card summary::before { content: '▶'; font-size: 0.5rem; color: var(--muted); transition: transform 0.15s; flex-shrink: 0; }
+  .trace-card[open] summary::before { transform: rotate(90deg); }
+  .trace-card .chip { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.75rem; padding: 1px 8px; border-radius: 2px; background: #f6f5f5; color: var(--text); border: 1px solid var(--border); }
+  .trace-card .body { padding: 0 1.25rem 1.25rem 1.25rem; border-top: 1px solid var(--border); padding-top: 0.875rem; }
+  .trace-card .body h4 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-top: 1rem; margin-bottom: 0.5rem; }
+  .trace-card .body h4:first-child { margin-top: 0; }
+
+  /* Compact Arena-style event log inside a trace card */
+  .trace-timeline { background: #fafaf9; border: 1px solid var(--border); border-radius: 3px; padding: 0.75rem 1rem; font-family: 'Geist Mono', 'SF Mono', 'Fira Code', monospace; font-size: 0.78rem; line-height: 1.6; max-height: 640px; overflow-y: auto; }
+  .trace-row { display: block; white-space: pre-wrap; word-break: break-word; }
+  .trace-row .t { color: var(--muted); margin-right: 0.5rem; }
+  .trace-row .label { font-weight: 700; margin-right: 0.5rem; }
+  .trace-row .label-prompt { color: #b8860b; }
+  .trace-row .label-milestone { color: var(--blue-info); }
+  .trace-row .label-thought { color: #8b5cf6; }
+  .trace-row.thought .body-text { color: var(--muted); font-style: italic; }
+  .trace-row .label-tool-use { color: var(--brand); }
+  .trace-row .label-tool-result { color: #16a34a; }
+  .trace-row .label-tool-result.errored { color: var(--grade-f); }
+  .trace-row .label-error { color: var(--grade-f); }
+  .trace-row.error .body-text { color: var(--grade-f); }
+  .trace-row .label-result { color: #166534; }
+  .trace-row.result .body-text { color: #166534; font-weight: 700; }
+  .trace-row .tool-name { color: var(--brand); font-weight: 600; }
+
+  /* Inline tool input/output blocks (always visible — never click-to-expand) */
+  .trace-io { margin: 0.25rem 0 0.5rem 1.5rem; padding: 0.5rem 0.75rem; background: #fff; border: 1px solid var(--border); border-left-width: 3px; border-radius: 2px; font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.75rem; line-height: 1.5; white-space: pre-wrap; word-break: break-word; max-height: 280px; overflow: auto; }
+  .trace-io.input { border-left-color: var(--brand); }
+  .trace-io.output { border-left-color: #16a34a; }
+  .trace-io.error { border-left-color: var(--grade-f); background: rgba(239,68,68,0.04); }
+
+  /* Prompt row — the only collapsible event in the timeline */
+  .trace-row.prompt details { display: inline; }
+  .trace-row.prompt details > summary { list-style: none; cursor: pointer; color: var(--muted); }
+  .trace-row.prompt details > summary::-webkit-details-marker { display: none; }
+  .trace-row.prompt details > summary::before { content: '▸ Show full prompt'; }
+  .trace-row.prompt details[open] > summary::before { content: '▾ Hide prompt'; }
+  .trace-row.prompt .full-prompt { display: block; margin: 0.5rem 0 0.5rem 1.5rem; padding: 0.5rem 0.75rem; background: #fff; border: 1px solid var(--border); border-left: 3px solid #b8860b; border-radius: 2px; white-space: pre-wrap; color: var(--text); }
+
   /* Per-agent results summary table */
   .agent-results-table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; background: var(--card); border: 1px solid var(--border); border-radius: 4px; overflow: hidden; font-size: 0.8125rem; }
   .agent-results-table th { text-align: left; padding: 0.625rem 0.875rem; background: #faf9f8; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
@@ -298,7 +345,7 @@
   <div class="section">
     <h2>Per-agent Runs <span class="count">{{AGENT_COUNT}}</span></h2>
     {{AGENT_RESULTS_TABLE}}
-    {{AGENT_CARDS}}
+    {{AGENT_TRACES_SECTION}}
   </div>
 
 </div>

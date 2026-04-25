@@ -155,4 +155,4 @@ Fill placeholders based on user's `exec_mode`:
 - Use `subagent_type: "general-purpose"`.
 - Parse the last fenced JSON block with regex: `/```json\s*(\{[\s\S]*?\})\s*```\s*$/`.
 - If parsing fails, mark trace `errored` with a `raw_tail` (last 500 chars) for debugging.
-- If a subagent stops to ask for credentials, its `completion_status` should be `"blocked-on-credentials"`. The ask itself is captured in `interruptions_asking_for_creds` — do not interactively answer during the run.
+- If a subagent stops to ask for credentials, its `onboarding_status` should be `"blocked-on-credentials"`. The ask itself is captured in `interruptions_asking_for_creds` — do not interactively answer during the run.

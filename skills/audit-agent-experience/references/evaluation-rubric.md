@@ -1,6 +1,6 @@
 # Evaluation Rubric — Arena Methodology
 
-Score each dimension 0–100 based on aggregated trace evidence. Ground every score in specific trace fields: `tool_calls`, `errors`, `retries`, `interruptions_asking_for_creds`, `completion_status`, `friction_points`.
+Score each dimension 0–100 based on aggregated trace evidence. Ground every score in specific trace fields: `tool_calls`, `errors`, `retries`, `interruptions_asking_for_creds`, `onboarding_status`, `friction_points`.
 
 ## Table of contents
 
@@ -108,7 +108,7 @@ Adjust for task complexity. A payments flow is not a cloud browser session.
 
 **Signals:**
 - `errors[].recovered` — recovery rate.
-- Whether errors led to `retries` that succeeded or to `completion_status` degradation.
+- Whether errors led to `retries` that succeeded or to `onboarding_status` degradation.
 - Docs surfaces relevant error info when fetched after an error (check `friction_points` for "no troubleshooting" notes).
 - `friction_points[].severity = critical | high` at the execution phase.
 
