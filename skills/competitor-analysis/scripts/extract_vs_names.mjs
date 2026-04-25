@@ -63,12 +63,16 @@ for (const f of files) {
 
 // Build a lookup of hostname -> candidate root domain from all result URLs.
 // Used later to try to resolve "anchor" -> "anchorbrowser.io".
+// Exclude any host whose root-base equals a seed name — otherwise a short extracted token
+// like "browse" can match the user's own domain (browserbase.com).
 const hostMap = new Map();
 for (const r of allResults) {
   if (!r.url) continue;
   try {
     const h = new URL(r.url).hostname.replace(/^www\./, '');
     const root = h.split('.').slice(-2).join('.');
+    const rootBase = root.split('.')[0];
+    if (seedSet.has(rootBase)) continue;
     if (!hostMap.has(root)) hostMap.set(root, h);
   } catch {}
 }
@@ -92,12 +96,33 @@ for (const r of allResults) {
 }
 
 // Try to resolve each name to a domain.
+// Strategy:
+//   1. Exact match on rootBase wins outright.
+//   2. Otherwise allow rootBase.startsWith(needle) ONLY when the suffix is a known
+//      branding token (e.g. "anchor" → "anchorbrowser.io"). Bidirectional startsWith
+//      was too loose: "steel" matched steelhead.com, "browse" matched browserbase.com.
+//   3. Among multiple suffix matches, prefer the shortest suffix (most specific —
+//      "anchor" should match "anchorbrowser" before "anchorbrowserlabs"). Deterministic.
+const BRAND_SUFFIXES = ['browser','app','ai','io','hq','co','dev','tech','cloud','agent','agents','labs','lab'];
+
 function resolveDomain(name) {
   const needle = name.replace(/\./g, '');
+  let exact = null;
+  let bestSuffix = null; // { host, suffixLen }
   for (const [root, host] of hostMap.entries()) {
     const rootBase = root.split('.')[0];
-    if (rootBase === needle || rootBase.startsWith(needle) || needle.startsWith(rootBase)) return host;
+    if (rootBase === needle) { exact = host; break; }
+    if (rootBase.length > needle.length && rootBase.startsWith(needle)) {
+      const suffix = rootBase.slice(needle.length).replace(/^[\-_]/, '');
+      if (BRAND_SUFFIXES.includes(suffix)) {
+        if (!bestSuffix || suffix.length < bestSuffix.suffixLen) {
+          bestSuffix = { host, suffixLen: suffix.length };
+        }
+      }
+    }
   }
+  if (exact) return exact;
+  if (bestSuffix) return bestSuffix.host;
   return null;
 }
 

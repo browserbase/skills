@@ -272,19 +272,6 @@ for (const c of competitors) {
 }
 const deduped = [...seen.values()].sort((a, b) => (a.competitor_name || '').localeCompare(b.competitor_name || ''));
 
-// ---------- Aggregates ----------
-
-const totalMentions = deduped.reduce((sum, c) => sum + c.mentions.length, 0);
-const totalBenchmarks = deduped.reduce((sum, c) => sum + c.benchmarks.length, 0);
-const withPricing = deduped.filter(c => c.pricing_tiers).length;
-
-const dirName = dir.split('/').pop();
-const title = dirName.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
-const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-// Initial metaLine uses deduped.length as fallback; we rebuild it after filtering the user's
-// own company out of `competitorRows` so the "N competitors" count is accurate.
-let metaLine = `${deduped.length} competitors · ${totalMentions} mentions · ${totalBenchmarks} benchmarks · ${genDate}`;
-
 // Load the curated matrix EARLY — the overview table needs userCompany.name to filter the
 // user's own company out of the competitor list, and the strategic summary card needs the
 // whole matrix. Keep this block above the first use site to avoid temporal dead zones.
@@ -295,6 +282,31 @@ try {
 } catch (err) {
   console.error(`Warning: matrix.json present but unreadable — falling back to pipe split. ${err.message}`);
 }
+
+// Filter the user's own company out before computing any "competitor" totals or rendering
+// any view. matrix.json's userCompany.name wins; fall back to the --user-company CLI arg.
+// Match case-insensitively against competitor_name AND slug. EVERY downstream loop that
+// represents "the competitor set" (matrix.html columns, mentions feed, totals, strategic
+// summary, per-competitor pages, CSV) must iterate `competitorRows`, not `deduped` —
+// otherwise the user appears as a phantom column with all-false features.
+const userCompanyName = (curatedMatrix && curatedMatrix.userCompany && curatedMatrix.userCompany.name) || userCompany || '';
+const userNameLower = userCompanyName.toLowerCase();
+const competitorRows = deduped.filter(c => {
+  const nameLower = (c.competitor_name || '').toLowerCase();
+  const slugLower = (c.slug || '').toLowerCase();
+  return !userNameLower || (nameLower !== userNameLower && slugLower !== userNameLower);
+});
+
+// ---------- Aggregates ----------
+
+const totalMentions = competitorRows.reduce((sum, c) => sum + c.mentions.length, 0);
+const totalBenchmarks = competitorRows.reduce((sum, c) => sum + c.benchmarks.length, 0);
+const withPricing = competitorRows.filter(c => c.pricing_tiers).length;
+
+const dirName = dir.split('/').pop();
+const title = dirName.replace(/_/g, ' ').replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase());
+const genDate = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+const metaLine = `${competitorRows.length} competitors · ${totalMentions} mentions · ${totalBenchmarks} benchmarks · ${genDate}`;
 
 // ---------- index.html (overview) ----------
 
@@ -317,18 +329,6 @@ function truncate(str, n) {
   if (str.length <= n) return str;
   return str.slice(0, n - 1).replace(/\s+\S*$/, '') + '…';
 }
-
-// Exclude the user's own company from the competitor table. matrix.json's userCompany.name
-// wins; fall back to the --user-company CLI arg. Match case-insensitively against the
-// competitor_name AND the slug so we catch "Browserbase" vs "browserbase.md".
-const userNameLower = ((curatedMatrix && curatedMatrix.userCompany && curatedMatrix.userCompany.name) || userCompany || '').toLowerCase();
-const competitorRows = deduped.filter(c => {
-  const nameLower = (c.competitor_name || '').toLowerCase();
-  const slugLower = (c.slug || '').toLowerCase();
-  return !userNameLower || (nameLower !== userNameLower && slugLower !== userNameLower);
-});
-// Rebuild metaLine now that we know the true competitor count (excluding the user's company).
-metaLine = `${competitorRows.length} competitors · ${totalMentions} mentions · ${totalBenchmarks} benchmarks · ${genDate}`;
 
 const tableRows = competitorRows.map(c => {
   const hasDetail = c.body && c.body.length > 50;
@@ -376,7 +376,7 @@ function buildStrategicSummary() {
       const label = entry.name;
       const userHas = !!userFlags[label];
       const whoElseHas = [];
-      for (const c of deduped) {
+      for (const c of competitorRows) {
         const compEntry = compMap[c.slug];
         if (compEntry && compEntry[kind] && compEntry[kind][label]) whoElseHas.push(c.competitor_name);
       }
@@ -503,7 +503,7 @@ const perCompetitorCss = `
   footer a { color:var(--brand); text-decoration:none; font-weight:500; }
 `;
 
-for (const c of deduped) {
+for (const c of competitorRows) {
   if (!c.body || c.body.length < 50) continue;
 
   const mentionsHtml = c.mentions.length
@@ -608,7 +608,7 @@ function buildMatrixAxisFromCurated(kind) {
   return curatedMatrix[kind].map(entry => {
     const label = entry.name;
     let count = 0;
-    for (const c of deduped) {
+    for (const c of competitorRows) {
       const compKey = curatedMatrix.competitors[c.slug];
       if (compKey && compKey[kind] && compKey[kind][label]) count += 1;
     }
@@ -618,7 +618,7 @@ function buildMatrixAxisFromCurated(kind) {
 
 function buildMatrixAxisFromPipes(field) {
   const counts = new Map();
-  for (const c of deduped) {
+  for (const c of competitorRows) {
     for (const item of splitPipes(c[field])) {
       const key = item.toLowerCase();
       if (!counts.has(key)) counts.set(key, { label: item, count: 0 });
@@ -652,10 +652,10 @@ function matrixSection(heading, axis, field) {
   // the sticky left column so users can scroll horizontally without losing context on wide tables.
   const header = `<tr>
     <th class="mx-feature-h">${escapeHtml(heading)}</th>
-    ${deduped.map(c => `<th class="mx-comp-h"><a href="competitors/${escapeHtml(c.slug)}.html">${escapeHtml(c.competitor_name)}</a></th>`).join('')}
+    ${competitorRows.map(c => `<th class="mx-comp-h"><a href="competitors/${escapeHtml(c.slug)}.html">${escapeHtml(c.competitor_name)}</a></th>`).join('')}
   </tr>`;
   const rows = axis.map(a => {
-    const cells = deduped.map(c => competitorHas(c, field, a.label)
+    const cells = competitorRows.map(c => competitorHas(c, field, a.label)
       ? `<td class="mx-cell mx-yes" title="${escapeHtml(c.competitor_name)} has ${escapeHtml(a.label)}">●</td>`
       : `<td class="mx-cell mx-no">·</td>`).join('');
     return `<tr>
@@ -671,7 +671,7 @@ function matrixSection(heading, axis, field) {
   </section>`;
 }
 
-const pricingRows = deduped.map(c => `<tr><td style="font-weight:500;">${escapeHtml(c.competitor_name)}</td><td style="color:var(--muted);font-size:0.8125rem;">${escapeHtml(c.pricing_model || '')}</td><td style="font-size:0.8125rem;">${escapeHtml(c.pricing_tiers || '—')}</td><td style="font-size:0.8125rem;">${escapeHtml(c.target_customer || '')}</td></tr>`).join('');
+const pricingRows = competitorRows.map(c => `<tr><td style="font-weight:500;">${escapeHtml(c.competitor_name)}</td><td style="color:var(--muted);font-size:0.8125rem;">${escapeHtml(c.pricing_model || '')}</td><td style="font-size:0.8125rem;">${escapeHtml(c.pricing_tiers || '—')}</td><td style="font-size:0.8125rem;">${escapeHtml(c.target_customer || '')}</td></tr>`).join('');
 
 const matrixHtml = `<!DOCTYPE html>
 <html lang="en">
@@ -886,7 +886,7 @@ const priority = [
   'target_customer', 'pricing_model', 'pricing_tiers', 'key_features', 'integrations',
   'headquarters', 'founded', 'employee_estimate', 'funding_info', 'strategic_diff'
 ];
-const flatRows = deduped.map(c => {
+const flatRows = competitorRows.map(c => {
   const row = {};
   for (const k of Object.keys(c)) {
     if (['body', 'sections', 'mentions', 'benchmarks', 'slug', 'file'].includes(k)) continue;
@@ -912,7 +912,7 @@ writeFileSync(join(dir, 'results.csv'), csvLines.join('\n') + '\n');
 // ---------- Summary ----------
 
 console.error(JSON.stringify({
-  total: deduped.length,
+  total: competitorRows.length,
   mentions: totalMentions,
   benchmarks: totalBenchmarks,
   with_pricing: withPricing,
@@ -921,7 +921,7 @@ console.error(JSON.stringify({
     index: join(dir, 'index.html'),
     matrix: join(dir, 'matrix.html'),
     mentions: join(dir, 'mentions.html'),
-    competitors: deduped.filter(c => c.body && c.body.length > 50).length,
+    competitors: competitorRows.filter(c => c.body && c.body.length > 50).length,
     csv: join(dir, 'results.csv')
   }
 }, null, 2));

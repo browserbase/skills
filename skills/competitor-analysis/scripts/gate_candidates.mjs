@@ -14,8 +14,15 @@
 //   { "url": "https://foo.com", "status": "PASS" | "REJECT" | "UNKNOWN",
 //     "matched_includes": [...], "matched_excludes": [...], "title": "...", "hero": "..." }
 
-import { execSync, spawnSync } from 'child_process';
+import { execFile } from 'child_process';
+import { promisify } from 'util';
 import { readFileSync } from 'fs';
+
+// Async execFile so the worker pool actually parallelizes. spawnSync blocks the entire
+// event loop, which silently turns --concurrency N into N=1 — every URL fetched serially
+// regardless of the flag. With promisified execFile, N workers can wait on N pending
+// `bb fetch` processes concurrently.
+const execFileAsync = promisify(execFile);
 
 const args = process.argv.slice(2);
 
@@ -123,36 +130,35 @@ function classify(title, heroFull, includes, excludes) {
 }
 
 async function gateOne(url) {
+  let stdout;
   try {
-    const proc = spawnSync('bb', ['fetch', '--allow-redirects', url], {
-      encoding: 'utf-8',
+    const r = await execFileAsync('bb', ['fetch', '--allow-redirects', url], {
       maxBuffer: 4 * 1024 * 1024,
       timeout: 20000,
     });
-    if (proc.status !== 0) {
-      return { url, status: 'UNKNOWN', reason: 'bb fetch failed', matched_includes: [], matched_excludes: [], title: '', hero: '' };
-    }
-    let resp;
-    try { resp = JSON.parse(proc.stdout); } catch {
-      return { url, status: 'UNKNOWN', reason: 'non-JSON response', matched_includes: [], matched_excludes: [], title: '', hero: '' };
-    }
-    const html = resp.content || '';
-    const titleM = html.match(/<title[^>]*>([^<]*)<\/title>/i);
-    const title = titleM ? titleM[1].trim() : '';
-    const heroFull = stripHtml(html).slice(0, heroChars);
-    const c = classify(title, heroFull, includes, excludes);
-    return {
-      url,
-      status: c.status,
-      reason: c.reason,
-      matched_includes: c.matched_includes,
-      matched_excludes: c.matched_excludes,
-      title,
-      hero: heroFull.slice(0, 240),
-    };
+    stdout = r.stdout;
   } catch (err) {
-    return { url, status: 'UNKNOWN', reason: err.message, matched_includes: [], matched_excludes: [], title: '', hero: '' };
+    // Non-zero exit, timeout, or spawn failure all surface here.
+    return { url, status: 'UNKNOWN', reason: `bb fetch failed: ${err.message}`, matched_includes: [], matched_excludes: [], title: '', hero: '' };
   }
+  let resp;
+  try { resp = JSON.parse(stdout); } catch {
+    return { url, status: 'UNKNOWN', reason: 'non-JSON response', matched_includes: [], matched_excludes: [], title: '', hero: '' };
+  }
+  const html = resp.content || '';
+  const titleM = html.match(/<title[^>]*>([^<]*)<\/title>/i);
+  const title = titleM ? titleM[1].trim() : '';
+  const heroFull = stripHtml(html).slice(0, heroChars);
+  const c = classify(title, heroFull, includes, excludes);
+  return {
+    url,
+    status: c.status,
+    reason: c.reason,
+    matched_includes: c.matched_includes,
+    matched_excludes: c.matched_excludes,
+    title,
+    hero: heroFull.slice(0, 240),
+  };
 }
 
 // Run with bounded concurrency

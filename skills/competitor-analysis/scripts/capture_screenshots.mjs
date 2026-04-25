@@ -37,8 +37,16 @@ const dir = args[0];
 const envIdx = args.indexOf('--env');
 const browseEnv = envIdx !== -1 ? args[envIdx + 1] : 'remote';
 const concurrencyIdx = args.indexOf('--concurrency');
-const concurrency = concurrencyIdx !== -1 ? parseInt(args[concurrencyIdx + 1], 10) : 1;
+let concurrency = concurrencyIdx !== -1 ? parseInt(args[concurrencyIdx + 1], 10) : 1;
 const skipExisting = args.includes('--skip-existing');
+
+// `browse` maintains a single shared session; parallel `browse goto/screenshot` calls would
+// race on the same tab. Clamp concurrency to 1 and warn rather than silently corrupt output.
+// (Each capture is fast — ~3-4s — so serial is acceptable.)
+if (concurrency > 1) {
+  console.error(`Note: clamping --concurrency ${concurrency} to 1 — \`browse\` shares a single session across calls, so parallel screenshots would race on the same tab.`);
+  concurrency = 1;
+}
 
 const shotsDir = join(dir, 'screenshots');
 mkdirSync(shotsDir, { recursive: true });
