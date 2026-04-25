@@ -461,14 +461,53 @@ ${personList.map(p => renderPersonCard(p, p._company)).join('\n')}
 </div>`;
 }
 
-// renderFilterBar is added in D3 — defined as a no-op here so D2 still compiles.
-function renderFilterBar(_personList) {
-  return '';
+function uniqValues(list, fn) {
+  return [...new Set(list.map(fn).filter(Boolean))].sort();
+}
+
+// people.html filter chips: ICP band, role bucket, company.
+// Activating a chip applies a single-value filter against the matching
+// data-* attribute on each .person-card. Click handlers are in clipboardScript.
+function renderFilterBar(personList) {
+  const compNames = uniqValues(personList, p => p.company);
+  const roles = uniqValues(personList, p => roleBucket(p.title));
+  const bands = ['high', 'mid', 'low'];
+
+  const chip = (val, label) => `<span class="chip${val === '' ? ' active' : ''}" data-value="${escapeHtml(val)}">${escapeHtml(label)}</span>`;
+
+  const bandLabels = { high: 'High (8-10)', mid: 'Mid (6-7)', low: 'Low (1-5)' };
+
+  return `<div class="filter-bar">
+    <div class="filter-group" data-filter="icpband">
+      <span class="label">ICP</span>
+      ${chip('', 'All')}
+      ${bands.map(b => chip(b, bandLabels[b])).join(' ')}
+    </div>
+    <div class="filter-group" data-filter="role">
+      <span class="label">Role</span>
+      ${chip('', 'All')}
+      ${roles.map(r => chip(r, r)).join(' ')}
+    </div>
+    <div class="filter-group" data-filter="company">
+      <span class="label">Company</span>
+      ${chip('', 'All')}
+      ${compNames.map(c => chip(c.toLowerCase(), c)).join(' ')}
+    </div>
+  </div>`;
 }
 
 // ----- Companies table with attendees expandable ---------------------------
 
 function renderCompaniesTable() {
+  // Group people by company slug or name (lowered) so each row can show its attendees.
+  const byCompany = new Map();
+  for (const p of people) {
+    const key = p._company ? (p._company.slug || (p._company.company_name || '').toLowerCase()) : null;
+    if (!key) continue;
+    if (!byCompany.has(key)) byCompany.set(key, []);
+    byCompany.get(key).push(p);
+  }
+
   return deduped.map(c => {
     const sc = scoreClass(c.icp_fit_score);
     const hasDetail = c.body && c.body.length > 50;
@@ -478,9 +517,16 @@ function renderCompaniesTable() {
     const websiteHtml = c.website
       ? `<br><a href="${escapeHtml(c.website)}" target="_blank" style="font-size:0.75rem;color:var(--muted);">${escapeHtml(c.website.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
       : '';
+    const key = c.slug || (c.company_name || '').toLowerCase();
+    const attendees = byCompany.get(key) || [];
+    const attendeeBlock = attendees.length ? `
+        <details class="attendees">
+          <summary>${attendees.length} attendee${attendees.length === 1 ? '' : 's'}</summary>
+          <ul>${attendees.map(a => `<li><strong>${escapeHtml(a.name || a.slug)}</strong>${a.title ? ' &mdash; ' + escapeHtml(a.title) : ''}${(a.links && a.links.linkedin) ? ` &middot; <a href="${escapeHtml(a.links.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ''}</li>`).join('')}</ul>
+        </details>` : '';
     return `      <tr>
         <td><span class="score ${sc}">${escapeHtml(c.icp_fit_score || '—')}</span></td>
-        <td>${nameHtml}${websiteHtml}</td>
+        <td>${nameHtml}${websiteHtml}${attendeeBlock}</td>
         <td style="max-width:200px;">${escapeHtml(c.product_description || '')}</td>
         <td>${escapeHtml(c.industry || '')}</td>
         <td class="reasoning">${escapeHtml(c.icp_fit_reasoning || '')}</td>
