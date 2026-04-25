@@ -30,6 +30,12 @@
   code { font-family: 'Geist Mono', 'SF Mono', 'Fira Code', monospace; font-size: 0.8125em; background: #f6f5f5; padding: 0.125em 0.375em; border-radius: 2px; border: 1px solid var(--border); }
   blockquote { border-left: 3px solid var(--border); padding: 0.5rem 0.875rem; color: var(--muted); font-style: italic; margin: 0.5rem 0; background: #fafaf9; border-radius: 0 3px 3px 0; }
 
+  /* Inline links (doc paths and resource IDs in report content) */
+  a.doc-link { text-decoration: none; color: inherit; }
+  a.doc-link:hover code { background: #fff4ef; border-color: var(--brand); color: var(--brand); }
+  a.session-link { color: #166534; text-decoration: none; }
+  a.session-link:hover { text-decoration: underline; }
+
   /* Header */
   header { margin-bottom: 2rem; display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
   .header-left h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; color: var(--black); }
