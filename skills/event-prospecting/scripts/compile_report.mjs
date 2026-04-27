@@ -180,8 +180,10 @@ function slugify(s) {
 
 function roleBucket(title) {
   const t = (title || '').toLowerCase();
-  if (/(ceo|founder|co-?founder|president|chief)/.test(t)) return 'Founder/CXO';
+  // VP/Director check must run before Founder/CXO — otherwise "Vice President"
+  // gets caught by the "president" alternative and miscategorized as a CXO.
   if (/(vp|vice president|head of|director)/.test(t)) return 'VP/Director';
+  if (/(ceo|founder|co-?founder|president|chief)/.test(t)) return 'Founder/CXO';
   if (/(engineer|developer|programmer|architect|sre|devops)/.test(t)) return 'Engineering';
   if (/(product|pm|product manager)/.test(t)) return 'Product';
   if (/(design|ux|ui)/.test(t)) return 'Design';

@@ -132,8 +132,17 @@ function resolveImage(src) {
   return src;
 }
 
-// Add a slug + normalize image URL
-people = people.map(p => ({ ...p, image: resolveImage(p.image), slug: slugify(p.name) }));
+// Add a slug + normalize image URL. Disambiguate duplicate names with -2, -3,
+// etc. so a later subagent's people/{slug}.md write doesn't silently overwrite
+// a previous speaker who happens to share a name.
+const slugCounts = new Map();
+people = people.map(p => {
+  const base = slugify(p.name);
+  const n = (slugCounts.get(base) || 0) + 1;
+  slugCounts.set(base, n);
+  const slug = n === 1 ? base : `${base}-${n}`;
+  return { ...p, image: resolveImage(p.image), slug };
+});
 
 // Filter event-host employees and obvious noise. The host org is derived from
 // the event URL — for `stripesessions.com` that's stripe; for subdomain-hosted
