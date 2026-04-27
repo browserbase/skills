@@ -148,14 +148,17 @@ const userCompanyArg = (() => {
   return i !== -1 ? filterArgs[i + 1] : null;
 })();
 
+// Compare via slugify on both sides so a profile slug like "acme-corp" matches a
+// speaker's `company` of "Acme Corp" (which lower-cases to "acme corp" and would
+// otherwise miss).
 const dropList = new Set([
-  hostOrg && hostOrg.toLowerCase(),
-  userCompanyArg && userCompanyArg.toLowerCase(),
+  hostOrg && slugify(hostOrg),
+  userCompanyArg && slugify(userCompanyArg),
 ].filter(Boolean));
 
 const filtered = people.filter(p => {
   if (!p.company) return true; // keep "unknown company" — synth assigns later
-  return !dropList.has(p.company.toLowerCase());
+  return !dropList.has(slugify(p.company));
 });
 
 console.error(`Filtered ${people.length - filtered.length} host-org / user-company employees`);

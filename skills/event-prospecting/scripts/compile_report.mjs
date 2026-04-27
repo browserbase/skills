@@ -787,21 +787,49 @@ for (const c of deduped) {
 
 // ----- CSV ----------------------------------------------------------------
 
-const priority = [
-  'company_name', 'website', 'product_description', 'icp_fit_score',
-  'icp_fit_reasoning', 'industry', 'target_audience', 'key_features',
-  'employee_estimate', 'funding_info', 'headquarters'
+// One row per speaker — this is the spreadsheet the AE imports into outbound
+// tooling, so it has to answer "who do I reach out to", not "what companies
+// attended". Company-level fields (ICP score, fit reasoning, website, industry)
+// are joined in from the resolved company file.
+const personCols = [
+  'name', 'title', 'company', 'icp_fit_score',
+  'linkedin', 'x', 'github', 'blog', 'podcast',
+  'hook', 'role_reason', 'dm_opener',
+  'icp_fit_reasoning', 'company_website', 'company_industry',
+  'person_slug', 'company_slug', 'image',
 ];
-const scalarKeys = new Set();
-for (const row of deduped) {
-  for (const k of Object.keys(row)) {
-    if (k === 'body' || k === 'slug' || k === 'file') continue;
-    if (typeof row[k] === 'object' && row[k] !== null) continue;
-    scalarKeys.add(k);
-  }
+
+function personRow(p) {
+  const c = p._company || {};
+  const links = (p.links && typeof p.links === 'object') ? p.links : {
+    linkedin: p.linkedin || null,
+    x: p.x || p.twitter || null,
+    github: p.github || null,
+    blog: p.blog || null,
+    podcast: p.podcast || null,
+  };
+  const score = c.icp_fit_score || p.icp_fit_score || '';
+  return {
+    name: p.name || '',
+    title: p.title || '',
+    company: p.company || c.company_name || '',
+    icp_fit_score: score,
+    linkedin: links.linkedin || '',
+    x: links.x || '',
+    github: links.github || '',
+    blog: links.blog || '',
+    podcast: links.podcast || '',
+    hook: p.hook || extractSection(p.body, 'Hook') || '',
+    role_reason: p.role_reason || extractSection(p.body, 'Why the person') || '',
+    dm_opener: p.dm_opener || extractSection(p.body, 'DM Opener') || '',
+    icp_fit_reasoning: c.icp_fit_reasoning || '',
+    company_website: c.website || '',
+    company_industry: c.industry || '',
+    person_slug: p.slug || '',
+    company_slug: c.slug || '',
+    image: p.image || '',
+  };
 }
-const allCols = [...scalarKeys];
-const cols = [...priority.filter(c => allCols.includes(c)), ...allCols.filter(c => !priority.includes(c)).sort()];
 
 function csvEscape(v) {
   if (v == null) return '';
@@ -810,9 +838,10 @@ function csvEscape(v) {
   return s;
 }
 
-const csvLines = [cols.join(',')];
-for (const row of deduped) {
-  csvLines.push(cols.map(c => csvEscape(row[c] || '')).join(','));
+const csvLines = [personCols.join(',')];
+for (const p of people) {
+  const row = personRow(p);
+  csvLines.push(personCols.map(c => csvEscape(row[c])).join(','));
 }
 writeFileSync(join(dir, 'results.csv'), csvLines.join('\n') + '\n');
 

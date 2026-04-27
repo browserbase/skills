@@ -54,7 +54,12 @@ if (depth === 'deep' || depth === 'deeper') {
 if (depth === 'deeper') {
   const r3 = bbSearch(`"${name}" github`);
   const r4 = bbSearch(`"${name}" site:x.com OR site:twitter.com`);
-  out.links = { ...out.links, ...harvestLinks([...(r3.results || []), ...(r4.results || [])]) };
+  // Only fill in fields Lane 1 didn't already find — harvestLinks returns null for
+  // missing keys, so a naive spread would clobber known LinkedIn/X URLs.
+  const more = harvestLinks([...(r3.results || []), ...(r4.results || [])]);
+  for (const [k, v] of Object.entries(more)) {
+    if (v && !out.links[k]) out.links[k] = v;
+  }
 }
 
 console.log(JSON.stringify(out, null, 2));
