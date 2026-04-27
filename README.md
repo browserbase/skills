@@ -9,6 +9,7 @@ This plugin includes the following skills (see `skills/` for details):
 | Skill | Description |
 |-------|-------------|
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
+| [browser-swarm](skills/browser-swarm/SKILL.md) | Coordinate multiple agents across separate tabs of one local Chrome using auto-connect, with target-bound CDP/Stagehand fallback guidance for true parallel tab ownership |
 | [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `bb` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
 | [site-debugger](skills/site-debugger/SKILL.md) | Diagnose and fix failing browser automations — analyzes bot detection, selectors, timing, auth, and captchas, then generates a tested site playbook |
