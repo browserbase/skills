@@ -61,6 +61,12 @@ Claude will handle the rest.
 
 For local and localhost work, `browse env local` now starts a clean isolated browser by default. Use `browse env local --auto-connect` when the agent should reuse your existing local Chrome session, cookies, or login state.
 
+## How this plugin overrides WebFetch / WebSearch
+
+The `fetch` and `search` skills use `context: fork` to run inside a restricted subagent (`browserbase-web`) whose `tools` field only includes `Bash`. When Claude invokes either skill, it cannot fall back to the built-in WebFetch or WebSearch tools from inside that execution — only the Browserbase API via `curl` (or `bb` where applicable) is available.
+
+To opt out, disable the plugin or invoke WebFetch / WebSearch explicitly outside the skills.
+
 ## Troubleshooting
 
 ### Chrome not found
