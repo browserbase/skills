@@ -78,7 +78,10 @@ function extractFromNextData(paths) {
       image: pickImage(s),
     }));
   })()`;
-  const res = JSON.parse(browse('goto', recon.url));
+  // Don't JSON.parse goto's output — `browse goto` can emit non-JSON banners,
+  // and we don't use the return value. The matching `extractFromMarkdown` path
+  // ignores it the same way.
+  browse('goto', recon.url);
   browse('wait', 'timeout', '2000');
   const evalRes = JSON.parse(browse('eval', js));
   return evalRes.result || [];
