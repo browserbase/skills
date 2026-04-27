@@ -53,6 +53,21 @@
       "skills": [
         "./skills/browserbase-cli"
       ]
+    },
+    {
+      "name": "browser-observability",
+      "source": "./",
+      "description": "Capture full DevTools-protocol observability data (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets. Use when the user wants to debug a browser run, audit network/console/DOM activity, or attach observability to an in-flight Browserbase session.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "automation",
+      "keywords": ["debugging", "observability", "cdp", "devtools-protocol", "session-debugging", "network-audit"],
+      "strict": false,
+      "skills": [
+        "./skills/browser-observability"
+      ]
     }
   ]
 }
