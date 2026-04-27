@@ -30,7 +30,9 @@ function harvestLinks(results) {
   for (const r of results) {
     const u = r.url || '';
     if (!links.linkedin && /linkedin\.com\/in\//.test(u)) links.linkedin = u;
-    if (!links.x && /(x|twitter)\.com/.test(u)) links.x = u;
+    // Anchor x.com / twitter.com to the host part so wix.com, fox.com, box.com
+    // don't get picked up as X profiles.
+    if (!links.x && /^https?:\/\/(?:[a-z0-9-]+\.)?(?:x|twitter)\.com[\/?#]/i.test(u)) links.x = u;
     if (!links.github && /github\.com/.test(u)) links.github = u;
     if (!links.podcast && /(spotify|podcast|simplecast|transistor)/.test(u)) links.podcast = u;
     if (!links.blog && /(medium|substack|hashnode|dev\.to|\.blog)/.test(u)) links.blog = u;

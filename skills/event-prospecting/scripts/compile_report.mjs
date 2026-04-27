@@ -148,6 +148,15 @@ function escapeAttr(str) {
   return escapeHtml(str).replace(/\n/g, '&#10;');
 }
 
+// Escape a value going into a single-quoted JS string literal that itself sits
+// inside an HTML attribute (e.g. onerror="...textContent:'X'..."). JS escapes
+// have to come before HTML escapes — `escapeHtml` doesn't touch ' or \, so a
+// name starting with `'` would otherwise close the JS string mid-attribute.
+function escapeJsInAttr(str) {
+  const js = (str || '').toString().replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  return escapeAttr(js);
+}
+
 function scoreClass(score) {
   const s = parseInt(score) || 0;
   if (s >= 8) return 'high';
@@ -155,10 +164,13 @@ function scoreClass(score) {
   return 'low';
 }
 
+// Same thresholds as scoreClass + the template's "Strong Fit (8-10) / Partial
+// Fit (5-7) / Low Fit (1-4)" header so a score-5 company isn't simultaneously
+// counted as "Partial" in the summary and "Low" on its person card.
 function icpBand(score) {
   const s = parseInt(score) || 0;
   if (s >= 8) return 'high';
-  if (s >= 6) return 'mid';
+  if (s >= 5) return 'mid';
   return 'low';
 }
 
@@ -359,7 +371,7 @@ function renderPersonCard(person, company) {
   const roleReason = person.role_reason || extractSection(person.body, 'Why the person') || '—';
   const dmOpener = person.dm_opener || extractSection(person.body, 'DM Opener') || '';
   const photo = person.image
-    ? `<img class="photo" src="${escapeHtml(person.image)}" alt="${escapeHtml(person.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'photo photo-placeholder',textContent:'${escapeAttr(initials(person.name))}'}))">`
+    ? `<img class="photo" src="${escapeHtml(person.image)}" alt="${escapeHtml(person.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'photo photo-placeholder',textContent:'${escapeJsInAttr(initials(person.name))}'}))">`
     : `<div class="photo photo-placeholder">${escapeHtml(initials(person.name))}</div>`;
 
   return `<div class="person-card" data-slug="${escapeHtml(person.slug)}" data-company="${escapeHtml((person.company || '').toLowerCase())}" data-role="${escapeHtml(roleBucket(person.title))}" data-icpband="${band}" data-icp-score="${escapeHtml(String(score))}">
@@ -579,7 +591,7 @@ function renderFilterBar(personList) {
 
   const chip = (val, label) => `<span class="chip${val === '' ? ' active' : ''}" data-value="${escapeHtml(val)}">${escapeHtml(label)}</span>`;
 
-  const bandLabels = { high: 'High (8-10)', mid: 'Mid (6-7)', low: 'Low (1-5)' };
+  const bandLabels = { high: 'High (8-10)', mid: 'Mid (5-7)', low: 'Low (1-4)' };
 
   return `<div class="filter-bar">
     <div class="filter-group" data-filter="icpband">
@@ -671,8 +683,11 @@ function renderShell(activeNav, contentHtml, pageTitle) {
     .replace(/\{\{LOW_PCT\}\}/g, String(lowPct))
     .replace(/\{\{TABLE_ROWS\}\}/g, () => '');
 
-  // Replace the entire <table>...</table> block with our content
-  html = html.replace(/<table class="results-table">[\s\S]*?<\/table>/, `<div class="page-content">${navHtml(activeNav)}\n${contentHtml}</div>`);
+  // Replace the entire <table>...</table> block with our content. Use a
+  // function replacer so any `$` characters inside contentHtml (e.g. price
+  // strings, regex examples in person hooks) aren't interpreted as `$&` /
+  // `$1` / `$$` replacement patterns.
+  html = html.replace(/<table class="results-table">[\s\S]*?<\/table>/, () => `<div class="page-content">${navHtml(activeNav)}\n${contentHtml}</div>`);
 
   html = injectCss(html);
   html = injectScript(html);

@@ -30,7 +30,10 @@ const dir = args[0];
 const prefixIdx = args.indexOf('--prefix');
 const prefix = prefixIdx !== -1 && args[prefixIdx + 1] ? args[prefixIdx + 1] : 'company';
 
-const pattern = new RegExp(`^${prefix}_discovery_batch_.*\\.json$`);
+// Escape regex metacharacters so a literal prefix like "co.batch" or "x+y"
+// is matched as text rather than misinterpreted as a pattern.
+const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const pattern = new RegExp(`^${escapedPrefix}_discovery_batch_.*\\.json$`);
 
 let files;
 try {
