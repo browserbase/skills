@@ -19,6 +19,7 @@ Run multiple browser workstreams in separate tabs of the same user-owned Chrome 
 - Always start with `env local --auto-connect`; this is the product path being exercised.
 - Treat the run as experimental until every session reports `localSource: "attached-existing"` and the same `resolvedCdpUrl`/browser websocket.
 - Tabs do not need OS focus if an agent holds a target-specific page handle. They do need careful ownership if commands are routed through the active page.
+- Subagent creation is an orchestrator-level responsibility. Do not assume a spawned worker can recursively create more workers; if nested agents are unavailable, the top-level agent should spawn all workstream agents itself.
 - Do not submit purchases, payments, expense reports, reservations, emails, or irreversible forms without explicit user approval.
 
 ## Setup
@@ -39,6 +40,8 @@ browse --help
 
 Ask the user to open Chrome with remote debugging enabled if needed. If Chrome shows an "Allow remote debugging?" prompt, the user must approve it before auto-connect sessions can inspect or control tabs.
 
+The installed CLI must include reliable auto-connect discovery. If `curl http://127.0.0.1:<port>/json/version` shows a debuggable browser but `status` still reports `localSource: "isolated-fallback"`, treat that as a CLI gap or stale CLI version and retest with the fixed/newer CLI before claiming the swarm works.
+
 ## Swarm workflow
 
 Create one named session per workstream:
@@ -58,14 +61,14 @@ bb browse --session swarm-research status
 bb browse --session swarm-gmail pages
 ```
 
-Proceed only if every session reports an attached existing local browser and the same browser websocket. If a session starts an isolated browser or attaches to a different websocket, stop and fix auto-connect before continuing.
+Use the final `status` output as the source of truth; the immediate `env local --auto-connect` response may only report `localStrategy: "auto"`. Proceed only if every session reports an attached existing local browser and the same browser websocket. If any session reports `localSource: "isolated-fallback"`, a fallback reason, or a different websocket, stop and fix auto-connect before continuing.
 
-Open or identify one tab per workstream:
+Create or identify one tab per workstream. Prefer `newpage` when claiming tabs because `open`/`goto` navigates the current active page and can race under parallel agents:
 
 ```bash
-bb browse --session swarm-gmail open https://mail.google.com/
-bb browse --session swarm-ramp open https://ramp.com/
-bb browse --session swarm-research open https://www.google.com/search?q=san+diego+restaurants
+bb browse --session swarm-gmail newpage https://mail.google.com/
+bb browse --session swarm-ramp newpage https://ramp.com/
+bb browse --session swarm-research newpage https://www.google.com/search?q=san+diego+restaurants
 ```
 
 When target ownership matters, derive the HTTP origin from the shared browser websocket and list targets directly:
@@ -78,7 +81,9 @@ For low-risk reconnaissance, separate agents may use their named sessions to col
 
 ## Parallel agent contract
 
-When spawning subagents, give each one:
+The agent invoking this skill should be the top-level orchestrator. If the runtime exposes an Agent/subagent tool, spawn one worker per workstream from that top-level agent. If the skill is already running inside a spawned worker and no nested Agent tool is available, report that nested agents are unavailable and ask the parent/orchestrator to spawn the workers instead.
+
+When spawning workers, give each one:
 
 - The exact `--session` name it owns.
 - The specific tab URL/title/targetId it owns.
@@ -90,6 +95,8 @@ Use wording like:
 ```text
 You own session swarm-gmail and targetId <target-id>. Stay in that tab. Do not use tab_switch by index. Use target-bound CDP/Playwright/Stagehand operations for mutations. Return evidence only; do not submit irreversible forms.
 ```
+
+Do not substitute Browserbase Autonomous Agent sessions for Codex/Claude subagents unless the user explicitly asks for that product path; they are different execution models and do not prove editor-agent swarm orchestration.
 
 ## Target-bound fallback
 
@@ -136,6 +143,7 @@ Prefer these patterns when agents must click, type, or extract in parallel. Do n
 Report these as browse CLI gaps when they block a swarm:
 
 - Commands route through the active page instead of a claimed target/page.
+- Parallel `open`/`goto` calls can navigate the same active tab; use `newpage` plus targetId ownership instead.
 - `tab_switch <index>` is not stable under parallel agents and focuses the tab.
 - There is no first-class `claim target` / targetId-scoped command surface yet.
 - Chrome may require a remote-debugging approval prompt for each new attaching process.
