@@ -13,6 +13,7 @@ Technical reference for the `browse` CLI tool.
   - [JavaScript Evaluation](#javascript-evaluation)
   - [Viewport](#viewport)
   - [Network Capture](#network-capture)
+  - [CDP Event Streaming](#cdp-event-streaming)
 - [Configuration](#configuration)
   - [Global Flags](#global-flags)
   - [Environment Variables](#environment-variables)
@@ -101,7 +102,7 @@ browse screenshot --full-page            # capture entire scrollable page
 
 #### `get <property> [selector]`
 
-Get page properties. Available properties: `url`, `title`, `text`, `html`, `value`, `box`, `visible`, `checked`.
+Get page properties. Available properties: `url`, `title`, `text`, `html`, `markdown`, `value`, `box`, `visible`, `checked`.
 
 ```bash
 browse get url                           # current URL
@@ -109,6 +110,8 @@ browse get title                         # page title
 browse get text "body"                   # all visible text (selector required)
 browse get text ".product-info"          # text within a CSS selector
 browse get html "#main"                  # inner HTML of an element
+browse get markdown                      # markdown from body
+browse get markdown ".article"           # markdown from a specific element
 browse get value "#email-input"          # value of a form field
 browse get box "#header"                 # bounding box (centroid coordinates)
 browse get visible ".modal"              # check if element is visible
@@ -180,6 +183,15 @@ Select option(s) from a dropdown.
 ```bash
 browse select "#country" "United States"
 browse select "#tags" "javascript" "typescript"    # multi-select
+```
+
+#### `upload <selector> <files...>`
+
+Upload one or more files to an `<input type="file">` element. Works in both local and remote sessions.
+
+```bash
+browse upload "input[type=file]" ./avatar.png
+browse upload "#documents" ./contract.pdf ./appendix.pdf
 ```
 
 #### `press <key>`
@@ -387,6 +399,23 @@ browse network clear
 
 ---
 
+### CDP Event Streaming
+
+#### `cdp <url|port>`
+
+Attach to a CDP target and stream Chrome DevTools Protocol events as newline-delimited JSON. Accepts a WebSocket URL or a bare port number.
+
+```bash
+browse cdp 9222
+browse cdp ws://localhost:9222/devtools/browser/...
+browse cdp 9222 --domain Network Page    # enable selected domains
+browse cdp 9222 --pretty                 # human-readable output
+```
+
+Default domains are `Network`, `Console`, `Runtime`, `Log`, and `Page`. When the `Page` domain is enabled, lifecycle events are also enabled so consumers receive milestones such as `DOMContentLoaded`, `load`, `firstPaint`, and `networkIdle`.
+
+---
+
 ## Configuration
 
 ### Global Flags
@@ -416,6 +445,29 @@ Load a Browserbase context to persist browser state (cookies, localStorage, sess
 #### `--persist`
 
 Save browser state changes back to the Browserbase context when the session ends. Must be used with `--context-id`.
+
+#### Browserbase session flags
+
+These global flags configure Browserbase session creation and are only supported in remote mode. Run `browse env remote` first, then place flags before the command:
+
+```bash
+browse env remote
+browse --proxies --advanced-stealth --solve-captchas open https://example.com
+browse --block-ads --region us-west-2 --session-timeout 300 open https://example.com
+```
+
+| Flag | Effect |
+|------|--------|
+| `--proxies` | Enable Browserbase proxies |
+| `--advanced-stealth` | Enable advanced stealth mode |
+| `--solve-captchas` | Enable automatic CAPTCHA solving |
+| `--no-solve-captchas` | Disable automatic CAPTCHA solving |
+| `--block-ads` | Enable ad blocking |
+| `--region <region>` | Set session region: `us-west-2`, `us-east-1`, `eu-central-1`, or `ap-southeast-1` |
+| `--keep-alive` | Keep the session alive after disconnection |
+| `--session-timeout <seconds>` | Set Browserbase session timeout in seconds |
+
+Changing these flags for a running session restarts the daemon so the new Browserbase session is created with the requested parameters. The resolved params appear in `browse status`.
 
 ### Environment Variables
 
