@@ -51,16 +51,29 @@ function extractFromNextData(paths) {
         const bMono = /mono|grey|gray|black/i.test(b) ? 1 : 0;
         return aMono - bMono;
       });
-      for (const k of keys) {
-        const v = s[k];
-        if (!v) continue;
+      // Unwrap a single image value (string, object, or array of either —
+      // Sanity / custom CMSes sometimes use plural keys like \`images: [{url}]\`).
+      function unwrap(v) {
+        if (!v) return null;
         if (typeof v === 'string') return v;
+        if (Array.isArray(v)) {
+          for (const item of v) {
+            const got = unwrap(item);
+            if (got) return got;
+          }
+          return null;
+        }
         if (typeof v === 'object') {
           if (typeof v.url === 'string') return v.url;
           if (typeof v.src === 'string') return v.src;
           if (v.asset && typeof v.asset.url === 'string') return v.asset.url;
           if (v.fields && v.fields.file && typeof v.fields.file.url === 'string') return v.fields.file.url;
         }
+        return null;
+      }
+      for (const k of keys) {
+        const got = unwrap(s[k]);
+        if (got) return got;
       }
       return null;
     }
@@ -147,18 +160,18 @@ people = people.map(p => {
 // Filter event-host employees and obvious noise. The host org is derived from
 // the event URL — for `stripesessions.com` that's stripe; for subdomain-hosted
 // events like `events.stripe.com` we want stripe (not "events"). We take the
-// registrable-domain chunk (parts[-2]) and strip event-platform suffixes from
-// it. Falls down on .co.uk-style public suffixes; v0.1 accepts that.
+// registrable-domain chunk (parts[-2]) and try to strip a single event-platform
+// suffix. Guarded by a min-length check on the result so `devconf.io` doesn't
+// collapse to `dev` (and silently filter speakers from DEV / dev.to), and
+// `aiconf.io` doesn't collapse to `ai`. Falls down on .co.uk-style public
+// suffixes; v0.1 accepts that.
 const hostOrg = (() => {
   try {
     const h = new URL(recon.url).hostname.replace(/^www\./, '').toLowerCase();
     const parts = h.split('.');
     const sld = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
-    return sld
-      .replace(/sessions?$/, '')
-      .replace(/conf(?:erence)?$/, '')
-      .replace(/summit$/, '')
-      .replace(/events?$/, '');
+    const stripped = sld.replace(/(?:sessions?|conf(?:erence)?|summit|events?)$/, '');
+    return (stripped !== sld && stripped.length >= 5) ? stripped : sld;
   } catch { return null; }
 })();
 

@@ -182,14 +182,17 @@ function roleBucket(title) {
   const t = (title || '').toLowerCase();
   // VP/Director check must run before Founder/CXO — otherwise "Vice President"
   // gets caught by the "president" alternative and miscategorized as a CXO.
-  if (/(vp|vice president|head of|director)/.test(t)) return 'VP/Director';
+  // Two-letter tokens (pm, ui, ml, ai, ux) need \b anchors or they substring-
+  // match inside unrelated words ("development" → pm, "build" → ui, "html" →
+  // ml, "captain" → ai, "deluxe" → ux).
+  if (/(\bvp\b|vice president|head of|director)/.test(t)) return 'VP/Director';
   if (/(ceo|founder|co-?founder|president|chief)/.test(t)) return 'Founder/CXO';
-  if (/(engineer|developer|programmer|architect|sre|devops)/.test(t)) return 'Engineering';
-  if (/(product|pm|product manager)/.test(t)) return 'Product';
-  if (/(design|ux|ui)/.test(t)) return 'Design';
+  if (/(engineer|developer|programmer|architect|\bsre\b|devops)/.test(t)) return 'Engineering';
+  if (/(product|\bpm\b)/.test(t)) return 'Product';
+  if (/(design|\bux\b|\bui\b)/.test(t)) return 'Design';
   if (/(market|growth|content)/.test(t)) return 'Marketing';
-  if (/(sales|account|revenue|gtm)/.test(t)) return 'Sales/GTM';
-  if (/(research|scientist|ml|ai)/.test(t)) return 'Research/AI';
+  if (/(sales|account|revenue|\bgtm\b)/.test(t)) return 'Sales/GTM';
+  if (/(research|scientist|\bml\b|\bai\b)/.test(t)) return 'Research/AI';
   return 'Other';
 }
 
@@ -257,7 +260,14 @@ function mdToHtml(md) {
 function readMdDir(p) {
   if (!existsSync(p)) return [];
   let entries = [];
-  try { entries = readdirSync(p); } catch { return []; }
+  try { entries = readdirSync(p); }
+  catch (e) {
+    // Surface the failure — a permissions/disk issue here means the user gets
+    // a partial report (e.g. people but no companies) and would otherwise
+    // never know why their data was skipped.
+    console.error(`[compile_report] readdir ${p} failed: ${e.message}`);
+    return [];
+  }
   return entries.filter(f => f.endsWith('.md')).sort().map(f => {
     const content = readFileSync(join(p, f), 'utf-8');
     const fields = parseFrontmatter(content);
@@ -865,7 +875,8 @@ function personRow(p) {
 function csvEscape(v) {
   if (v == null) return '';
   const s = typeof v === 'object' ? JSON.stringify(v) : String(v);
-  if (s.includes(',') || s.includes('"') || s.includes('\n')) return '"' + s.replace(/"/g, '""') + '"';
+  // Quote on any RFC 4180 record-/field-terminator: comma, quote, LF, or bare CR.
+  if (s.includes(',') || s.includes('"') || s.includes('\n') || s.includes('\r')) return '"' + s.replace(/"/g, '""') + '"';
   return s;
 }
 
