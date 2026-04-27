@@ -1,7 +1,7 @@
 ---
 name: browser-observability
 description: Capture full DevTools-protocol observability data alongside any browser automation, then bisect the firehose into searchable buckets. Use when the user wants to debug a browser run, audit network/console/DOM activity, attach observability to an in-progress session, or build a structured artifact tree (CDP events, screenshots, DOM dumps) that bash tools can search.
-compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli@alpha` or 0.5.1+ once released — `browse cdp` is alpha-tagged) and `jq`. For remote Browserbase sessions, also requires the `bb` CLI (`npm install -g @browserbasehq/cli`) and `BROWSERBASE_API_KEY`."
+compatibility: "Requires Node 18+, the browse CLI (`npm install -g @browserbasehq/browse-cli@alpha` or 0.5.1+ once released — `browse cdp` is alpha-tagged), and optionally `jq` for ad-hoc querying of the bisected JSONL files. For remote Browserbase sessions, also requires the `bb` CLI (`npm install -g @browserbasehq/cli`) and `BROWSERBASE_API_KEY`. The skill scripts themselves use only the Node standard library — no `npm install` step."
 license: MIT
 allowed-tools: Bash, Read, Grep
 ---
@@ -24,9 +24,10 @@ If the user just wants to **drive** the browser, use the `browser` skill instead
 ## Setup check
 
 ```bash
+node --version                                  # require Node 18+
 which browse || npm install -g @browserbasehq/browse-cli@alpha
-which jq || brew install jq           # macOS; on Linux: apt/yum/dnf install jq
-which bb || npm install -g @browserbasehq/cli   # only needed for Browserbase remote
+which bb     || npm install -g @browserbasehq/cli   # only needed for Browserbase remote
+which jq     || true                                # optional — used only for ad-hoc querying
 ```
 
 Verify `browse cdp` exists (it ships in 0.5.0-alpha-a4ca430+):
@@ -43,7 +44,7 @@ The observer has three pieces:
 
 1. **Firehose**: `browse cdp <target>` streams every CDP event as one JSON object per line to `cdp/raw.ndjson`.
 2. **Sampler**: a polling loop calls `browse --ws <target> screenshot` and `browse --ws <target> get html body` on an interval (default 2s). `--ws` is one-shot and bypasses the daemon, so it doesn't fight the main automation.
-3. **Bisector**: after the run, `jq` slices `raw.ndjson` into per-bucket JSONL files keyed by CDP method.
+3. **Bisector**: after the run, `bisect-cdp.mjs` walks `raw.ndjson` once, slices it into per-bucket JSONL files keyed by CDP method, and additionally bisects per page using top-level `Page.frameNavigated` events as boundaries.
 
 ## Quickstart
 
@@ -57,7 +58,7 @@ The observer has three pieces:
   about:blank &
 
 # 2. Start the observer.
-bash scripts/start-capture.sh 9222 my-run
+node scripts/start-capture.mjs 9222 my-run
 
 # 3. Run your main automation against port 9222.
 browse env local 9222
@@ -65,15 +66,15 @@ browse open https://example.com
 # ...whatever the run does...
 
 # 4. Stop and bisect.
-bash scripts/stop-capture.sh my-run
-bash scripts/bisect-cdp.sh my-run
+node scripts/stop-capture.mjs my-run
+node scripts/bisect-cdp.mjs my-run
 ```
 
 ### Browserbase remote
 
-Two helpers wrap the platform-side bookkeeping: `bb-capture.sh` creates or attaches to a session and starts the observer; `bb-finalize.sh` pulls platform artifacts (final session metadata, server logs, downloads) into the run dir at the end.
+Two helpers wrap the platform-side bookkeeping: `bb-capture.mjs` creates or attaches to a session and starts the observer; `bb-finalize.mjs` pulls platform artifacts (final session metadata, server logs, downloads) into the run dir at the end.
 
-> Browserbase ends a session as soon as its last CDP client disconnects. **Always create with `--keep-alive` and attach an automation client before (or together with) the observer.** `bb-capture.sh --new` does this for you.
+> Browserbase ends a session as soon as its last CDP client disconnects. **Always create with `--keep-alive` and attach an automation client before (or together with) the observer.** `bb-capture.mjs --new` does this for you.
 
 ```bash
 export BROWSERBASE_API_KEY=...
@@ -81,7 +82,7 @@ export BROWSERBASE_API_KEY=...
 # 1. Create a keep-alive session AND start the observer in one step.
 #    Prints the session id, connectUrl prefix, and a live debugger URL you
 #    can open in a browser to watch the run interactively.
-bash scripts/bb-capture.sh --new my-run
+node scripts/bb-capture.mjs --new my-run
 
 # 2. Drive automation. bb-capture stamped the session id into the manifest.
 SID=$(jq -r .browserbase.session_id .o11y/my-run/manifest.json)
@@ -89,27 +90,27 @@ browse --connect "$SID" open https://example.com
 browse --connect "$SID" open https://news.ycombinator.com
 
 # 3. Stop the observer, bisect, then pull platform artifacts and release.
-bash scripts/stop-capture.sh my-run
-bash scripts/bisect-cdp.sh my-run
-bash scripts/bb-finalize.sh my-run --release
+node scripts/stop-capture.mjs my-run
+node scripts/bisect-cdp.mjs my-run
+node scripts/bb-finalize.mjs my-run --release
 ```
 
-Attaching to a session that's *already running* (e.g. one your production worker created) — `bb-capture.sh` accepts a session id instead of `--new`:
+Attaching to a session that's *already running* (e.g. one your production worker created) — `bb-capture.mjs` accepts a session id instead of `--new`:
 
 ```bash
 # Pick a running session (filter client-side; bb sessions list has no --status flag)
 bb sessions list | jq -r '.[] | select(.status == "RUNNING") | .id'
 
-bash scripts/bb-capture.sh <session-id> mid-flight-debug
+node scripts/bb-capture.mjs <session-id> mid-flight-debug
 # ...observer runs alongside the existing automation client; no disruption...
-bash scripts/stop-capture.sh mid-flight-debug
-bash scripts/bisect-cdp.sh mid-flight-debug
-bash scripts/bb-finalize.sh mid-flight-debug   # without --release: leave the session running
+node scripts/stop-capture.mjs mid-flight-debug
+node scripts/bisect-cdp.mjs mid-flight-debug
+node scripts/bb-finalize.mjs mid-flight-debug   # without --release: leave the session running
 ```
 
 #### What you get from the Browserbase platform
 
-`bb-capture.sh` adds a `browserbase` block to `manifest.json` (session id, project, region, started_at, expires_at, debugger URL). `bb-finalize.sh` writes:
+`bb-capture.mjs` adds a `browserbase` block to `manifest.json` (session id, project, region, started_at, expires_at, debugger URL). `bb-finalize.mjs` writes:
 
 - `<run>/browserbase/session.json` — final `bb sessions get` snapshot (proxyBytes, status, ended_at, viewport, …)
 - `<run>/browserbase/logs.json` — `bb sessions logs` output. **Often empty.** The CDP firehose in `cdp/raw.ndjson` is the source of truth; this is a side channel.
@@ -143,13 +144,13 @@ The live `debugger_url` in the manifest opens an interactive Chrome DevTools vie
         network/, console/, page/, runtime/, log/, target/, dom/    same buckets, only non-empty files
   screenshots/<iso-ts>.png      one PNG per sample interval
   dom/<iso-ts>.html             one HTML dump per sample interval
-  browserbase/                  added by bb-finalize.sh (Browserbase runs only)
+  browserbase/                  added by bb-finalize.mjs (Browserbase runs only)
     session.json                final `bb sessions get` snapshot (proxyBytes, status, ended_at, …)
     logs.json                   `bb sessions logs` output (often [])
     downloads.zip               `bb sessions downloads get` output (only if the session downloaded files)
 ```
 
-When a run was started via `bb-capture.sh`, `manifest.json` also carries a top-level `browserbase` block: `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, `debugger_url`.
+When a run was started via `bb-capture.mjs`, `manifest.json` also carries a top-level `browserbase` block: `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, `debugger_url`.
 
 ### Summary shape
 
@@ -180,19 +181,19 @@ When a run was started via `bb-capture.sh`, `manifest.json` also carries a top-l
 
 `startMs` / `endMs` / `durationMs` are wall-clock ms, derived from `manifest.started_at` plus the offset of each event's CDP monotonic timestamp. `domains[*]` only includes `errors`/`warnings` keys when non-zero.
 
-### Drilling in with `query.sh`
+### Drilling in with `query.mjs`
 
-For interactive exploration, use `scripts/query.sh <run-id> <command>` instead of remembering paths:
+For interactive exploration, use `scripts/query.mjs <run-id> <command>` instead of remembering paths:
 
 ```bash
-bash scripts/query.sh my-run list                    # one-line table of pages
-bash scripts/query.sh my-run page 1                  # full summary for page 1
-bash scripts/query.sh my-run page 1 network/failed   # cat failed.jsonl for page 1
-bash scripts/query.sh my-run errors                  # all errors across pages, attributed by pid
-bash scripts/query.sh my-run errors 2                # errors from page 2 only
-bash scripts/query.sh my-run hosts                   # top hosts by request count
-bash scripts/query.sh my-run host api.example.com    # all requests/responses for a host
-bash scripts/query.sh my-run summary                 # full summary.json
+node scripts/query.mjs my-run list                    # one-line table of pages
+node scripts/query.mjs my-run page 1                  # full summary for page 1
+node scripts/query.mjs my-run page 1 network/failed   # cat failed.jsonl for page 1
+node scripts/query.mjs my-run errors                  # all errors across pages, attributed by pid
+node scripts/query.mjs my-run errors 2                # errors from page 2 only
+node scripts/query.mjs my-run hosts                   # top hosts by request count
+node scripts/query.mjs my-run host api.example.com    # all requests/responses for a host
+node scripts/query.mjs my-run summary                 # full summary.json
 ```
 
 Behind the scenes it just reads `cdp/summary.json` and the `cdp/pages/<pid>/` tree — feel free to bypass it with raw `jq`/`rg` once you know the shape.
@@ -227,22 +228,22 @@ See **REFERENCE.md** for the full jq recipe library and a method-by-method bisec
 
 ## Best practices
 
-1. **Use `bb-capture.sh` on Browserbase**: it enforces `--keep-alive`, fetches the connectUrl, captures the debugger URL, and stamps the manifest. Doing it manually invites mistakes.
-2. **Don't `--release` a session you don't own**: `bb-finalize.sh --release` is for sessions *you* created with `--new`. When attaching to a production session via `bb-capture.sh <session-id>`, run `bb-finalize.sh` without `--release` so the original automation keeps running.
+1. **Use `bb-capture.mjs` on Browserbase**: it enforces `--keep-alive`, fetches the connectUrl, captures the debugger URL, and stamps the manifest. Doing it manually invites mistakes.
+2. **Don't `--release` a session you don't own**: `bb-finalize.mjs --release` is for sessions *you* created with `--new`. When attaching to a production session via `bb-capture.mjs <session-id>`, run `bb-finalize.mjs` without `--release` so the original automation keeps running.
 3. **Order matters for remote**: on Browserbase, attach the main automation client before (or together with) the observer, and create the session with `--keep-alive`. Otherwise the session ends as soon as the observer's WS closes.
 4. **Don't poll faster than ~1s**: each sample opens a one-shot CDP connection and screenshots Chrome. 2s is a good default.
 5. **Pick domains deliberately**: defaults (`Network Console Runtime Log Page`) cover most debugging. Add `DOM` for DOM-tree mutations (very noisy) via `O11Y_DOMAINS="$O11Y_DOMAINS DOM"`.
 6. **Use `--connect <session-id>` for the automation client on remote**, not a fresh `browse env remote` (which would create a new session each time).
-7. **Always run `stop-capture.sh`**, even after a crash, so background processes don't linger and the manifest gets `stopped_at`.
-8. **Bisect once per run**: `bisect-cdp.sh` is idempotent — it overwrites the per-bucket files from `raw.ndjson` each time.
+7. **Always run `stop-capture.mjs`**, even after a crash, so background processes don't linger and the manifest gets `stopped_at`.
+8. **Bisect once per run**: `bisect-cdp.mjs` is idempotent — it overwrites the per-bucket files from `raw.ndjson` each time.
 
 ## Troubleshooting
 
 - **`browse cdp exited immediately`**: usually means the target is unreachable (wrong port) or the Browserbase session has already ended. For remote, verify with `bb sessions get <id>` — if `status` is `COMPLETED`, recreate with `--keep-alive` and attach automation first.
 - **Empty `raw.ndjson` even though processes are running**: confirm a CDP client is actually driving the page. The observer only emits events that the browser generates, so an idle browser produces ~5 lines of attach/discover messages and nothing else.
 - **Screenshots all look identical**: check `index.jsonl` — if `url` doesn't change, the page hasn't navigated yet. The polling loop runs independently of the main automation's pace.
-- **Browserbase session ends mid-run**: it likely hit `--timeout`. Recreate with a higher timeout (`BB_SESSION_TIMEOUT=1800 bash scripts/bb-capture.sh --new ...`) or remove the timeout flag.
-- **`bb-capture.sh <id>` says "not RUNNING"**: the session you tried to attach to ended. List candidates with `bb sessions list | jq '.[] | select(.status == "RUNNING")'` and try again.
+- **Browserbase session ends mid-run**: it likely hit `--timeout`. Recreate with a higher timeout (`BB_SESSION_TIMEOUT=1800 node scripts/bb-capture.mjs --new ...`) or remove the timeout flag.
+- **`bb-capture.mjs <id>` says "not RUNNING"**: the session you tried to attach to ended. List candidates with `bb sessions list | jq '.[] | select(.status == "RUNNING")'` and try again.
 - **`browserbase/logs.json` is empty `[]`**: expected — `bb sessions logs` is sparse in practice. The CDP firehose in `cdp/raw.ndjson` is the source of truth.
 - **Where's the session recording (rrweb)?**: `bb sessions recording` is deprecated; this skill doesn't fetch it. Use the screenshot stream in `screenshots/` and DOM dumps in `dom/`.
 

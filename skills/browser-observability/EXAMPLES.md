@@ -2,7 +2,7 @@
 
 Five end-to-end debug scenarios. Each one shows: setup, running the capture, and the queries you'd run on the resulting tree.
 
-The recipes below use raw `jq` on the bisected files so you can see exactly what's there. Most everyday drill-down can also be done through `scripts/query.sh <run-id> <command>` — see SKILL.md.
+The recipes below use raw `jq` on the bisected files so you can see exactly what's there. Most everyday drill-down can also be done through `scripts/query.mjs <run-id> <command>` — see SKILL.md.
 
 ## Example 1: A form submit failed — find the request and see the page state
 
@@ -12,7 +12,7 @@ The recipes below use raw `jq` on the bisected files so you can see exactly what
 # Launch debuggable Chrome and start the observer.
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
   --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-o11y about:blank &
-bash scripts/start-capture.sh 9222 form-bug
+node scripts/start-capture.mjs 9222 form-bug
 
 # Reproduce the bug.
 browse env local 9222
@@ -21,8 +21,8 @@ browse fill 'input[name=email]' 'user@example.com'
 browse fill 'input[name=password]' 'hunter2'
 browse click @0-7   # Submit button ref from `browse snapshot`
 
-bash scripts/stop-capture.sh form-bug
-bash scripts/bisect-cdp.sh form-bug
+node scripts/stop-capture.mjs form-bug
+node scripts/bisect-cdp.mjs form-bug
 ```
 
 Then the agent inspects:
@@ -58,12 +58,12 @@ If the POST is missing entirely, the click handler is broken — open `dom/<late
 **User says**: "Are we leaking any data to third parties on this page? Show me every cross-origin request."
 
 ```bash
-bash scripts/start-capture.sh 9222 audit
+node scripts/start-capture.mjs 9222 audit
 browse env local 9222
 browse open https://your-site.example
 # ...interact with the page...
-bash scripts/stop-capture.sh audit
-bash scripts/bisect-cdp.sh audit
+node scripts/stop-capture.mjs audit
+node scripts/bisect-cdp.mjs audit
 ```
 
 Queries:
@@ -91,13 +91,13 @@ jq -c 'select(.params.response.status >= 400 and .params.response.status < 600)
 **User says**: "The page hangs after I click Continue. It just sits there."
 
 ```bash
-bash scripts/start-capture.sh 9222 hang
+node scripts/start-capture.mjs 9222 hang
 browse env local 9222
 browse open https://example.com/checkout
 browse click @0-12   # Continue button
 sleep 30             # let the hang play out
-bash scripts/stop-capture.sh hang
-bash scripts/bisect-cdp.sh hang
+node scripts/stop-capture.mjs hang
+node scripts/bisect-cdp.mjs hang
 ```
 
 Queries:
@@ -135,7 +135,7 @@ SID=$(echo "$SESSION" | jq -r .id)
 URL=$(echo "$SESSION" | jq -r .connectUrl)
 
 browse --connect "$SID" open https://app.example.com/dashboard
-bash scripts/start-capture.sh "$URL" prod-repro
+node scripts/start-capture.mjs "$URL" prod-repro
 
 # Drive whatever flow is suspected.
 browse --connect "$SID" click @0-5
@@ -143,8 +143,8 @@ browse --connect "$SID" type 'search query'
 browse --connect "$SID" press Enter
 sleep 5
 
-bash scripts/stop-capture.sh prod-repro
-bash scripts/bisect-cdp.sh prod-repro
+node scripts/stop-capture.mjs prod-repro
+node scripts/bisect-cdp.mjs prod-repro
 bb sessions update "$SID" --status REQUEST_RELEASE
 ```
 
@@ -185,7 +185,7 @@ bb sessions list | jq -r '.[] | select(.status == "RUNNING") | "\(.id)\t\(.regio
 
 # Attach the observer to the session you care about.
 SID=<session-id-from-above>
-bash scripts/bb-capture.sh "$SID" stuck-debug 2
+node scripts/bb-capture.mjs "$SID" stuck-debug 2
 
 # Open the live debugger URL in your browser to watch interactively.
 open "$(jq -r '.browserbase.debugger_url' .o11y/stuck-debug/manifest.json)"
@@ -194,9 +194,9 @@ open "$(jq -r '.browserbase.debugger_url' .o11y/stuck-debug/manifest.json)"
 sleep 120
 
 # Stop the observer and pull artifacts. NO --release: the worker still owns this session.
-bash scripts/stop-capture.sh stuck-debug
-bash scripts/bisect-cdp.sh stuck-debug
-bash scripts/bb-finalize.sh stuck-debug
+node scripts/stop-capture.mjs stuck-debug
+node scripts/bisect-cdp.mjs stuck-debug
+node scripts/bb-finalize.mjs stuck-debug
 ```
 
 Then look for the smoking gun:
@@ -220,4 +220,4 @@ jq -c 'select(.params.frameId == .params.loaderId or .params.frameId != null)
 jq '.proxyBytes' browserbase/session.json
 ```
 
-**Key idea**: `bb-capture.sh <session-id>` (no `--new`) only adds an observer; it never sends action commands. The production worker keeps running. `bb-finalize.sh` *without* `--release` leaves the session alive when you're done.
+**Key idea**: `bb-capture.mjs <session-id>` (no `--new`) only adds an observer; it never sends action commands. The production worker keeps running. `bb-finalize.mjs` *without* `--release` leaves the session alive when you're done.

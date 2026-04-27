@@ -19,9 +19,9 @@ CDP allows multiple concurrent clients on the same target. The observer enables 
 
 ## Scripts
 
-All scripts read `O11Y_ROOT` (default `.o11y`) so runs land under `$O11Y_ROOT/<run-id>/`. They are pure bash and depend only on `browse`, `jq`, and standard POSIX tools.
+All scripts read `O11Y_ROOT` (default `.o11y`) so runs land under `$O11Y_ROOT/<run-id>/`. They are Node ESM modules (`node` 18+) and depend only on `browse` plus the Node standard library — no `npm install` step. `jq` is referenced throughout the docs for ad-hoc querying but the scripts themselves don't need it.
 
-### `start-capture.sh <target> [run-id] [interval-sec]`
+### `start-capture.mjs <target> [run-id] [interval-sec]`
 
 Starts both background processes and writes `manifest.json`.
 
@@ -31,13 +31,13 @@ Starts both background processes and writes `manifest.json`.
 
 Honours `O11Y_DOMAINS` (space-separated) to control which CDP domains the firehose enables. Default: `Network Console Runtime Log Page`. Add `DOM` for DOM tree mutations, `Performance` for navigation timing, `Security` for mixed-content/cert events.
 
-PIDs are stored in `<run-dir>/.cdp.pid` and `<run-dir>/.loop.pid` so `stop-capture.sh` can find them.
+PIDs are stored in `<run-dir>/.cdp.pid` and `<run-dir>/.loop.pid` so `stop-capture.mjs` can find them.
 
-### `stop-capture.sh <run-id>`
+### `stop-capture.mjs <run-id>`
 
 SIGTERM → 3s grace → SIGKILL on both background processes, then stamps `manifest.json` with `stopped_at`.
 
-### `bisect-cdp.sh <run-id>`
+### `bisect-cdp.mjs <run-id>`
 
 Slices `cdp/raw.ndjson` two ways, then writes `cdp/summary.json`:
 
@@ -48,9 +48,9 @@ Slices `cdp/raw.ndjson` two ways, then writes `cdp/summary.json`:
 
 Idempotent: rerun safely. The `cdp/pages/` tree is wiped and rebuilt each call.
 
-### `query.sh <run-id> <subcommand> [args...]`
+### `query.mjs <run-id> <subcommand> [args...]`
 
-Pure-bash wrapper that reads the bisected output. Subcommands:
+Reads the bisected output and prints either tabular text or NDJSON. Subcommands:
 
 | Subcommand                                | Output                                                         |
 | ----------------------------------------- | -------------------------------------------------------------- |
@@ -63,21 +63,21 @@ Pure-bash wrapper that reads the bisected output. Subcommands:
 | `host <hostname> [pid\|all]`              | every request/response for that hostname, prefixed with `[pid]` |
 | `timeline`                                | ordered nav + lifecycle markers                                |
 
-Implementation is ~150 lines of bash + jq; bypassable with raw `jq`/`rg` once you know the layout.
+Bypassable with raw `jq`/`rg` against `cdp/summary.json` and `cdp/pages/<pid>/` once you know the layout.
 
-### `snapshot-loop.sh` *(internal)*
+### `snapshot-loop.mjs` *(internal)*
 
-Invoked by `start-capture.sh`; not meant to be called directly. Loops with `sleep $INTERVAL` between samples, writing PNG + HTML + `index.jsonl`. Cleans up empty files so missing samples don't pollute the tree.
+Invoked by `start-capture.mjs`; not meant to be called directly. Loops at the configured interval, writing PNG + HTML + an entry to `index.jsonl` per tick. DOM dumps go through a `.partial` temp file so a SIGTERM mid-write never leaves a 0-byte HTML behind; `stop-capture.mjs` sweeps any survivors.
 
-### `bb-capture.sh --new|<session-id> [run-id] [interval-sec]`
+### `bb-capture.mjs --new|<session-id> [run-id] [interval-sec]`
 
-Browserbase wrapper around `start-capture.sh`. With `--new`, runs `bb sessions create --keep-alive` and starts the observer. With an existing session id, fetches its `connectUrl` via `bb sessions get` and asserts the session is `RUNNING` before attaching.
+Browserbase wrapper around `start-capture.mjs`. With `--new`, runs `bb sessions create --keep-alive` and starts the observer. With an existing session id, fetches its `connectUrl` via `bb sessions get` and asserts the session is `RUNNING` before attaching.
 
 Stamps the run's `manifest.json` with a `browserbase` object containing `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, and the `debugger_url` from `bb sessions debug`.
 
 Reads `BROWSERBASE_API_KEY`. `BB_SESSION_TIMEOUT` (default `600`) controls the timeout passed to `--new` sessions.
 
-### `bb-finalize.sh <run-id> [--release]`
+### `bb-finalize.mjs <run-id> [--release]`
 
 Pulls platform-side artifacts after the observer has stopped:
 
@@ -212,7 +212,7 @@ For a quick visual diff, open `../dom/<ts>.html` at the same timestamp.
 
 ## Pairing with Browserbase platform data
 
-When a run was captured through `bb-capture.sh`, its `manifest.json` carries a `browserbase` block and `bb-finalize.sh` adds a `browserbase/` subdir. A few useful joins:
+When a run was captured through `bb-capture.mjs`, its `manifest.json` carries a `browserbase` block and `bb-finalize.mjs` adds a `browserbase/` subdir. A few useful joins:
 
 ```bash
 RUN=.o11y/<run-id>
@@ -246,7 +246,7 @@ They're complementary:
 - **observer (this skill)** captures the firehose to disk — durable, searchable, scriptable. Use for postmortem and automated checks.
 - **`bb sessions debug` URL** is an interactive Chrome DevTools view served by Browserbase, scoped to one running session. Use when you want to *watch* a live run, single-step through requests, or inspect the live DOM by hand.
 
-You can do both simultaneously: `bb-capture.sh --new` prints the debugger URL when it starts, and stamps it in the manifest for later.
+You can do both simultaneously: `bb-capture.mjs --new` prints the debugger URL when it starts, and stamps it in the manifest for later.
 
 ### Notes on Browserbase data sources
 
@@ -257,7 +257,7 @@ You can do both simultaneously: `bb-capture.sh --new` prints the debugger URL wh
 
 ## Per-page drill-down
 
-The same recipes work scoped to a single page. Replace `cdp/<bucket>.jsonl` with `cdp/pages/<pid>/<bucket>.jsonl`, or use `query.sh` for the common patterns.
+The same recipes work scoped to a single page. Replace `cdp/<bucket>.jsonl` with `cdp/pages/<pid>/<bucket>.jsonl`, or use `query.mjs` for the common patterns.
 
 ```bash
 RUN=.o11y/<run-id>
@@ -315,7 +315,7 @@ tail -f .o11y/<run-id>/cdp/raw.ndjson | jq -c '{m:.method, u:.params.request.url
 | `O11Y_DOMAINS`     | `Network Console Runtime Log Page`     | space-separated CDP domains for the firehose                 |
 | `BROWSERBASE_API_KEY` | —                                   | required for `bb sessions create` / `bb sessions get`         |
 
-The interval-second arg to `start-capture.sh` controls only the sampler. The firehose is always streamed in real time.
+The interval-second arg to `start-capture.mjs` controls only the sampler. The firehose is always streamed in real time.
 
 ## Troubleshooting
 
@@ -326,5 +326,5 @@ The interval-second arg to `start-capture.sh` controls only the sampler. The fir
 | Browserbase session ends as soon as observer connects | observer was the only client; no automation attached          | create with `--keep-alive`, attach `browse --connect` first   |
 | `index.jsonl` shows `"url": ""`                 | one-shot `browse --ws ... get url` failed (transient)         | benign; happens during navigation transitions                 |
 | Screenshots empty / huge / inconsistent sizes  | viewport not set                                              | `browse --ws <target> viewport 1920 1080` once before capture |
-| `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" bash start-capture.sh ...` |
-| Loop process leaks after crash                  | `stop-capture.sh` not run                                     | `pkill -f snapshot-loop.sh`; PID files in `<run-dir>` are stale  |
+| `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" bash start-capture.mjs ...` |
+| Loop process leaks after crash                  | `stop-capture.mjs` not run                                     | `pkill -f snapshot-loop.mjs`; PID files in `<run-dir>` are stale  |
