@@ -167,11 +167,19 @@ function computePageSummary(pid, url, pageEvents) {
 
   const inc = (m, k, by = 1) => m.set(k, (m.get(k) ?? 0) + by);
 
+  // Classify each event into a logical "domain" bucket. Most CDP events go in
+  // the bucket named for their CDP domain (Network, Page, Runtime, …), but
+  // `Runtime.consoleAPICalled` is conceptually console activity, not runtime
+  // internals — without this remap, the Console bucket's `errors`/`warnings`
+  // counts would never line up with any entry in the counts map and would
+  // silently disappear from the per-page summary.
+  const domainFor = (method) =>
+    method === 'Runtime.consoleAPICalled' ? 'Console' : method.split('.')[0];
+
   for (const ev of pageEvents) {
     const method = ev.method;
     if (!method) continue;
-    const domain = method.split('.')[0];
-    inc(counts, domain);
+    inc(counts, domainFor(method));
 
     if (method === 'Network.loadingFailed') {
       inc(errors, 'Network');

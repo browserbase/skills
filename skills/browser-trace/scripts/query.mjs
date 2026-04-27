@@ -76,11 +76,12 @@ function listPids(filter) {
     .sort((a, b) => a - b);
 }
 
-// Exact hostname match — `new URL(...).hostname` does not include the port and
-// returns a definite host segment, so `api.example.com` won't match
-// `api.example.com.evil.tld` (it would with a `startsWith` check).
-function hostMatches(url, hostname) {
-  try { return new URL(url).hostname === hostname; }
+// Exact host match — uses `URL.host` (which includes the port when present)
+// so `cmdHosts` output is directly consumable as input to `cmdHost`. The
+// equality check still rejects impostors like `example.com.evil.tld` whose
+// `host` is the full malicious string, not the prefix.
+function hostMatches(url, host) {
+  try { return new URL(url).host === host; }
   catch { return false; }
 }
 
