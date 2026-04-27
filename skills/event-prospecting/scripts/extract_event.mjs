@@ -132,13 +132,21 @@ function resolveImage(src) {
 // Add a slug + normalize image URL
 people = people.map(p => ({ ...p, image: resolveImage(p.image), slug: slugify(p.name) }));
 
-// Filter event-host employees and obvious noise. The host org domain is derived
-// from the event URL — for stripesessions.com, that's stripe.
+// Filter event-host employees and obvious noise. The host org is derived from
+// the event URL — for `stripesessions.com` that's stripe; for subdomain-hosted
+// events like `events.stripe.com` we want stripe (not "events"). We take the
+// registrable-domain chunk (parts[-2]) and strip event-platform suffixes from
+// it. Falls down on .co.uk-style public suffixes; v0.1 accepts that.
 const hostOrg = (() => {
   try {
-    const h = new URL(recon.url).hostname.replace(/^www\./, '');
-    // 'stripesessions.com' → 'stripe' (drop the 'sessions' suffix or take the first chunk)
-    return h.split('.')[0].replace(/sessions?$/, '').replace(/conf$/, '');
+    const h = new URL(recon.url).hostname.replace(/^www\./, '').toLowerCase();
+    const parts = h.split('.');
+    const sld = parts.length >= 2 ? parts[parts.length - 2] : parts[0];
+    return sld
+      .replace(/sessions?$/, '')
+      .replace(/conf(?:erence)?$/, '')
+      .replace(/summit$/, '')
+      .replace(/events?$/, '');
   } catch { return null; }
 })();
 

@@ -285,21 +285,33 @@ if (companies.length === 0 && people.length === 0) {
 // Sort companies by ICP score descending
 companies.sort((a, b) => (parseInt(b.icp_fit_score) || 0) - (parseInt(a.icp_fit_score) || 0));
 
+// Strip suffixes like ", Inc" / "LLC" / "Corp" so "Acme LLC" and "Acme" collapse.
+function normalizeCompanyName(s) {
+  return (s || '').toLowerCase().replace(/[,\s]+(inc|llc|ltd|corp|co)\.?$/i, '').trim();
+}
+
 // Deduplicate companies by normalized name
 const seen = new Map();
 for (const c of companies) {
-  const name = (c.company_name || '').toLowerCase().replace(/[,\s]+(inc|llc|ltd|corp|co)\.?$/i, '').trim();
+  const name = normalizeCompanyName(c.company_name);
   if (!name) continue;
   if (!seen.has(name)) seen.set(name, c);
 }
 const deduped = [...seen.values()];
 
-// Build company lookup: slug → company, name(lowered) → company
+// Build company lookups. Iterate ALL companies (not just dedup survivors) so
+// that every variant slug + name + normalized-name maps to the surviving
+// record — otherwise people whose `p.company` matches the discarded variant
+// fall into "Unmatched" and lose their ICP score / grouping.
 const companyBySlug = new Map();
 const companyByName = new Map();
-for (const c of deduped) {
-  if (c.slug) companyBySlug.set(c.slug, c);
-  if (c.company_name) companyByName.set(c.company_name.toLowerCase().trim(), c);
+for (const c of companies) {
+  const winner = seen.get(normalizeCompanyName(c.company_name)) || c;
+  if (c.slug) companyBySlug.set(c.slug, winner);
+  if (c.company_name) {
+    companyByName.set(c.company_name.toLowerCase().trim(), winner);
+    companyByName.set(normalizeCompanyName(c.company_name), winner);
+  }
 }
 
 function resolveCompany(person) {
@@ -307,6 +319,8 @@ function resolveCompany(person) {
   if (person.company) {
     const k = person.company.toLowerCase().trim();
     if (companyByName.has(k)) return companyByName.get(k);
+    const norm = normalizeCompanyName(person.company);
+    if (companyByName.has(norm)) return companyByName.get(norm);
     const slugGuess = slugify(person.company);
     if (companyBySlug.has(slugGuess)) return companyBySlug.get(slugGuess);
   }
