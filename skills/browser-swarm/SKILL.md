@@ -1,7 +1,7 @@
 ---
 name: browser-swarm
-description: Coordinate multiple agents working in separate tabs of one local Chrome via Browserbase CLI auto-connect. Use for experimental same-browser multi-agent browsing, multi-tab task decomposition, /swarm-style workflows, or derisking whether a browser task can run in tandem across Gmail, expense tools, research sites, and other authenticated pages.
-compatibility: "Requires Browserbase CLI (`bb browse`) or browse CLI, Chrome with remote debugging available, and `env local --auto-connect`. True concurrent tab ownership is safest with targetId-bound CDP, Playwright, or Stagehand scripting until browse CLI exposes target-scoped commands."
+description: Coordinate multiple agents working in separate tabs of one local Chrome via Browserbase CLI auto-connect and deterministic Stagehand/Understudy page handles. Use for experimental same-browser multi-agent browsing, multi-tab task decomposition, /swarm-style workflows, or derisking whether a browser task can run in tandem across Gmail, expense tools, research sites, and other authenticated pages.
+compatibility: "Requires Browserbase CLI (`bb browse`) or browse CLI, Chrome with remote debugging available, and `env local --auto-connect`. Use deterministic Stagehand/Understudy as the primary target-bound action layer until browse CLI exposes first-class target-scoped commands."
 license: MIT
 allowed-tools: Bash Agent
 metadata:
@@ -18,7 +18,8 @@ Run multiple browser workstreams in separate tabs of the same user-owned Chrome 
 - Use one Chrome instance, many tabs, and one CLI session per workstream.
 - Always start with `env local --auto-connect`; this is the product path being exercised.
 - Treat the run as experimental until every session reports `localSource: "attached-existing"` and the same `resolvedCdpUrl`/browser websocket.
-- Tabs do not need OS focus if an agent holds a target-specific page handle. They do need careful ownership if commands are routed through the active page.
+- Use deterministic Stagehand/Understudy `Page` objects as the primary action layer. The CDP websocket is only the attach transport; workers should act through target-bound `page.deepLocator(...)`, `page.goto(...)`, `page.screenshot(...)`, etc.
+- Tabs do not need OS focus when an agent holds a target-specific Understudy page handle. They do need careful ownership if commands are routed through the active page.
 - Subagent creation is an orchestrator-level responsibility. Do not assume a spawned worker can recursively create more workers; if nested agents are unavailable, the top-level agent should spawn all workstream agents itself.
 - Do not submit purchases, payments, expense reports, reservations, emails, or irreversible forms without explicit user approval.
 
@@ -93,19 +94,46 @@ When spawning workers, give each one:
 Use wording like:
 
 ```text
-You own session swarm-gmail and targetId <target-id>. Stay in that tab. Do not use tab_switch by index. Use target-bound CDP/Playwright/Stagehand operations for mutations. Return evidence only; do not submit irreversible forms.
+You own session swarm-gmail and targetId <target-id>. Stay in that tab. Do not use tab_switch by index. Use target-bound deterministic Stagehand/Understudy operations for mutations. Return evidence only; do not submit irreversible forms.
 ```
 
 Do not substitute Browserbase Autonomous Agent sessions for Codex/Claude subagents unless the user explicitly asks for that product path; they are different execution models and do not prove editor-agent swarm orchestration.
 
-## Target-bound fallback
+## Deterministic Understudy target binding
 
-Current browser CLIs can race when multiple agents rely on "current page" or `tab_switch <index>`. For robust tandem operation, attach to Chrome over CDP and operate on a specific target/page handle.
+Current browser CLIs can race when multiple agents rely on "current page" or `tab_switch <index>`. For robust tandem operation, attach Stagehand/Understudy to the shared Chrome websocket and operate on a specific `Page` selected by `targetId`.
 
-Stagehand/Understudy pattern:
+Use the bundled helper for common deterministic commands:
+
+```bash
+node skills/browser-swarm/scripts/understudy-target.mjs \
+  --cdp-url "$CDP_URL" \
+  list
+
+node skills/browser-swarm/scripts/understudy-target.mjs \
+  --cdp-url "$CDP_URL" \
+  --target-id "$TARGET_ID" \
+  text body
+
+node skills/browser-swarm/scripts/understudy-target.mjs \
+  --cdp-url "$CDP_URL" \
+  --target-id "$TARGET_ID" \
+  screenshot /tmp/swarm-tab.png
+```
+
+If testing against a local Stagehand checkout or fork, pass its built ESM entrypoint:
+
+```bash
+node skills/browser-swarm/scripts/understudy-target.mjs \
+  --stagehand-import /tmp/stagehand-pr-2049/packages/core/dist/esm/index.js \
+  --cdp-url "$CDP_URL" \
+  list
+```
+
+Direct Understudy scripting pattern:
 
 ```js
-const { Stagehand } = require("@browserbasehq/stagehand");
+import { Stagehand } from "@browserbasehq/stagehand";
 
 const stagehand = new Stagehand({
   env: "LOCAL",
@@ -117,26 +145,16 @@ const page = stagehand.context.pages().find((candidate) => {
   return candidate.targetId && candidate.targetId() === targetId;
 });
 
-await stagehand.act("click the search box", { page });
-await stagehand.extract("summarize the visible result", { page });
+if (!page) throw new Error(`No page found for targetId=${targetId}`);
+
+await page.deepLocator("input[name='q']").fill("receipt OR itinerary");
+await page.keyPress("Enter");
+const text = await page.deepLocator("body").innerText();
 ```
 
-Playwright CDP pattern:
+Only use raw CDP or Playwright as a diagnostic fallback when Understudy lacks a needed primitive or when you are debugging browser attachment itself. They should not be the default product path for this skill.
 
-```js
-const { chromium } = require("playwright");
-
-const browser = await chromium.connectOverCDP(cdpUrl);
-const context = browser.contexts()[0];
-const page = context.pages().find((candidate) => {
-  return candidate.url().includes("mail.google.com");
-});
-
-await page.fill("input[name='q']", "receipt OR itinerary");
-await page.keyboard.press("Enter");
-```
-
-Prefer these patterns when agents must click, type, or extract in parallel. Do not rely on foreground focus for correctness.
+Prefer deterministic Understudy when agents must click, type, or extract in parallel. Do not rely on foreground focus for correctness.
 
 ## Known gaps to report
 
@@ -145,7 +163,7 @@ Report these as browse CLI gaps when they block a swarm:
 - Commands route through the active page instead of a claimed target/page.
 - Parallel `open`/`goto` calls can navigate the same active tab; use `newpage` plus targetId ownership instead.
 - `tab_switch <index>` is not stable under parallel agents and focuses the tab.
-- There is no first-class `claim target` / targetId-scoped command surface yet.
+- There is no first-class `claim target` / targetId-scoped deterministic Understudy command surface yet.
 - Chrome may require a remote-debugging approval prompt for each new attaching process.
 
 ## Proof checklist
