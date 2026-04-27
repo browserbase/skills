@@ -234,9 +234,14 @@ bb browse env local --auto-connect
 bb browse env remote
 bb browse status
 bb browse open https://example.com
+bb browse --proxies --advanced-stealth --solve-captchas open https://example.com
+bb browse upload "input[type=file]" ./file.pdf
+bb browse cdp 9222 --domain Network Page
 ```
 
 `bb browse` mirrors the standalone `browse` binary exactly. For local work, `bb browse env local` starts a clean isolated browser by default. Use `bb browse env local --auto-connect` only when you need the agent to reuse an existing local Chrome session, cookies, or login state.
+
+Remote Browserbase session flags are passed through as global browse flags. Run `bb browse env remote` first, then put flags such as `--proxies`, `--advanced-stealth`, `--solve-captchas`, `--block-ads`, `--region <region>`, `--keep-alive`, or `--session-timeout <seconds>` before the subcommand.
 
 If `browse` is not installed, the CLI will prompt you to install it:
 
