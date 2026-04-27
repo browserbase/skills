@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 
-import { runDir, readJson, readJsonl } from './lib.mjs';
+import { runDir, readJson, readJsonl, isTopNav } from './lib.mjs';
 
 const [runId, cmd, ...args] = process.argv.slice(2);
 if (!runId || !cmd) usage();
@@ -76,8 +76,12 @@ function listPids(filter) {
     .sort((a, b) => a - b);
 }
 
-function emitJsonl(items) {
-  for (const it of items) console.log(JSON.stringify(it));
+// Exact hostname match — `new URL(...).hostname` does not include the port and
+// returns a definite host segment, so `api.example.com` won't match
+// `api.example.com.evil.tld` (it would with a `startsWith` check).
+function hostMatches(url, hostname) {
+  try { return new URL(url).hostname === hostname; }
+  catch { return false; }
 }
 
 // ---------------------------------------------------------------------------
@@ -190,7 +194,7 @@ function cmdHost(hostname, filter) {
     const pdir = pageDir(pid);
     for (const ev of readJsonl(path.join(pdir, 'network/requests.jsonl'))) {
       const url = ev?.params?.request?.url ?? '';
-      if (!url.startsWith(`http://${hostname}`) && !url.startsWith(`https://${hostname}`)) continue;
+      if (!hostMatches(url, hostname)) continue;
       console.log(JSON.stringify({
         pid, kind: 'request',
         method: ev?.params?.request?.method,
@@ -200,7 +204,7 @@ function cmdHost(hostname, filter) {
     }
     for (const ev of readJsonl(path.join(pdir, 'network/responses.jsonl'))) {
       const url = ev?.params?.response?.url ?? '';
-      if (!url.startsWith(`http://${hostname}`) && !url.startsWith(`https://${hostname}`)) continue;
+      if (!hostMatches(url, hostname)) continue;
       console.log(JSON.stringify({
         pid, kind: 'response',
         status: ev?.params?.response?.status,
@@ -211,10 +215,20 @@ function cmdHost(hostname, filter) {
 }
 
 function cmdTimeline() {
-  for (const ev of readJsonl(path.join(cdpDir, 'page/navigations.jsonl'))) {
-    console.log(`[NAV ${ev?.params?.frame?.url ?? '?'}]`);
+  // Read raw.ndjson directly so nav + lifecycle events come out in the order
+  // they actually fired. The bisected per-method buckets group by type and
+  // would otherwise print all NAVs before any lifecycle markers, even when
+  // navigations occurred between lifecycle phases.
+  const rawPath = path.join(cdpDir, 'raw.ndjson');
+  if (!fs.existsSync(rawPath)) {
+    console.error('no raw.ndjson — capture may not have started');
+    process.exit(1);
   }
-  for (const ev of readJsonl(path.join(cdpDir, 'page/lifecycle.jsonl'))) {
-    console.log(`[${ev?.params?.name ?? '?'}]`);
+  for (const ev of readJsonl(rawPath)) {
+    if (isTopNav(ev)) {
+      console.log(`[NAV ${ev?.params?.frame?.url ?? '?'}]`);
+    } else if (ev?.method === 'Page.lifecycleEvent') {
+      console.log(`[${ev?.params?.name ?? '?'}]`);
+    }
   }
 }
