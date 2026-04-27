@@ -1,4 +1,4 @@
-# Browser Observability — Examples
+# Browser Trace — Examples
 
 Five end-to-end debug scenarios. Each one shows: setup, running the capture, and the queries you'd run on the resulting tree.
 
@@ -9,7 +9,7 @@ The recipes below use raw `jq` on the bisected files so you can see exactly what
 **User says**: "The signup form submit isn't working. I clicked Submit and nothing happened."
 
 ```bash
-# Launch debuggable Chrome and start the observer.
+# Launch debuggable Chrome and start the tracer.
 "/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
   --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-o11y about:blank &
 node scripts/start-capture.mjs 9222 form-bug
@@ -173,7 +173,7 @@ jq -c --argjson t "$EVT_MS" '
 
 The stack frame points at the prod JS file + line; the screenshot shows what the user was looking at; the network query shows what XHRs were in flight in the 5 seconds before the throw.
 
-## Example 5: Attach observability to a Browserbase session that is already running
+## Example 5: Attach a trace to a Browserbase session that is already running
 
 **User says**: "Our staging worker is running a Browserbase session right now and the customer says it's stuck. Can you attach without killing it?"
 
@@ -183,7 +183,7 @@ export BROWSERBASE_API_KEY=...
 # Find running sessions (no --status flag, so filter client-side).
 bb sessions list | jq -r '.[] | select(.status == "RUNNING") | "\(.id)\t\(.region)\t\(.startedAt)"'
 
-# Attach the observer to the session you care about.
+# Attach the tracer to the session you care about.
 SID=<session-id-from-above>
 node scripts/bb-capture.mjs "$SID" stuck-debug 2
 
@@ -193,7 +193,7 @@ open "$(jq -r '.browserbase.debugger_url' .o11y/stuck-debug/manifest.json)"
 # Let it record for a minute or two while the worker does whatever it does.
 sleep 120
 
-# Stop the observer and pull artifacts. NO --release: the worker still owns this session.
+# Stop the tracer and pull artifacts. NO --release: the worker still owns this session.
 node scripts/stop-capture.mjs stuck-debug
 node scripts/bisect-cdp.mjs stuck-debug
 node scripts/bb-finalize.mjs stuck-debug
@@ -220,4 +220,4 @@ jq -c 'select(.params.frameId == .params.loaderId or .params.frameId != null)
 jq '.proxyBytes' browserbase/session.json
 ```
 
-**Key idea**: `bb-capture.mjs <session-id>` (no `--new`) only adds an observer; it never sends action commands. The production worker keeps running. `bb-finalize.mjs` *without* `--release` leaves the session alive when you're done.
+**Key idea**: `bb-capture.mjs <session-id>` (no `--new`) only adds an tracer; it never sends action commands. The production worker keeps running. `bb-finalize.mjs` *without* `--release` leaves the session alive when you're done.

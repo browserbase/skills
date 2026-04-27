@@ -55,18 +55,18 @@
       ]
     },
     {
-      "name": "browser-observability",
+      "name": "browser-trace",
       "source": "./",
-      "description": "Capture full DevTools-protocol observability data (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets. Use when the user wants to debug a browser run, audit network/console/DOM activity, or attach observability to an in-flight Browserbase session.",
+      "description": "Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets. Use when the user wants to debug a failed run, audit network/console/DOM activity, attach a trace to an in-flight Browserbase session, or feed structured per-page summaries back into an agent loop.",
       "version": "0.0.1",
       "author": {
         "name": "Browserbase"
       },
       "category": "automation",
-      "keywords": ["debugging", "observability", "cdp", "devtools-protocol", "session-debugging", "network-audit"],
+      "keywords": ["debugging", "trace", "observability", "cdp", "devtools-protocol", "session-debugging", "network-audit"],
       "strict": false,
       "skills": [
-        "./skills/browser-observability"
+        "./skills/browser-trace"
       ]
     }
   ]

@@ -1,4 +1,4 @@
-// Shared helpers for the browser-observability scripts.
+// Shared helpers for the browser-trace scripts.
 //
 // All scripts read O11Y_ROOT (default ".o11y") so runs land under
 // $O11Y_ROOT/<run-id>/. No third-party deps; node stdlib only.

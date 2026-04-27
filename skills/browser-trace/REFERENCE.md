@@ -1,4 +1,4 @@
-# Browser Observability — Reference
+# Browser Trace — Reference
 
 Technical reference for the capture pipeline, the bisect mapping, and the jq recipe library.
 
@@ -6,7 +6,7 @@ Technical reference for the capture pipeline, the bisect mapping, and the jq rec
 
 ```
                        ┌──────────────────────────────────────┐
-   main automation ──▶ │  Chrome / Browserbase CDP target     │ ◀── observer (this skill)
+   main automation ──▶ │  Chrome / Browserbase CDP target     │ ◀── tracer (this skill)
    (any framework)     └──────────────────────────────────────┘
         │                                    │
         ▼                                    ▼
@@ -15,7 +15,7 @@ Technical reference for the capture pipeline, the bisect mapping, and the jq rec
                                browse --ws <target> get html body  (sampler → dom/)
 ```
 
-CDP allows multiple concurrent clients on the same target. The observer enables only read-only domains and never sends action commands like `Input.dispatch*` or `Runtime.evaluate`, so it cannot perturb the run.
+CDP allows multiple concurrent clients on the same target. The tracer enables only read-only domains and never sends action commands like `Input.dispatch*` or `Runtime.evaluate`, so it cannot perturb the run.
 
 ## Scripts
 
@@ -71,7 +71,7 @@ Invoked by `start-capture.mjs`; not meant to be called directly. Loops at the co
 
 ### `bb-capture.mjs --new|<session-id> [run-id] [interval-sec]`
 
-Browserbase wrapper around `start-capture.mjs`. With `--new`, runs `bb sessions create --keep-alive` and starts the observer. With an existing session id, fetches its `connectUrl` via `bb sessions get` and asserts the session is `RUNNING` before attaching.
+Browserbase wrapper around `start-capture.mjs`. With `--new`, runs `bb sessions create --keep-alive` and starts the tracer. With an existing session id, fetches its `connectUrl` via `bb sessions get` and asserts the session is `RUNNING` before attaching.
 
 Stamps the run's `manifest.json` with a `browserbase` object containing `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, and the `debugger_url` from `bb sessions debug`.
 
@@ -79,7 +79,7 @@ Reads `BROWSERBASE_API_KEY`. `BB_SESSION_TIMEOUT` (default `600`) controls the t
 
 ### `bb-finalize.mjs <run-id> [--release]`
 
-Pulls platform-side artifacts after the observer has stopped:
+Pulls platform-side artifacts after the tracer has stopped:
 
 - **`browserbase/session.json`** — `bb sessions get` snapshot. Always written; contains the post-run `proxyBytes`, `status`, `endedAt`.
 - **`browserbase/logs.json`** — `bb sessions logs` output. Often `[]`. The CDP firehose is authoritative; this is a side channel for cases where Browserbase happened to record server-side log entries.
@@ -106,7 +106,7 @@ Pulls platform-side artifacts after the observer has stopped:
 | `cdp/page/dialogs.jsonl`                | `Page.javascriptDialog*`         | alert / confirm / prompt / beforeunload                      |
 | `cdp/page/all.jsonl`                    | `Page.*`                         | catch-all for everything Page emits                          |
 | `cdp/dom/all.jsonl`                     | `DOM.*`                          | tree mutations *(only populated if `O11Y_DOMAINS` adds `DOM`)* |
-| `cdp/target/attached.jsonl`             | `Target.attachedToTarget`        | each new page/iframe target attached to the observer         |
+| `cdp/target/attached.jsonl`             | `Target.attachedToTarget`        | each new page/iframe target attached to the tracer         |
 | `cdp/target/detached.jsonl`             | `Target.detachedFromTarget`      | each detach                                                  |
 
 ### Note on response bodies
@@ -223,7 +223,7 @@ jq '.browserbase' "$RUN/manifest.json"
 # How many bytes did Browserbase's proxy bill us?
 jq '.proxyBytes' "$RUN/browserbase/session.json"
 
-# Sum the encoded bytes the observer saw across responses; compare to proxyBytes.
+# Sum the encoded bytes the tracer saw across responses; compare to proxyBytes.
 jq -s 'map(.params.encodedDataLength // 0) | add' \
   "$RUN/cdp/network/finished.jsonl"
 
@@ -239,11 +239,11 @@ for m in .o11y/*/manifest.json; do
 done
 ```
 
-### When to use `bb sessions debug` vs the observer
+### When to use `bb sessions debug` vs the tracer
 
 They're complementary:
 
-- **observer (this skill)** captures the firehose to disk — durable, searchable, scriptable. Use for postmortem and automated checks.
+- **tracer (this skill)** captures the firehose to disk — durable, searchable, scriptable. Use for postmortem and automated checks.
 - **`bb sessions debug` URL** is an interactive Chrome DevTools view served by Browserbase, scoped to one running session. Use when you want to *watch* a live run, single-step through requests, or inspect the live DOM by hand.
 
 You can do both simultaneously: `bb-capture.mjs --new` prints the debugger URL when it starts, and stamps it in the manifest for later.
@@ -253,7 +253,7 @@ You can do both simultaneously: `bb-capture.mjs --new` prints the debugger URL w
 - `bb sessions logs` is best-effort; in practice it's frequently empty even with `--log-session` on. Don't build queries on top of it; treat anything that lands there as a bonus.
 - `bb sessions recording` (rrweb session replay) is deprecated — neither helper fetches it. Use the screenshots + DOM dumps in `screenshots/` and `dom/`.
 - `bb sessions list` doesn't accept a `--status` filter; pipe through jq (`select(.status == "RUNNING")`).
-- The Browserbase proxy charges per byte. `bb sessions get` returns running `proxyBytes`; the observer's network buckets give you per-host detail to attribute it.
+- The Browserbase proxy charges per byte. `bb sessions get` returns running `proxyBytes`; the tracer's network buckets give you per-host detail to attribute it.
 
 ## Per-page drill-down
 
@@ -323,7 +323,7 @@ The interval-second arg to `start-capture.mjs` controls only the sampler. The fi
 | ---------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ |
 | `browse cdp exited immediately`                | unreachable target / completed Browserbase session             | verify port is listening (`curl http://localhost:9222/json/version`) or session is `RUNNING` (`bb sessions get`) |
 | `error: unknown command 'cdp'`                 | stable browse-cli (≤ 0.5.0) lacks the command                 | `npm install -g @browserbasehq/browse-cli@alpha`              |
-| Browserbase session ends as soon as observer connects | observer was the only client; no automation attached          | create with `--keep-alive`, attach `browse --connect` first   |
+| Browserbase session ends as soon as tracer connects | tracer was the only client; no automation attached          | create with `--keep-alive`, attach `browse --connect` first   |
 | `index.jsonl` shows `"url": ""`                 | one-shot `browse --ws ... get url` failed (transient)         | benign; happens during navigation transitions                 |
 | Screenshots empty / huge / inconsistent sizes  | viewport not set                                              | `browse --ws <target> viewport 1920 1080` once before capture |
 | `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" bash start-capture.mjs ...` |
