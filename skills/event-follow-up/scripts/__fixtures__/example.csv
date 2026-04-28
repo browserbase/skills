@@ -1,0 +1,10 @@
+First Name,Last Name,Email,Company,Job Title,LinkedIn,Notes
+Greg,Brockman,greg@openai.com,OpenAI,Cofounder and President,https://www.linkedin.com/in/thegdb/,Spoke about ChatGPT Agent
+Sam,Smith,sam@browserbase.com,Browserbase,Engineer,,Internal team member
+Adam,Sommer,adam@ramp.com,Ramp,Director of Product,https://www.linkedin.com/in/adamsommer/,Existing customer
+Kate,Jensen,kate@anthropic.com,Anthropic,Head of Americas,,Computer Use product
+,,,,,
+Cristina,Cordova,cristina@linear.com,Linear,COO,,
+Jane,Doe,jane@gmail.com,,Founder,,No company column for personal email
+Devang,Kothari,devang@wizard.com,Wizard,CTO,,AI shopping assistant
+"O'Brien, Patrick",,patrick@example.com,Example Inc,"VP, Sales",,Quoted name and title with commas

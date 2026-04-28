@@ -50,3 +50,9 @@ tmp/.cache/.chrome-pid
 
 # Per-skill local Claude Code settings (contains user-specific permission approvals)
 skills/*/.claude/settings.local.json
+
+# Per-skill personal ICP profiles — only example.json is committed; users keep
+# their own profiles locally. Lives at the repo root so it protects every skill
+# regardless of which branch is checked out.
+skills/*/profiles/*.json
+!skills/*/profiles/example.json

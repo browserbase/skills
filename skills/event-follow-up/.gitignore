@@ -1,0 +1,8 @@
+node_modules/
+*.log
+.DS_Store
+
+# Personal ICP profiles — example.json is the only one tracked; users keep
+# their own profiles locally without committing them upstream.
+profiles/*.json
+!profiles/example.json
