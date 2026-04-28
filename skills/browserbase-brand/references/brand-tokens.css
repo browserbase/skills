@@ -1,0 +1,112 @@
+/*
+ * Browserbase brand tokens
+ * Drop this into any project's global CSS to get on-brand defaults.
+ * Keep the palette tight — one accent on black/white is the whole system.
+ */
+
+:root {
+  /* ── Primary palette ── */
+  --bb-red: #FF4500;       /* Browserbase Red — Pantone 1655 C */
+  --bb-black: #000000;     /* Pantone Black 6 C */
+  --bb-white: #FFFFFF;
+  --bb-grey: #C5D3E8;      /* Grey 500 Core — Pantone 657 C */
+  /* Legacy alias */
+  --bb-orange: var(--bb-red);
+
+  /* ── Secondary / product palette ── */
+  --bb-stagehand-green: #00C851;  /* Stagehand signature — Pantone 2420 C */
+  --bb-lime-green: #C4D600;       /* Pantone 382 C */
+  --bb-director-blue: #00B0FF;    /* Director signature — Pantone 306 C */
+  --bb-blue: #0000CD;             /* Pantone Blue 072 C */
+  --bb-magenta: #FF00FF;          /* Pantone Real Purple C — specialty ink required */
+  --bb-pink: #FFC0CB;             /* Pantone 182 C */
+  /* Note: Pale Yellow (#FFFACD) exists but is reserved for the image tool only — do not use in layouts */
+
+  /* ── Grey scale ── */
+  --bb-grey-100: #F8FAFC;
+  --bb-grey-200: #F0F4F8;
+  --bb-grey-300: #E1E9F2;
+  --bb-grey-400: #D3DEED;
+  --bb-grey-500: #C5D3E8;  /* Core — same as --bb-grey */
+  --bb-grey-600: #98AFD3;
+  --bb-grey-700: #7591C0;
+  --bb-grey-800: #5A78AF;
+  --bb-grey-900: #46639F;
+
+  /* ── Semantic (light mode default) ── */
+  --bb-bg: var(--bb-white);
+  --bb-fg: var(--bb-black);
+  --bb-accent: var(--bb-red);
+  --bb-on-accent: var(--bb-white);
+
+  /* Derived neutrals for borders/dividers — opacity-based for flexibility */
+  --bb-border: rgba(0, 0, 0, 0.08);
+  --bb-muted: rgba(0, 0, 0, 0.60);
+  --bb-subtle: rgba(0, 0, 0, 0.04);
+
+  /* Type scale (tight display, 1.5 body) */
+  --bb-font-display: "GT Planar", ui-sans-serif, system-ui, sans-serif;
+  --bb-font-mono: "GT Standard Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
+  /* Legacy alias — use --bb-font-display for new work */
+  --bb-font-sans: var(--bb-font-display);
+  --bb-tracking-display: -0.02em;
+  --bb-tracking-label: 0.05em;
+  --bb-tracking-body: 0;
+  --bb-leading-display: 1.1;
+  --bb-leading-body: 1.5;
+
+  /* Shape */
+  --bb-radius-sm: 4px;
+  --bb-radius-md: 8px;
+  --bb-radius-pill: 999px;
+  --bb-hairline: 1px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bb-bg: var(--bb-black);
+    --bb-fg: var(--bb-white);
+    --bb-border: rgba(255, 255, 255, 0.10);
+    --bb-muted: rgba(255, 255, 255, 0.65);
+    --bb-subtle: rgba(255, 255, 255, 0.04);
+  }
+}
+
+/* Opt-in dark class if not relying on OS preference */
+.bb-dark {
+  --bb-bg: var(--bb-black);
+  --bb-fg: var(--bb-white);
+  --bb-border: rgba(255, 255, 255, 0.10);
+  --bb-muted: rgba(255, 255, 255, 0.65);
+  --bb-subtle: rgba(255, 255, 255, 0.04);
+}
+
+/* Baseline — only apply inside a Browserbase-branded surface */
+.bb-surface {
+  background: var(--bb-bg);
+  color: var(--bb-fg);
+  font-family: var(--bb-font-sans);
+  line-height: var(--bb-leading-body);
+  letter-spacing: var(--bb-tracking-body);
+}
+
+.bb-surface h1,
+.bb-surface h2,
+.bb-surface h3 {
+  letter-spacing: var(--bb-tracking-display);
+  line-height: var(--bb-leading-display);
+}
+
+.bb-surface code,
+.bb-surface pre {
+  font-family: var(--bb-font-mono);
+}
+
+.bb-cta {
+  background: var(--bb-accent);
+  color: var(--bb-on-accent);
+  border-radius: var(--bb-radius-md);
+  padding: 0.75rem 1.25rem;
+  font-weight: 500;
+  border: none;
+}
