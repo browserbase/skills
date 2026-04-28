@@ -1,0 +1,107 @@
+{
+  "$schema": "https://design-tokens.github.io/community-group/format/",
+  "$description": "Browserbase brand tokens — structured form for non-CSS tooling (Figma plugins, video generators, slide builders, etc.). Mirror of brand-tokens.css.",
+  "brand": {
+    "name": "Browserbase",
+    "tagline": "Give your agents access to the whole web.",
+    "description": "Browserbase is the complete platform to build and deploy agents that browse and interact with the web like humans.",
+    "mediaKit": "https://browserbase.notion.site/Browserbase-Media-Kit-1293c11b66148090a867cdeea85dbba0"
+  },
+  "color": {
+    "_note": "Primary palette is used first and most often. Secondary colors are small accents only — never dominant surfaces.",
+    "primary": {
+      "red":   { "value": "#FF4500", "token": "--bb-red",   "pantone": "1655 C", "cmyk": "C0 M87 Y100 K0", "usage": "Browserbase signature. CTAs, key highlights, logomark. One per viewport." },
+      "black": { "value": "#000000", "token": "--bb-black", "pantone": "Black 6 C", "usage": "Primary text on light, primary background in dark mode." },
+      "white": { "value": "#FFFFFF", "token": "--bb-white", "usage": "Primary background in light mode, text on dark/red." },
+      "grey":  { "value": "#C5D3E8", "token": "--bb-grey",  "pantone": "657 C", "cmyk": "C21 M11 Y2 K0", "usage": "Core grey. Interface/layout backgrounds, charts, diagrams." }
+    },
+    "secondary": {
+      "staghandGreen":  { "value": "#00C851", "token": "--bb-stagehand-green", "pantone": "2420 C", "cmyk": "C73 M0 Y92 K0",   "usage": "Stagehand product signature. Small accents only." },
+      "limeGreen":      { "value": "#C4D600", "token": "--bb-lime-green",      "pantone": "382 C",   "cmyk": "C29 M1 Y100 K0",  "usage": "Supporting accent. Never dominant." },
+      "directorBlue":   { "value": "#00B0FF", "token": "--bb-director-blue",   "pantone": "306 C",   "cmyk": "C66 M17 Y0 K0",   "usage": "Director product signature. Small accents only." },
+      "blue":           { "value": "#0000CD", "token": "--bb-blue",            "pantone": "Blue 072 C", "cmyk": "C93 M86 Y0 K0", "usage": "Supporting accent." },
+      "magenta":        { "value": "#FF00FF", "token": "--bb-magenta",         "pantone": "Real Purple C", "cmyk": "C27 M81 Y0 K0", "note": "Does not translate easily to CMYK — recommend specialty inks.", "usage": "Expressive accent only." },
+      "pink":           { "value": "#FFC0CB", "token": "--bb-pink",            "pantone": "182 C",   "cmyk": "C0 M34 Y7 K0",    "usage": "Supporting accent." },
+      "paleYellow":     { "value": "#FFFACD", "token": null,                   "pantone": "2001 C",  "cmyk": "C1 M0 Y24 K0",    "usage": "IMAGE TOOL ONLY — do not use in layouts." }
+    },
+    "grey": {
+      "100": { "value": "#F8FAFC", "token": "--bb-grey-100" },
+      "200": { "value": "#F0F4F8", "token": "--bb-grey-200" },
+      "300": { "value": "#E1E9F2", "token": "--bb-grey-300" },
+      "400": { "value": "#D3DEED", "token": "--bb-grey-400" },
+      "500": { "value": "#C5D3E8", "token": "--bb-grey-500", "note": "Core — same as --bb-grey" },
+      "600": { "value": "#98AFD3", "token": "--bb-grey-600" },
+      "700": { "value": "#7591C0", "token": "--bb-grey-700" },
+      "800": { "value": "#5A78AF", "token": "--bb-grey-800" },
+      "900": { "value": "#46639F", "token": "--bb-grey-900" }
+    }
+  },
+  "productColors": {
+    "Browserbase": "#FF4500",
+    "Stagehand":   "#00C851",
+    "Director":    "#00B0FF"
+  },
+  "mode": {
+    "light": { "bg": "#FFFFFF", "fg": "#000000", "accent": "#FF4500", "onAccent": "#FFFFFF" },
+    "dark":  { "bg": "#000000", "fg": "#FFFFFF", "accent": "#FF4500", "onAccent": "#FFFFFF" }
+  },
+  "font": {
+    "display": {
+      "family": "GT Planar",
+      "weights": ["Light", "Regular", "Medium"],
+      "stack": "\"GT Planar\", ui-sans-serif, system-ui, sans-serif",
+      "files": "assets/Fonts/GT Planar/",
+      "featureSettings": "'ss05', 'ss14', 'ss03', 'dlig'",
+      "usage": "All UI text, navigation, headings, display copy."
+    },
+    "mono": {
+      "family": "GT Standard Mono",
+      "stack": "\"GT Standard Mono\", ui-monospace, \"JetBrains Mono\", Menlo, monospace",
+      "files": "assets/Fonts/GT Standard/GT-Standard-Mono-*",
+      "featureSettings": "'dlig'",
+      "usage": "Code blocks, inline code, uppercase labels (tracking 0.05em)."
+    },
+    "plain": {
+      "family": "Plain",
+      "weights": ["Thin", "Light", "Regular", "Medium", "Bold"],
+      "stack": "\"Plain\", ui-sans-serif, sans-serif",
+      "files": "assets/Fonts/Plain/",
+      "usage": "Role TBD — present in brand kit alongside GT Planar."
+    },
+    "tracking": { "display": "-0.02em", "label": "0.05em", "body": "0" },
+    "leading": { "display": 1.1, "body": 1.5 }
+  },
+  "shape": {
+    "radius": { "sm": "4px", "md": "8px", "pill": "999px" },
+    "hairline": "1px"
+  },
+  "voice": {
+    "case": "sentence case",
+    "subject": "agents",
+    "traits": ["Open", "Grounded", "Insightful", "Inventive", "Empowering"],
+    "avoid": ["marketing adjectives (powerful, seamless, revolutionary)", "ALL CAPS body", "Title Case headings", "scraping-era vocabulary", "emoji in product copy"]
+  },
+  "logo": {
+    "variants": {
+      "logomark-color":  "assets/logos/Browserbase-logomark-color.svg",
+      "logomark-black":  "assets/logos/Browserbase-logomark-black.svg",
+      "logomark-white":  "assets/logos/Browserbase-logomark-white.svg",
+      "logotype-color":  "assets/logos/browserbase-logo-color.svg",
+      "logotype-black":  "assets/logos/browserbase-logo-black.svg",
+      "logotype-white":  "assets/logos/Browserbase-logo-white.svg",
+      "mega-b":          "assets/logos/Browserbase-mega.svg"
+    },
+    "selection": {
+      "light-bg": "logotype-color or logotype-black",
+      "dark-bg":  "logotype-white or logomark-white",
+      "orange-bg": "logotype-white or logotype-black"
+    },
+    "minSize": { "logomark": "16px", "logotype": "96px wide" },
+    "clearSpace": "width of the 'B' on all sides"
+  },
+  "products": ["Browserbase", "Stagehand", "Director"],
+  "contact": {
+    "brand": "growth@browserbase.com",
+    "press": "erika@browserbase.com"
+  }
+}
