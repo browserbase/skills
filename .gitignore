@@ -50,3 +50,9 @@ tmp/.cache/.chrome-pid
 
 # Per-skill local Claude Code settings (contains user-specific permission approvals)
 skills/*/.claude/settings.local.json
+
+# Browserbase brand fonts (binary assets, not for version control)
+skills/browserbase-brand/assets/Fonts/
+
+# Temporary 
+skills/browserbase-brand/references/positioning.md
