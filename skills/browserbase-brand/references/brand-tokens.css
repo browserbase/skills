@@ -6,21 +6,14 @@
 
 :root {
   /* ── Primary palette ── */
-  --bb-red: #FF4500;       /* Browserbase Red — Pantone 1655 C */
-  --bb-black: #000000;     /* Pantone Black 6 C */
+  --bb-red: #FF4500;
+  --bb-black: #000000;
   --bb-white: #FFFFFF;
-  --bb-grey: #C5D3E8;      /* Grey 500 Core — Pantone 657 C */
-  /* Legacy alias */
-  --bb-orange: var(--bb-red);
+  --bb-grey: #C5D3E8;      /* Grey 500 Core */
 
-  /* ── Secondary / product palette ── */
-  --bb-stagehand-green: #00C851;  /* Stagehand signature — Pantone 2420 C */
-  --bb-lime-green: #C4D600;       /* Pantone 382 C */
-  --bb-director-blue: #00B0FF;    /* Director signature — Pantone 306 C */
-  --bb-blue: #0000CD;             /* Pantone Blue 072 C */
-  --bb-magenta: #FF00FF;          /* Pantone Real Purple C — specialty ink required */
-  --bb-pink: #FFC0CB;             /* Pantone 182 C */
-  /* Note: Pale Yellow (#FFFACD) exists but is reserved for the image tool only — do not use in layouts */
+  /* ── Secondary palette ── */
+  --bb-magenta: #FF00FF;
+  --bb-pink: #FFC0CB;
 
   /* ── Grey scale ── */
   --bb-grey-100: #F8FAFC;
@@ -47,8 +40,6 @@
   /* Type scale (tight display, 1.5 body) */
   --bb-font-display: "GT Planar", ui-sans-serif, system-ui, sans-serif;
   --bb-font-mono: "GT Standard Mono", ui-monospace, "JetBrains Mono", Menlo, monospace;
-  /* Legacy alias — use --bb-font-display for new work */
-  --bb-font-sans: var(--bb-font-display);
   --bb-tracking-display: -0.02em;
   --bb-tracking-label: 0.05em;
   --bb-tracking-body: 0;
@@ -56,10 +47,8 @@
   --bb-leading-body: 1.5;
 
   /* Shape */
-  --bb-radius-sm: 4px;
-  --bb-radius-md: 8px;
   --bb-radius-pill: 999px;
-  --bb-hairline: 1px;
+  --bb-border-width: 1px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -85,7 +74,7 @@
 .bb-surface {
   background: var(--bb-bg);
   color: var(--bb-fg);
-  font-family: var(--bb-font-sans);
+  font-family: var(--bb-font-display);
   line-height: var(--bb-leading-body);
   letter-spacing: var(--bb-tracking-body);
 }
@@ -105,7 +94,7 @@
 .bb-cta {
   background: var(--bb-accent);
   color: var(--bb-on-accent);
-  border-radius: var(--bb-radius-md);
+  border-radius: 0;
   padding: 0.75rem 1.25rem;
   font-weight: 500;
   border: none;
