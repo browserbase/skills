@@ -68,6 +68,21 @@
       "skills": [
         "./skills/browser-trace"
       ]
+    },
+    {
+      "name": "safe-browser",
+      "source": "./",
+      "description": "Build local constrained-browser agents with a safe_browser tool that owns CDP, enforces a domain allowlist with Fetch interception, and lets a runtime Claude Agent SDK agent complete browsing tasks without raw browser, shell, or CDP access.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "security",
+      "keywords": ["safe-browser", "domain-policy", "allowlist", "cdp", "fetch-interception", "claude-agent-sdk", "browser-security", "prompt-injection"],
+      "strict": false,
+      "skills": [
+        "./skills/safe-browser"
+      ]
     }
   ]
 }

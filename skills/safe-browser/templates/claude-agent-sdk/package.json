@@ -1,0 +1,14 @@
+{
+  "name": "safe-browser-claude-hn-demo",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "node hn-scraper-demo.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.123",
+    "playwright": "^1.58.0",
+    "zod": "^4.3.6"
+  }
+}
