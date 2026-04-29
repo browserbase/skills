@@ -247,7 +247,7 @@ export function emit(outDir, opts = {}) {
     info: {
       title,
       version: '0.1.0-discovered',
-      description: 'Spec discovered from a browser-trace capture by the browser-reverse skill. Inductive, not contractual — see `report.md` and `x-confidence` extensions for caveats.',
+      description: 'Spec discovered from a browser-trace capture by the browser-to-api skill. Inductive, not contractual — see `report.md` and `x-confidence` extensions for caveats.',
     },
     servers,
     paths,
@@ -290,7 +290,7 @@ export function emit(outDir, opts = {}) {
 
 function buildReport({ kept, dropped, servers, redaction, minSamples }) {
   const lines = [];
-  lines.push('# Browser-reverse: discovered API\n');
+  lines.push('# Discovered API\n');
   lines.push('## Servers\n');
   for (const s of servers) lines.push(`- ${s.url}`);
   if (!servers.length) lines.push('_(none)_');

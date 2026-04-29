@@ -35,8 +35,13 @@ const DEFAULT_EXCLUDES = [
 
 export function filter(outDir, opts = {}) {
   const { include = [], exclude = [], origins = [] } = opts;
+  // Precedence:
+  //   1. --origins gates everything; non-matching is dropped.
+  //   2. User --exclude always wins (explicit user intent).
+  //   3. Default excludes can be rescued by --include (REFERENCE.md contract).
+  //   4. When --include is set, anything that doesn't match it is dropped.
+  const userExcludeRes = exclude.map(s => new RegExp(s));
   const includeRes = include.map(s => new RegExp(s));
-  const excludeRes = [...DEFAULT_EXCLUDES, ...exclude.map(s => new RegExp(s))];
   const originSet = new Set(origins);
 
   const paired = readJsonl(intermediatePath(outDir, 'paired.jsonl'));
@@ -49,8 +54,13 @@ export function filter(outDir, opts = {}) {
       const matched = [...originSet].some(o => host === o || host.endsWith('.' + o));
       if (!matched) { droppedOrigin++; continue; }
     }
-    if (excludeRes.some(re => re.test(row.url))) { droppedExclude++; continue; }
-    if (includeRes.length && !includeRes.some(re => re.test(row.url))) { droppedInclude++; continue; }
+    if (userExcludeRes.some(re => re.test(row.url))) { droppedExclude++; continue; }
+
+    const matchesInclude = includeRes.length > 0 && includeRes.some(re => re.test(row.url));
+    const matchesDefaultExclude = DEFAULT_EXCLUDES.some(re => re.test(row.url));
+    if (matchesDefaultExclude && !matchesInclude) { droppedExclude++; continue; }
+    if (includeRes.length && !matchesInclude) { droppedInclude++; continue; }
+
     out.push(row);
   }
 

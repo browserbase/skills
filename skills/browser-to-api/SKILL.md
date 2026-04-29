@@ -1,20 +1,20 @@
 ---
-name: browser-reverse
-description: Reverse-engineer a website's HTTP API into a best-effort OpenAPI 3.1 spec by analyzing a `browser-trace` capture. Use when the user wants to discover/extract API endpoints from a browser session, build an OpenAPI doc from network traffic, or document a third-party site's XHR/fetch surface for client integration.
+name: browser-to-api
+description: Turn a website's observable HTTP traffic into a best-effort OpenAPI 3.1 spec by analyzing a `browser-trace` capture. Use when the user wants to discover/extract API endpoints from a browser session, build an OpenAPI doc from network traffic, or document a third-party site's XHR/fetch surface for client integration.
 compatibility: "Requires Node 18+ and a `browser-trace` run directory (`.o11y/<run>/`) produced by the sibling `browser-trace` skill. The scripts use only the Node standard library — no `npm install` step. `jq` is referenced in docs for ad-hoc querying but is not required by the scripts."
 license: MIT
 allowed-tools: Bash, Read, Grep
 ---
 
-# Browser Reverse
+# Browser to API
 
-Replay-driven API reverse-engineering. Consume a `browser-trace` capture, pair its CDP request / response events, templatize observed URLs, infer JSON schemas from samples, and emit an **OpenAPI 3.1** document plus a human-readable coverage report.
+Replay-driven API discovery. Consume a `browser-trace` capture, pair its CDP request / response events, templatize observed URLs, infer JSON schemas from samples, and emit an **OpenAPI 3.1** document plus a human-readable coverage report.
 
 This skill **does not capture traffic**. It is purely offline post-processing on top of `browser-trace`'s `cdp/network/*.jsonl` buckets. The two skills compose:
 
 ```
-browser-trace        →  .o11y/<run>/cdp/network/{requests,responses}.jsonl
-discover-api-spec    →  .o11y/<run>/api-spec/openapi.yaml + report.md
+browser-trace    →  .o11y/<run>/cdp/network/{requests,responses}.jsonl
+browser-to-api   →  .o11y/<run>/api-spec/openapi.yaml + report.md
 ```
 
 ## When to use
@@ -67,7 +67,7 @@ node scripts/discover.mjs --run .o11y/my-site
 
 `discover.mjs` auto-detects `<run>/cdp/network/bodies/`. To use a body capture from elsewhere (e.g. didn't snapshot, want the live `browse network` dir), pass `--bodies <path>` explicitly.
 
-Then deliver the artifacts to the user (`exec.sendFile()` for `openapi.yaml` and `report.md`).
+The two primary deliverables are `openapi.yaml` (machine-readable spec) and `report.md` (human-readable coverage summary).
 
 ## CLI flags
 
@@ -115,7 +115,7 @@ What changes when bodies are present:
 - ✅ Request-body schemas — `postData` from CDP is enough; bodies dir is a nice-to-have for non-`postData` cases.
 - ✅ **Response-body schemas** — fully inferred from real samples. Without bodies you get `{ description, content: <mimeType> }` skeletons.
 
-The report flags every endpoint that has no response-body sample. For a sketch of what it would take to teach `browser-trace` itself to capture response bodies natively (no separate `browse network on` step), see [BODY-CAPTURE-LIFT.md](BODY-CAPTURE-LIFT.md).
+The report flags every endpoint that has no response-body sample.
 
 ## Limitations
 

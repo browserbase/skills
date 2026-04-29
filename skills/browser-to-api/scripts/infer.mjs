@@ -55,9 +55,12 @@ export function infer(outDir, opts = {}) {
         if (!pickedReqExample) { pickedReqExample = s.reqBody; pickedReqStatus = s.status; }
       }
       if (s.respBody != null && typeof s.respBody === 'object') {
-        const status = s.status ?? 0;
-        let p = respProtoByStatus.get(status);
-        if (!p) { p = newProto(); respProtoByStatus.set(status, p); }
+        // Skip when we have no status: emit.mjs only renders schemas under
+        // statuses that appear in ep.statusCodes (which excludes nulls), so
+        // a body keyed under "0" would be silently discarded.
+        if (s.status == null) continue;
+        let p = respProtoByStatus.get(s.status);
+        if (!p) { p = newProto(); respProtoByStatus.set(s.status, p); }
         ingest(p, s.respBody);
         if (s.status >= 200 && s.status < 300 && !pickedRespExample) {
           pickedRespExample = s.respBody;

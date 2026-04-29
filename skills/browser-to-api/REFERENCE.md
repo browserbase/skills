@@ -1,25 +1,10 @@
-# Browser Reverse — Reference
+# Browser to API — Reference
 
-Technical reference for the discovery pipeline, file formats, and configuration.
-
-## Pipeline
-
-```
-browser-trace run                    discover.mjs
-.o11y/<run>/cdp/network/             ┌─────────┐    ┌────────┐    ┌──────────┐    ┌─────────┐    ┌──────┐
-  requests.jsonl       ──────────▶   │  load   │ ─▶ │ filter │ ─▶ │ normalize│ ─▶ │ infer   │ ─▶ │ emit │
-  responses.jsonl                    └─────────┘    └────────┘    └──────────┘    └─────────┘    └──────┘
-                                       paired         filtered      endpoints       endpoints       openapi
-                                       .jsonl         .jsonl        .jsonl          .with-          .yaml
-                                                                                    schemas         report.md
-                                                                                    .jsonl
-```
-
-Each stage is a discrete script that reads a file and writes a file. `discover.mjs` is the dispatcher; pass `--stage <name>` to run a single stage for debugging.
+Exhaustive reference for every script, flag, file format, and configuration knob the skill exposes.
 
 ## Scripts
 
-All scripts are Node ESM (`type: module`). They depend only on the Node standard library.
+All scripts are Node ESM (`type: module`). They depend only on the Node standard library. `discover.mjs` is the top-level dispatcher; the others are stage scripts the dispatcher calls in order. Run an individual stage with `discover.mjs --stage <name>` for debugging or partial reruns.
 
 ### `discover.mjs --run <path> [flags]`
 

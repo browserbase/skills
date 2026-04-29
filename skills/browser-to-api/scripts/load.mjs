@@ -39,8 +39,10 @@ function urlQuery(u) {
   try {
     const x = new URL(u);
     const out = {};
+    // First value wins for repeats. The downstream consumer (normalize.mjs)
+    // only uses parameter names + a representative value for type inference,
+    // so collapsing repeats to the first observation is fine.
     for (const [k, v] of x.searchParams.entries()) {
-      // Last value wins for repeats; we record the existence either way.
       if (out[k] === undefined) out[k] = v;
     }
     return out;
