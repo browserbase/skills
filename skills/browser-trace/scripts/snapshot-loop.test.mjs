@@ -63,3 +63,26 @@ test('repeated triggers are idempotent', () => {
   stop._trigger();
   assert.equal(stop.stopping, true);
 });
+
+test('completed sleeps deregister from the pending set so closures can be GC\'d', async () => {
+  const stop = createStopSignal();
+  assert.equal(stop._pendingCount(), 0);
+  // Run many sleeps back-to-back so a per-sleep .then handler would
+  // accumulate visibly on the stop promise's reaction list.
+  for (let i = 0; i < 200; i++) {
+    const p = stop.sleep(1);
+    assert.equal(stop._pendingCount(), 1, `pending should be 1 mid-sleep on iteration ${i}`);
+    await p;
+    assert.equal(stop._pendingCount(), 0, `pending should drain to 0 after iteration ${i}`);
+  }
+});
+
+test('trigger drains every still-pending sleep without leaking', async () => {
+  const stop = createStopSignal();
+  const sleeps = [stop.sleep(60_000), stop.sleep(60_000), stop.sleep(60_000)];
+  assert.equal(stop._pendingCount(), 3);
+  stop._trigger();
+  assert.equal(stop._pendingCount(), 0);
+  // All three resolve with no further input.
+  await Promise.all(sleeps);
+});

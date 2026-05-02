@@ -119,13 +119,22 @@ async function runSampler() {
 // signal handlers.
 export function createStopSignal() {
   let stopping = false;
-  let resolveStop;
-  const stopPromise = new Promise((resolve) => { resolveStop = resolve; });
+  // Pending sleeps register here so `trigger` can resolve them in one
+  // pass. Using an explicit set rather than `stopPromise.then(...)` per
+  // sleep keeps memory bounded: a 24-hour capture at the default 2 s
+  // interval is ~43,000 sleeps, and a chained .then handler closure per
+  // sleep would pin all of them on the long-lived stop promise's
+  // reaction list until SIGTERM finally fired.
+  const pending = new Set();
 
   const trigger = () => {
     if (stopping) return;
     stopping = true;
-    resolveStop();
+    for (const entry of pending) {
+      clearTimeout(entry.timer);
+      entry.resolve();
+    }
+    pending.clear();
   };
   process.on('SIGTERM', trigger);
   process.on('SIGINT',  trigger);
@@ -133,18 +142,22 @@ export function createStopSignal() {
   function sleep(ms) {
     if (stopping) return Promise.resolve();
     return new Promise((resolve) => {
-      const timer = setTimeout(resolve, ms);
-      stopPromise.then(() => {
-        clearTimeout(timer);
+      const entry = { resolve, timer: null };
+      entry.timer = setTimeout(() => {
+        // Self-clean on natural wake-up so the closure becomes
+        // unreachable as soon as the timer fires.
+        pending.delete(entry);
         resolve();
-      });
+      }, ms);
+      pending.add(entry);
     });
   }
 
   return {
     get stopping() { return stopping; },
     sleep,
-    // Test-only entry point. Production code relies on the signal handlers.
+    // Test-only entry points. Production code relies on the signal handlers.
     _trigger: trigger,
+    _pendingCount: () => pending.size,
   };
 }
