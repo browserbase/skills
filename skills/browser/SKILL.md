@@ -85,6 +85,7 @@ browse click <ref>                       # Click element by ref from snapshot (e
 browse type <text>                       # Type text into focused element
 browse fill <selector> <value>           # Fill input and press Enter
 browse select <selector> <values...>     # Select dropdown option(s)
+browse upload <selector> <files...>      # Upload file(s) to <input type="file">
 browse press <key>                       # Press key (Enter, Tab, Escape, Cmd+A, etc.)
 browse drag <fromX> <fromY> <toX> <toY>  # Drag from one point to another
 browse scroll <x> <y> <deltaX> <deltaY> # Scroll at coordinates
