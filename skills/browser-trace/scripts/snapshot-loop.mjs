@@ -51,56 +51,60 @@ async function runSampler() {
   // resolve the promise so any in-flight wait can short-circuit.
   const stop = createStopSignal();
 
+  // Synchronous calls inside the iteration body cannot be interrupted by
+  // SIGTERM mid-tick: Node only drains the signal callback queue between
+  // event-loop turns, and the only yield point we hit is the awaited
+  // sleep at the bottom. So the iteration body always runs to completion;
+  // SIGTERM responsiveness comes from the per-spawnSync timeout (each
+  // browse call returns within SNAPSHOT_TIMEOUT_MS) plus the abortable
+  // sleep that resolves immediately when the signal arrives.
   while (!stop.stopping) {
-  const ts   = isoStampForFilename();
-  const png  = path.join(RD, 'screenshots', `${ts}.png`);
-  const html = path.join(RD, 'dom',         `${ts}.html`);
-  const tmp  = `${html}.partial`;
+    const ts   = isoStampForFilename();
+    const png  = path.join(RD, 'screenshots', `${ts}.png`);
+    const html = path.join(RD, 'dom',         `${ts}.html`);
+    const tmp  = `${html}.partial`;
 
-  // Best-effort screenshot. If browse fails we just don't get one this tick.
-  spawnSync('browse', ['--ws', target, 'screenshot', png], {
-    stdio: 'ignore',
-    timeout: SNAPSHOT_TIMEOUT_MS,
-  });
-  if (fs.existsSync(png) && fs.statSync(png).size === 0) {
-    fs.unlinkSync(png);
-  }
-  if (stop.stopping) break;
+    // Best-effort screenshot. If browse fails we just don't get one this tick.
+    spawnSync('browse', ['--ws', target, 'screenshot', png], {
+      stdio: 'ignore',
+      timeout: SNAPSHOT_TIMEOUT_MS,
+    });
+    if (fs.existsSync(png) && fs.statSync(png).size === 0) {
+      fs.unlinkSync(png);
+    }
 
-  // DOM dump via temp file → rename, so we never leave a 0-byte HTML behind.
-  try {
-    const r = spawnSync('browse', ['--ws', target, 'get', 'html', 'body'], {
+    // DOM dump via temp file → rename, so we never leave a 0-byte HTML behind.
+    try {
+      const r = spawnSync('browse', ['--ws', target, 'get', 'html', 'body'], {
+        encoding: 'utf8',
+        timeout: SNAPSHOT_TIMEOUT_MS,
+      });
+      if (r.stdout && r.stdout.length) {
+        fs.writeFileSync(tmp, r.stdout);
+        fs.renameSync(tmp, html);
+      }
+    } catch { /* best-effort */ }
+    // Cleanup any leftover .partial from a previous interrupted iteration.
+    if (fs.existsSync(tmp)) {
+      try { fs.unlinkSync(tmp); } catch {}
+    }
+
+    // URL via the daemon-bypassing one-shot. Returns {"url": "..."}.
+    let urlValue = '';
+    const u = spawnSync('browse', ['--ws', target, '--json', 'get', 'url'], {
       encoding: 'utf8',
       timeout: SNAPSHOT_TIMEOUT_MS,
     });
-    if (r.stdout && r.stdout.length) {
-      fs.writeFileSync(tmp, r.stdout);
-      fs.renameSync(tmp, html);
+    if (u.stdout) {
+      try { urlValue = JSON.parse(u.stdout).url || ''; } catch {}
     }
-  } catch { /* best-effort */ }
-  // Cleanup any leftover .partial from a previous interrupted iteration.
-  if (fs.existsSync(tmp)) {
-    try { fs.unlinkSync(tmp); } catch {}
-  }
-  if (stop.stopping) break;
 
-  // URL via the daemon-bypassing one-shot. Returns {"url": "..."}.
-  let urlValue = '';
-  const u = spawnSync('browse', ['--ws', target, '--json', 'get', 'url'], {
-    encoding: 'utf8',
-    timeout: SNAPSHOT_TIMEOUT_MS,
-  });
-  if (u.stdout) {
-    try { urlValue = JSON.parse(u.stdout).url || ''; } catch {}
-  }
-  if (stop.stopping) break;
+    const screenshotRel = fs.existsSync(png)  ? `screenshots/${ts}.png` : '';
+    const domRel        = fs.existsSync(html) ? `dom/${ts}.html`        : '';
+    fs.appendFileSync(indexPath,
+      JSON.stringify({ ts, screenshot: screenshotRel, dom: domRel, url: urlValue }) + '\n');
 
-  const screenshotRel = fs.existsSync(png)  ? `screenshots/${ts}.png` : '';
-  const domRel        = fs.existsSync(html) ? `dom/${ts}.html`        : '';
-  fs.appendFileSync(indexPath,
-    JSON.stringify({ ts, screenshot: screenshotRel, dom: domRel, url: urlValue }) + '\n');
-
-  await stop.sleep(intervalMs);
+    await stop.sleep(intervalMs);
   }
 }
 
