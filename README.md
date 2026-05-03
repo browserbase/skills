@@ -8,14 +8,15 @@ This plugin includes the following skills (see `skills/` for details):
 
 | Skill | Description |
 |-------|-------------|
+| [autobrowse](skills/autobrowse/SKILL.md) | Self-improving browser automation that reads traces and iteratively hardens task-specific navigation skills until they pass reliably |
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
-| [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `bb` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
-| [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
-| [site-debugger](skills/site-debugger/SKILL.md) | Diagnose and fix failing browser automations — analyzes bot detection, selectors, timing, auth, and captchas, then generates a tested site playbook |
 | [browser-trace](skills/browser-trace/SKILL.md) | Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets |
-| [bb-usage](skills/bb-usage/SKILL.md) | Show Browserbase usage stats, session analytics, and cost forecasts in a terminal dashboard |
+| [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `bb` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
+| [company-research](skills/company-research/SKILL.md) | Discover and deeply research ICP-fit companies with Browserbase Search API, then compile scored research reports and CSVs |
 | [cookie-sync](skills/cookie-sync/SKILL.md) | Sync cookies from local Chrome to a Browserbase persistent context so the browse CLI can access authenticated sites |
+| [event-prospecting](skills/event-prospecting/SKILL.md) | Turn conference speaker or sponsor pages into ranked outreach leads by filtering companies against an ICP and researching matched people |
 | [fetch](skills/fetch/SKILL.md) | Fetch HTML or JSON from static pages without a browser session — inspect status codes, headers, follow redirects |
+| [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
 | [search](skills/search/SKILL.md) | Search the web and return structured results (titles, URLs, metadata) without a browser session |
 | [ui-test](skills/ui-test/SKILL.md) | AI-powered adversarial UI testing — analyzes git diffs to test changes, or explores the full app to find bugs |
 
