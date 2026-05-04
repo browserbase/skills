@@ -157,6 +157,17 @@ function escapeJsInAttr(str) {
   return escapeAttr(js);
 }
 
+// Reject any URL whose scheme isn't http(s)/mailto, so attacker-controlled
+// fields (LinkedIn, X, GitHub, blog, podcast, image, company website) can't
+// smuggle a `javascript:` payload into a rendered href.
+function safeUrl(u) {
+  if (!u || typeof u !== 'string') return null;
+  const trimmed = u.trim();
+  if (/^(\/\/|https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null;
+  return trimmed;
+}
+
 function scoreClass(score) {
   const s = parseInt(score) || 0;
   if (s >= 8) return 'high';
@@ -386,8 +397,9 @@ function renderPersonCard(person, company) {
     podcast: person.podcast || null,
   };
   const linkPills = ['linkedin', 'x', 'github', 'blog', 'podcast']
-    .filter(k => links[k])
-    .map(k => `<a class="link-pill link-${k}" href="${escapeHtml(links[k])}" target="_blank" rel="noopener">${k.toUpperCase()}</a>`)
+    .map(k => ({ k, safe: safeUrl(links[k]) }))
+    .filter(({ safe }) => safe)
+    .map(({ k, safe }) => `<a class="link-pill link-${k}" href="${escapeHtml(safe)}" target="_blank" rel="noopener">${k.toUpperCase()}</a>`)
     .join(' ');
 
   const score = c.icp_fit_score || person.icp_fit_score || '?';
@@ -396,8 +408,9 @@ function renderPersonCard(person, company) {
   const hook = person.hook || extractSection(person.body, 'Hook') || '—';
   const roleReason = person.role_reason || extractSection(person.body, 'Why the person') || '—';
   const dmOpener = person.dm_opener || extractSection(person.body, 'DM Opener') || '';
-  const photo = person.image
-    ? `<img class="photo" src="${escapeHtml(person.image)}" alt="${escapeHtml(person.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'photo photo-placeholder',textContent:'${escapeJsInAttr(initials(person.name))}'}))">`
+  const safeImage = safeUrl(person.image);
+  const photo = safeImage
+    ? `<img class="photo" src="${escapeHtml(safeImage)}" alt="${escapeHtml(person.name || '')}" loading="lazy" referrerpolicy="no-referrer" onerror="this.replaceWith(Object.assign(document.createElement('div'),{className:'photo photo-placeholder',textContent:'${escapeJsInAttr(initials(person.name))}'}))">`
     : `<div class="photo photo-placeholder">${escapeHtml(initials(person.name))}</div>`;
 
   return `<div class="person-card" data-slug="${escapeHtml(person.slug)}" data-company="${escapeHtml((person.company || '').toLowerCase())}" data-role="${escapeHtml(roleBucket(person.title))}" data-icpband="${band}" data-icp-score="${escapeHtml(String(score))}">
@@ -566,8 +579,9 @@ function renderGroupedByCompany(personList) {
     const nameHtml = hasDetail
       ? `<a href="companies/${escapeHtml(company.slug)}.html">${escapeHtml(company.company_name)}</a>`
       : escapeHtml(company.company_name);
-    const websiteHtml = company.website
-      ? ` &middot; <a href="${escapeHtml(company.website)}" target="_blank" rel="noopener">${escapeHtml(company.website.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
+    const safeCompanyWebsite = safeUrl(company.website);
+    const websiteHtml = safeCompanyWebsite
+      ? ` &middot; <a href="${escapeHtml(safeCompanyWebsite)}" target="_blank" rel="noopener">${escapeHtml(safeCompanyWebsite.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
       : '';
     const metaBits = [
       `${members.length} speaker${members.length === 1 ? '' : 's'}`,
@@ -656,15 +670,20 @@ function renderCompaniesTable() {
     const nameHtml = hasDetail
       ? `<a href="companies/${c.slug}.html">${escapeHtml(c.company_name)}</a>`
       : escapeHtml(c.company_name);
-    const websiteHtml = c.website
-      ? `<br><a href="${escapeHtml(c.website)}" target="_blank" style="font-size:0.75rem;color:var(--muted);">${escapeHtml(c.website.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
+    const safeWebsite = safeUrl(c.website);
+    const websiteHtml = safeWebsite
+      ? `<br><a href="${escapeHtml(safeWebsite)}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--muted);">${escapeHtml(safeWebsite.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
       : '';
     const key = c.slug || (c.company_name || '').toLowerCase();
     const attendees = byCompany.get(key) || [];
     const attendeeBlock = attendees.length ? `
         <details class="attendees">
           <summary>${attendees.length} attendee${attendees.length === 1 ? '' : 's'}</summary>
-          <ul>${attendees.map(a => `<li><strong>${escapeHtml(a.name || a.slug)}</strong>${a.title ? ' &mdash; ' + escapeHtml(a.title) : ''}${(a.links && a.links.linkedin) ? ` &middot; <a href="${escapeHtml(a.links.linkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : ''}</li>`).join('')}</ul>
+          <ul>${attendees.map(a => {
+            const safeLinkedin = safeUrl(a.links && a.links.linkedin);
+            const linkedinHtml = safeLinkedin ? ` &middot; <a href="${escapeHtml(safeLinkedin)}" target="_blank" rel="noopener">LinkedIn</a>` : '';
+            return `<li><strong>${escapeHtml(a.name || a.slug)}</strong>${a.title ? ' &mdash; ' + escapeHtml(a.title) : ''}${linkedinHtml}</li>`;
+          }).join('')}</ul>
         </details>` : '';
     return `      <tr>
         <td><span class="score ${sc}">${escapeHtml(c.icp_fit_score || '—')}</span></td>
@@ -802,7 +821,7 @@ for (const c of deduped) {
     <h1>${escapeHtml(c.company_name)}</h1>
     <div class="meta">
       <span class="score-badge ${sc}">ICP Score: ${escapeHtml(c.icp_fit_score || '—')}</span>
-      ${c.website ? `<a href="${escapeHtml(c.website)}" target="_blank">${escapeHtml(c.website)}</a>` : ''}
+      ${(() => { const s = safeUrl(c.website); return s ? `<a href="${escapeHtml(s)}" target="_blank" rel="noopener">${escapeHtml(s)}</a>` : ''; })()}
     </div>
   </header>
   <dl class="fields">

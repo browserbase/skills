@@ -93,6 +93,16 @@ function escapeHtml(str) {
   return (str || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
+// Reject any URL whose scheme isn't http(s)/mailto so the company `website`
+// field can't smuggle a `javascript:` payload into the rendered href.
+function safeUrl(u) {
+  if (!u || typeof u !== 'string') return null;
+  const trimmed = u.trim();
+  if (/^(\/\/|https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
+  if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null;
+  return trimmed;
+}
+
 function scoreClass(score) {
   const s = parseInt(score) || 0;
   if (s >= 8) return 'high';
@@ -205,8 +215,9 @@ const tableRows = deduped.map(c => {
   const nameHtml = hasDetail
     ? `<a href="companies/${c.slug}.html">${escapeHtml(c.company_name)}</a>`
     : escapeHtml(c.company_name);
-  const websiteHtml = c.website
-    ? `<br><a href="${escapeHtml(c.website)}" target="_blank" style="font-size:0.75rem;color:var(--muted);">${escapeHtml(c.website.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
+  const safeWebsite = safeUrl(c.website);
+  const websiteHtml = safeWebsite
+    ? `<br><a href="${escapeHtml(safeWebsite)}" target="_blank" rel="noopener" style="font-size:0.75rem;color:var(--muted);">${escapeHtml(safeWebsite.replace(/^https?:\/\/(www\.)?/, ''))}</a>`
     : '';
   return `      <tr>
         <td><span class="score ${sc}">${escapeHtml(c.icp_fit_score || '—')}</span></td>
@@ -289,7 +300,7 @@ for (const c of deduped) {
     <h1>${escapeHtml(c.company_name)}</h1>
     <div class="meta">
       <span class="score-badge ${sc}">ICP Score: ${escapeHtml(c.icp_fit_score || '—')}</span>
-      ${c.website ? `<a href="${escapeHtml(c.website)}" target="_blank">${escapeHtml(c.website)}</a>` : ''}
+      ${(() => { const s = safeUrl(c.website); return s ? `<a href="${escapeHtml(s)}" target="_blank" rel="noopener">${escapeHtml(s)}</a>` : ''; })()}
     </div>
   </header>
   <dl class="fields">
