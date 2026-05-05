@@ -169,7 +169,9 @@ for (const file of files) {
   const fields = parseFrontmatter(content);
   if (!fields) continue;
   const body = parseBody(content);
-  const slug = file.replace('.md', '');
+  // Sanitize slug to prevent path traversal via crafted filenames
+  // (e.g. "../../etc/evil.md" → "evilevil" without "../" components)
+  const slug = file.replace('.md', '').replace(/\.\./g, '').replace(/[\\/]/g, '');
   companies.push({ ...fields, body, slug, file });
 }
 
@@ -351,6 +353,6 @@ console.log(join(dir, 'index.html'));
 
 // Open in browser if requested
 if (shouldOpen) {
-  const { execSync } = await import('child_process');
-  try { execSync(`open "${join(dir, 'index.html')}"`); } catch {}
+  const { execFileSync } = await import('child_process');
+  try { execFileSync('open', [join(dir, 'index.html')]); } catch {}
 }
