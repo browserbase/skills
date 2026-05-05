@@ -73,8 +73,17 @@ Install Chrome for your platform:
 ### Profile refresh
 
 To refresh cookies from your main Chrome profile:
+
+On macOS/Linux:
+
 ```bash
 rm -rf .chrome-profile
+```
+
+On Windows PowerShell:
+
+```powershell
+Remove-Item -LiteralPath .chrome-profile -Recurse -Force
 ```
 
 ## Resources
