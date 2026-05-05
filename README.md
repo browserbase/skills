@@ -1,6 +1,19 @@
 # Browserbase Skills
 
+[![GitHub stars](https://img.shields.io/github/stars/browserbase/skills)](https://github.com/browserbase/skills/stargazers)
+[![Last commit](https://img.shields.io/github/last-commit/browserbase/skills)](https://github.com/browserbase/skills/commits/main)
+[![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+
 A set of skills for enabling **[Claude Code](https://docs.claude.com/en/docs/claude-code/overview)** to work with Browserbase through browser automation and the official `bb` CLI.
+
+## Table of Contents
+
+- [Skills](#skills)
+- [Installation](#installation)
+- [Usage](#usage)
+- [Prerequisites](#prerequisites)
+- [Troubleshooting](#troubleshooting)
+- [Resources](#resources)
 
 ## Skills
 
@@ -11,6 +24,7 @@ This plugin includes the following skills (see `skills/` for details):
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
 | [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `bb` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
+| [autobrowse](skills/autobrowse/SKILL.md) | Self-improving browser automation via the auto-research loop — iteratively runs tasks, reads traces, and improves navigation strategies until reliable |
 | [site-debugger](skills/site-debugger/SKILL.md) | Diagnose and fix failing browser automations — analyzes bot detection, selectors, timing, auth, and captchas, then generates a tested site playbook |
 | [browser-trace](skills/browser-trace/SKILL.md) | Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets |
 | [bb-usage](skills/bb-usage/SKILL.md) | Show Browserbase usage stats, session analytics, and cost forecasts in a terminal dashboard |
@@ -18,6 +32,8 @@ This plugin includes the following skills (see `skills/` for details):
 | [fetch](skills/fetch/SKILL.md) | Fetch HTML or JSON from static pages without a browser session — inspect status codes, headers, follow redirects |
 | [search](skills/search/SKILL.md) | Search the web and return structured results (titles, URLs, metadata) without a browser session |
 | [ui-test](skills/ui-test/SKILL.md) | AI-powered adversarial UI testing — analyzes git diffs to test changes, or explores the full app to find bugs |
+| [company-research](skills/company-research/SKILL.md) | Company discovery and deep research — researches a company's product and ICP, discovers target companies using Browserbase Search API |
+| [event-prospecting](skills/event-prospecting/SKILL.md) | Event prospecting — extracts speakers from conference/event pages, filters companies, and generates outreach context |
 
 ## Installation
 
@@ -61,6 +77,12 @@ Once installed, you can ask Claude to browse or use the Browserbase CLI:
 Claude will handle the rest.
 
 For local and localhost work, `browse env local` now starts a clean isolated browser by default. Use `browse env local --auto-connect` when the agent should reuse your existing local Chrome session, cookies, or login state.
+
+## Prerequisites
+
+- **Node.js 18+** — required for the `browse` CLI and skill installation
+- **Google Chrome** — required for local browser automation
+- **Browserbase account** *(optional)* — needed for remote sessions with anti-bot stealth, CAPTCHA solving, and residential proxies. [Sign up here](https://www.browserbase.com/)
 
 ## Troubleshooting
 
