@@ -1,67 +1,61 @@
 #!/usr/bin/env node
-// what-antibot — single-request antibot fingerprinting.
+// what-antibot: single-request antibot fingerprinting.
 //
-// Sends one Node `fetch` GET per target URL with a Chrome 135 macOS UA, then
-// runs pattern detection across the HTML body, response headers, and
-// Set-Cookie values. Optionally fetches same-origin <script src=...> assets
-// to surface asset-level signals (Shape Security). Prints a clean table.
-//
-// Usage:
-//   node scripts/detect.mjs <url1>[,<url2>,...]
+// Sends one Node fetch GET per target URL with a Chrome-like user agent, then
+// runs pattern detection across HTML, response headers, and Set-Cookie values.
+// Same-origin script assets are scanned only to surface Shape Security markers.
 
-const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
+const UA =
+  "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36";
 
 const NAV_HEADERS = {
-  'user-agent': UA,
-  'accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7',
-  'accept-language': 'en-US,en;q=0.9',
-  'accept-encoding': 'gzip, deflate, br',
-  'upgrade-insecure-requests': '1',
-  'sec-ch-ua': '"Not(A:Brand";v="8", "Chromium";v="135", "Google Chrome";v="135"',
-  'sec-ch-ua-mobile': '?0',
-  'sec-ch-ua-platform': '"macOS"',
-  'sec-fetch-site': 'none',
-  'sec-fetch-mode': 'navigate',
-  'sec-fetch-user': '?1',
-  'sec-fetch-dest': 'document',
+  "user-agent": UA,
+  accept:
+    "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8,application/signed-exchange;v=b3;q=0.7",
+  "accept-language": "en-US,en;q=0.9",
+  "accept-encoding": "gzip, deflate, br",
+  "upgrade-insecure-requests": "1",
+  "sec-ch-ua": '"Not(A:Brand";v="8", "Chromium";v="135", "Google Chrome";v="135"',
+  "sec-ch-ua-mobile": "?0",
+  "sec-ch-ua-platform": '"macOS"',
+  "sec-fetch-site": "none",
+  "sec-fetch-mode": "navigate",
+  "sec-fetch-user": "?1",
+  "sec-fetch-dest": "document",
 };
 
 function scriptHeaders(referer) {
   return {
-    'user-agent': UA,
-    'accept': '*/*',
-    'accept-language': 'en-US,en;q=0.9',
-    'accept-encoding': 'gzip, deflate, br',
-    'sec-ch-ua': '"Not(A:Brand";v="8", "Chromium";v="135", "Google Chrome";v="135"',
-    'sec-ch-ua-mobile': '?0',
-    'sec-ch-ua-platform': '"macOS"',
-    'sec-fetch-site': 'same-origin',
-    'sec-fetch-mode': 'no-cors',
-    'sec-fetch-dest': 'script',
+    "user-agent": UA,
+    accept: "*/*",
+    "accept-language": "en-US,en;q=0.9",
+    "accept-encoding": "gzip, deflate, br",
+    "sec-ch-ua": '"Not(A:Brand";v="8", "Chromium";v="135", "Google Chrome";v="135"',
+    "sec-ch-ua-mobile": "?0",
+    "sec-ch-ua-platform": '"macOS"',
+    "sec-fetch-site": "same-origin",
+    "sec-fetch-mode": "no-cors",
+    "sec-fetch-dest": "script",
     referer,
   };
 }
 
 function normalizeURL(raw) {
-  raw = (raw || '').trim();
-  if (!raw) throw new Error('URL is required');
-  if (raw.includes('://') && !raw.startsWith('http://') && !raw.startsWith('https://')) {
-    throw new Error('invalid URL scheme');
+  let value = (raw || "").trim();
+  if (!value) throw new Error("URL is required");
+  if (value.includes("://") && !value.startsWith("http://") && !value.startsWith("https://")) {
+    throw new Error("invalid URL scheme");
   }
-  if (!raw.startsWith('http://') && !raw.startsWith('https://')) {
-    raw = 'https://' + raw;
+  if (!value.startsWith("http://") && !value.startsWith("https://")) {
+    value = "https://" + value;
   }
-  const u = new URL(raw);
-  if (u.protocol !== 'http:' && u.protocol !== 'https:') {
-    throw new Error('invalid URL scheme');
+  const url = new URL(value);
+  if (url.protocol !== "http:" && url.protocol !== "https:") {
+    throw new Error("invalid URL scheme");
   }
-  if (!u.host) throw new Error('invalid URL host');
-  return u.toString();
+  if (!url.host) throw new Error("invalid URL host");
+  return url.toString();
 }
-
-// ---------------------------------------------------------------------------
-// Patterns (ported from go/services/whatantibot/detection.go)
-// ---------------------------------------------------------------------------
 
 const PATTERNS = {
   cloudflare: [/cf-ray/i, /__cfruid/i, /_cf_chl_opt/i, /cf_clearance/i, /cf-beacon/i],
@@ -100,16 +94,16 @@ const PATTERNS = {
 };
 
 const COOKIE_NAMES = {
-  cloudflare: ['cf_clearance', '__cfruid'],
-  cloudflareWaf: ['__cf_bm'],
-  imperva: ['reese84', 'utmvc', 'incap_'],
-  akamai: ['_abck', 'bm_sv', 'bm_sz', 'ak_bmsc', 'bm_mi', 'bm_s'],
-  perimeterx: ['_px2', '_px3', '_pxhd', '_pxff_'],
-  datadome: ['datadome', 'dd_cookie_test_'],
-  hcaptcha: ['hc_accessibility'],
-  recaptcha: ['_GRECAPTCHA'],
-  kasada: ['x-kpsdk-ct'],
-  anubis: ['techaro.lol-anubis-cookie-verification'],
+  cloudflare: ["cf_clearance", "__cfruid"],
+  cloudflareWaf: ["__cf_bm"],
+  imperva: ["reese84", "utmvc", "incap_"],
+  akamai: ["_abck", "bm_sv", "bm_sz", "ak_bmsc", "bm_mi", "bm_s"],
+  perimeterx: ["_px2", "_px3", "_pxhd", "_pxff_"],
+  datadome: ["datadome", "dd_cookie_test_"],
+  hcaptcha: ["hc_accessibility"],
+  recaptcha: ["_GRECAPTCHA"],
+  kasada: ["x-kpsdk-ct"],
+  anubis: ["techaro.lol-anubis-cookie-verification"],
 };
 
 const SHAPE_ASSET_PATTERNS = [
@@ -121,205 +115,227 @@ const RECAPTCHA_RENDER_RE = /(?:api\.js|api2\/api\.js|enterprise\.js)[^"']*[?&]r
 const HTML_TAG_RE = /<[^>]*>/g;
 const SCRIPT_SRC_RE = /<script[^>]+src\s*=\s*["']([^"']+)["']/gi;
 
-function anyRegex(s, patterns) {
-  return patterns.some(re => re.test(s));
+function anyRegex(value, patterns) {
+  return patterns.some((re) => re.test(value));
 }
 
 function anyCookieContains(cookies, names) {
-  return cookies.some(c => {
-    const lc = c.toLowerCase();
-    return names.some(n => lc.includes(n.toLowerCase()));
+  return cookies.some((cookie) => {
+    const normalizedCookie = cookie.toLowerCase();
+    return names.some((name) => normalizedCookie.includes(name.toLowerCase()));
   });
 }
 
 function detectRecaptchaVersion(html) {
   const content = html.toLowerCase();
-  const stripped = html.replace(HTML_TAG_RE, '').toLowerCase();
+  const stripped = html.replace(HTML_TAG_RE, "").toLowerCase();
+  const renderMatch = html.match(RECAPTCHA_RENDER_RE);
 
-  const m = html.match(RECAPTCHA_RENDER_RE);
-  if (m && RECAPTCHA_SITEKEY_RE.test(m[1])) return 'recaptcha v3';
+  if (renderMatch && RECAPTCHA_SITEKEY_RE.test(renderMatch[1])) return "recaptcha v3";
 
-  const hasBadge = content.includes('grecaptcha-badge');
+  const hasBadge = content.includes("grecaptcha-badge");
   const executeWithAction = /grecaptcha\.execute\([^,)]+,\s*\{\s*action\s*:/i;
-  if (executeWithAction.test(stripped)) return 'recaptcha v3';
+  if (executeWithAction.test(stripped)) return "recaptcha v3";
 
   if (content.includes('data-size="invisible"') || content.includes("data-size='invisible'")) {
-    return 'recaptcha v2 invisible';
+    return "recaptcha v2 invisible";
   }
 
   const hasRecaptchaScript =
-    content.includes('recaptcha/api.js') ||
-    content.includes('recaptcha/enterprise.js') ||
-    content.includes('gstatic.com/recaptcha');
+    content.includes("recaptcha/api.js") ||
+    content.includes("recaptcha/enterprise.js") ||
+    content.includes("gstatic.com/recaptcha");
 
   if (hasBadge && !executeWithAction.test(stripped)) {
-    if (/grecaptcha\.execute\([^)]*\)/i.test(stripped)) return 'recaptcha v2 invisible';
-    if (hasRecaptchaScript) return 'recaptcha v3';
+    if (/grecaptcha\.execute\([^)]*\)/i.test(stripped)) return "recaptcha v2 invisible";
+    if (hasRecaptchaScript) return "recaptcha v3";
   }
 
-  if (content.includes('g-recaptcha') || content.includes('class="g-recaptcha"')) return 'recaptcha v2';
-  if (content.includes('grecaptcha.render(')) return 'recaptcha v2';
+  if (content.includes("g-recaptcha") || content.includes('class="g-recaptcha"')) return "recaptcha v2";
+  if (content.includes("grecaptcha.render(")) return "recaptcha v2";
 
-  return 'recaptcha v2';
+  return "recaptcha v2";
 }
 
 function detectAntibot(html, headers, cookies) {
   const detected = [];
-  const headerStr = Object.entries(headers).map(([k, v]) => `${k}: ${v}`).join('\n').toLowerCase();
-  const cookieStr = cookies.join(' ').toLowerCase();
-  const search = html.toLowerCase() + ' ' + headerStr + ' ' + cookieStr;
+  const headerStr = Object.entries(headers)
+    .map(([key, value]) => `${key}: ${value}`)
+    .join("\n")
+    .toLowerCase();
+  const cookieStr = cookies.join(" ").toLowerCase();
+  const search = `${html.toLowerCase()} ${headerStr} ${cookieStr}`;
 
-  if (anyRegex(search, PATTERNS.cloudflare) || anyCookieContains(cookies, COOKIE_NAMES.cloudflare) || headerStr.includes('server: cloudflare')) {
-    detected.push({ antibot: 'cloudflare' });
+  if (
+    anyRegex(search, PATTERNS.cloudflare) ||
+    anyCookieContains(cookies, COOKIE_NAMES.cloudflare) ||
+    headerStr.includes("server: cloudflare")
+  ) {
+    detected.push({ antibot: "cloudflare" });
   }
   if (anyRegex(search, PATTERNS.cloudflareWaf) || anyCookieContains(cookies, COOKIE_NAMES.cloudflareWaf)) {
-    detected.push({ antibot: 'cloudflare waf' });
+    detected.push({ antibot: "cloudflare waf" });
   }
   if (anyRegex(search, PATTERNS.imperva) || anyCookieContains(cookies, COOKIE_NAMES.imperva)) {
-    detected.push({ antibot: 'incapsula' });
+    detected.push({ antibot: "incapsula" });
   }
   if (anyRegex(search, PATTERNS.akamai) || anyCookieContains(cookies, COOKIE_NAMES.akamai)) {
-    detected.push({ antibot: 'akamai' });
+    detected.push({ antibot: "akamai" });
   }
   if (anyRegex(search, PATTERNS.perimeterx) || anyCookieContains(cookies, COOKIE_NAMES.perimeterx)) {
-    detected.push({ antibot: 'perimeterx' });
+    detected.push({ antibot: "perimeterx" });
   }
   if (anyRegex(search, PATTERNS.datadome) || anyCookieContains(cookies, COOKIE_NAMES.datadome)) {
-    detected.push({ antibot: 'datadome' });
+    detected.push({ antibot: "datadome" });
   }
 
   const hasHCaptcha = anyRegex(search, PATTERNS.hcaptcha) || anyCookieContains(cookies, COOKIE_NAMES.hcaptcha);
   if (hasHCaptcha) {
-    const sitekeyRe = /data-sitekey="([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})"/;
-    const m = search.match(sitekeyRe);
-    detected.push(m ? { antibot: 'hcaptcha', additionalContext: [`sitekey=${m[1]}`] } : { antibot: 'hcaptcha' });
+    const sitekeyRe = /data-sitekey=["']([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})["']/i;
+    const match = search.match(sitekeyRe);
+    detected.push(match ? { antibot: "hcaptcha", additionalContext: [`sitekey=${match[1]}`] } : { antibot: "hcaptcha" });
   }
 
   const hcaptchaLoaded = anyRegex(search, PATTERNS.hcaptchaStrong);
-  let recaptchaDetected;
-  if (hcaptchaLoaded) {
-    recaptchaDetected = anyRegex(search, PATTERNS.recaptchaStrong) || anyCookieContains(cookies, COOKIE_NAMES.recaptcha);
-  } else {
-    recaptchaDetected = anyRegex(search, PATTERNS.recaptcha) || anyCookieContains(cookies, COOKIE_NAMES.recaptcha);
-  }
+  const recaptchaDetected = hcaptchaLoaded
+    ? anyRegex(search, PATTERNS.recaptchaStrong) || anyCookieContains(cookies, COOKIE_NAMES.recaptcha)
+    : anyRegex(search, PATTERNS.recaptcha) || anyCookieContains(cookies, COOKIE_NAMES.recaptcha);
   if (recaptchaDetected) detected.push({ antibot: detectRecaptchaVersion(html) });
 
   if (
     anyRegex(search, PATTERNS.kasada) ||
     anyCookieContains(cookies, COOKIE_NAMES.kasada) ||
-    search.includes('kpsdk') ||
-    search.includes('kp_uuid')
+    search.includes("kpsdk") ||
+    search.includes("kp_uuid")
   ) {
-    detected.push({ antibot: 'kasada' });
+    detected.push({ antibot: "kasada" });
   }
 
   if (anyRegex(search, PATTERNS.anubis) || anyCookieContains(cookies, COOKIE_NAMES.anubis)) {
-    detected.push({ antibot: 'anubis' });
+    detected.push({ antibot: "anubis" });
   }
 
   return detected;
 }
 
-// ---------------------------------------------------------------------------
-// Asset-level (Shape Security)
-// ---------------------------------------------------------------------------
-
 function extractScriptURLs(html, baseURL, max = 10) {
   const base = new URL(baseURL);
   const seen = new Set();
   const urls = [];
-  let m;
-  while ((m = SCRIPT_SRC_RE.exec(html)) !== null) {
-    const src = m[1].trim();
-    if (!src || src.startsWith('data:')) continue;
+  let match;
+
+  while ((match = SCRIPT_SRC_RE.exec(html)) !== null) {
+    const src = match[1].trim();
+    if (!src || src.startsWith("data:")) continue;
+
     let resolved;
     try {
       resolved = new URL(src, base);
     } catch {
       continue;
     }
-    if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') continue;
+
+    if (resolved.protocol !== "http:" && resolved.protocol !== "https:") continue;
     if (resolved.origin !== base.origin) continue;
-    const abs = resolved.toString();
-    if (seen.has(abs)) continue;
-    seen.add(abs);
-    urls.push(abs);
+
+    const absoluteURL = resolved.toString();
+    if (seen.has(absoluteURL)) continue;
+
+    seen.add(absoluteURL);
+    urls.push(absoluteURL);
     if (urls.length >= max) break;
   }
+
   return urls;
 }
 
 async function fetchAsset(url, referer) {
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 5000);
+  const timeout = setTimeout(() => ctrl.abort(), 5000);
+
   try {
-    const res = await fetch(url, { headers: scriptHeaders(referer), signal: ctrl.signal, redirect: 'follow' });
-    if (!res.ok) return '';
+    const res = await fetch(url, {
+      headers: scriptHeaders(referer),
+      signal: ctrl.signal,
+      redirect: "follow",
+    });
+    if (!res.ok) return "";
     return await res.text();
   } catch {
-    return '';
+    return "";
   } finally {
-    clearTimeout(t);
+    clearTimeout(timeout);
   }
 }
 
 async function detectAssetLevel(html, baseURL) {
   const urls = extractScriptURLs(html, baseURL, 10);
   if (urls.length === 0) return [];
-  const bodies = await Promise.all(urls.map(u => fetchAsset(u, baseURL)));
-  const combined = bodies.join('\n');
-  const detected = [];
-  if (anyRegex(combined, SHAPE_ASSET_PATTERNS)) detected.push({ antibot: 'shape security' });
-  return detected;
+
+  const bodies = await Promise.all(urls.map((url) => fetchAsset(url, baseURL)));
+  const combined = bodies.join("\n");
+  if (anyRegex(combined, SHAPE_ASSET_PATTERNS)) {
+    return [{ antibot: "shape security" }];
+  }
+  return [];
 }
 
-// ---------------------------------------------------------------------------
-// Per-URL probe
-// ---------------------------------------------------------------------------
+function getSetCookies(headers) {
+  if (typeof headers.getSetCookie === "function") {
+    return headers.getSetCookie();
+  }
+
+  const setCookie = headers.get("set-cookie");
+  return setCookie ? [setCookie] : [];
+}
 
 async function probe(rawURL) {
   let target;
   try {
     target = normalizeURL(rawURL);
-  } catch (e) {
-    return { url: rawURL, status: '', antibots: [], context: {}, error: e.message };
+  } catch (error) {
+    return { url: rawURL, status: "", antibots: [], context: {}, error: error.message };
   }
 
   const ctrl = new AbortController();
-  const t = setTimeout(() => ctrl.abort(), 15000);
+  const timeout = setTimeout(() => ctrl.abort(), 15000);
 
   let res;
   try {
-    res = await fetch(target, { headers: NAV_HEADERS, signal: ctrl.signal, redirect: 'follow' });
-  } catch (e) {
-    clearTimeout(t);
-    return { url: target, status: '', antibots: [], context: {}, error: `fetch failed: ${e.message}` };
+    res = await fetch(target, {
+      headers: NAV_HEADERS,
+      signal: ctrl.signal,
+      redirect: "follow",
+    });
+  } catch (error) {
+    clearTimeout(timeout);
+    return { url: target, status: "", antibots: [], context: {}, error: `fetch failed: ${error.message}` };
   }
-  clearTimeout(t);
+  clearTimeout(timeout);
 
   const headers = {};
-  for (const [k, v] of res.headers.entries()) headers[k] = v;
-
-  let cookies = [];
-  if (typeof res.headers.getSetCookie === 'function') {
-    cookies = res.headers.getSetCookie();
-  } else {
-    const sc = res.headers.get('set-cookie');
-    if (sc) cookies = [sc];
+  for (const [key, value] of res.headers.entries()) {
+    headers[key] = value;
   }
 
-  const html = await res.text();
+  let html = "";
+  try {
+    html = await res.text();
+  } catch (error) {
+    return { url: res.url || target, status: res.status, antibots: [], context: {}, error: `body read failed: ${error.message}` };
+  }
 
+  const cookies = getSetCookies(res.headers);
   const pageDetections = detectAntibot(html, headers, cookies);
   const assetDetections = await detectAssetLevel(html, res.url || target);
-  const all = [...pageDetections, ...assetDetections];
+  const allDetections = [...pageDetections, ...assetDetections];
 
   const antibots = [];
   const context = {};
-  for (const d of all) {
-    antibots.push(d.antibot);
-    if (d.additionalContext && d.additionalContext.length > 0) {
-      context[d.antibot] = d.additionalContext;
+  for (const detection of allDetections) {
+    antibots.push(detection.antibot);
+    if (detection.additionalContext?.length > 0) {
+      context[detection.antibot] = detection.additionalContext;
     }
   }
 
@@ -328,81 +344,98 @@ async function probe(rawURL) {
     status: res.status,
     antibots: [...new Set(antibots)],
     context,
-    error: '',
+    error: "",
   };
 }
 
-// ---------------------------------------------------------------------------
-// Output
-// ---------------------------------------------------------------------------
+const NONE_LABEL = "no antibot detected";
 
-const NONE_LABEL = 'no antibot detected';
-
-function flattenRow(r) {
+function flattenRow(row) {
+  const antibots = row.antibots.join(", ");
   return {
-    url: r.url,
-    status: r.status === '' ? '' : String(r.status),
-    antibots: r.antibots.join(', ') || NONE_LABEL,
-    context: Object.entries(r.context)
-      .map(([k, v]) => `${k}: ${v.join(', ')}`)
-      .join('; '),
-    error: r.error || '',
+    url: row.url,
+    status: row.status === "" ? "" : String(row.status),
+    antibots: antibots || (row.error ? "probe failed" : NONE_LABEL),
+    context: Object.entries(row.context)
+      .map(([key, values]) => `${key}: ${values.join(", ")}`)
+      .join("; "),
+    error: row.error || "",
   };
 }
 
 function rowsToTable(rows) {
-  const flat = rows.map(flattenRow);
+  const flatRows = rows.map(flattenRow);
   const cols = [
-    { key: 'url', label: 'URL' },
-    { key: 'status', label: 'STATUS' },
-    { key: 'antibots', label: 'ANTIBOTS' },
+    { key: "url", label: "URL" },
+    { key: "status", label: "STATUS" },
+    { key: "antibots", label: "ANTIBOTS" },
   ];
-  const hasContext = flat.some(r => r.context);
-  const hasError = flat.some(r => r.error);
-  if (hasContext) cols.push({ key: 'context', label: 'CONTEXT' });
-  if (hasError) cols.push({ key: 'error', label: 'ERROR' });
 
-  const widths = cols.map(c => Math.max(c.label.length, ...flat.map(r => r[c.key].length)));
-  const pad = (s, w) => s + ' '.repeat(w - s.length);
-  const sep = '  ';
+  if (flatRows.some((row) => row.context)) cols.push({ key: "context", label: "CONTEXT" });
+  if (flatRows.some((row) => row.error)) cols.push({ key: "error", label: "ERROR" });
 
-  const lines = [];
-  lines.push(cols.map((c, i) => pad(c.label, widths[i])).join(sep));
-  lines.push(widths.map(w => '─'.repeat(w)).join(sep));
-  for (const r of flat) {
-    lines.push(cols.map((c, i) => pad(r[c.key], widths[i])).join(sep));
+  const widths = cols.map((col) => Math.max(col.label.length, ...flatRows.map((row) => row[col.key].length)));
+  const pad = (value, width) => value + " ".repeat(width - value.length);
+  const separator = "  ";
+
+  const lines = [
+    cols.map((col, index) => pad(col.label, widths[index])).join(separator),
+    widths.map((width) => "-".repeat(width)).join(separator),
+  ];
+
+  for (const row of flatRows) {
+    lines.push(cols.map((col, index) => pad(row[col.key], widths[index])).join(separator));
   }
-  return lines.join('\n') + '\n';
+
+  return lines.join("\n") + "\n";
 }
 
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
+function usage() {
+  return "Usage: node scripts/detect.mjs <url1>[,<url2>,...] [url3 ...]";
+}
 
 function parseArgs(argv) {
   const urls = [];
-  for (const a of argv) {
-    if (a.startsWith('--')) continue;
-    for (const part of a.split(',')) {
-      const u = part.trim();
-      if (u) urls.push(u);
+  for (const arg of argv) {
+    if (arg === "--help" || arg === "-h") {
+      return { help: true, urls };
+    }
+    if (arg.startsWith("--")) {
+      throw new Error(`unknown option: ${arg}`);
+    }
+    for (const part of arg.split(",")) {
+      const url = part.trim();
+      if (url) urls.push(url);
     }
   }
-  return { urls };
+  return { help: false, urls };
 }
 
 async function main() {
-  const opts = parseArgs(process.argv.slice(2));
-  if (opts.urls.length === 0) {
-    console.error('Usage: node scripts/detect.mjs <url1>[,<url2>,...]');
+  let opts;
+  try {
+    opts = parseArgs(process.argv.slice(2));
+  } catch (error) {
+    console.error(error.message);
+    console.error(usage());
     process.exit(2);
   }
 
-  const results = await Promise.all(opts.urls.map(probe));
+  if (opts.help) {
+    console.log(usage());
+    return;
+  }
+
+  if (opts.urls.length === 0) {
+    console.error(usage());
+    process.exit(2);
+  }
+
+  const results = await Promise.all(opts.urls.map((url) => probe(url)));
   process.stdout.write(rowsToTable(results));
 }
 
-main().catch(e => {
-  console.error(`Unexpected error: ${e.stack || e.message}`);
+main().catch((error) => {
+  console.error(`Unexpected error: ${error.stack || error.message}`);
   process.exit(1);
 });
