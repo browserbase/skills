@@ -1,19 +1,17 @@
 #!/usr/bin/env node
 // detect-antibot — single-request antibot fingerprinting.
 //
-// Sends one Node `fetch` GET to the target URL with a Chrome 135 macOS UA,
-// then runs pattern detection across the HTML body, response headers, and
+// Sends one Node `fetch` GET per target URL with a Chrome 135 macOS UA, then
+// runs pattern detection across the HTML body, response headers, and
 // Set-Cookie values. Optionally fetches same-origin <script src=...> assets
-// to surface asset-level signals (Shape Security). Writes an HTML report
-// summarizing the result.
+// to surface asset-level signals (Shape Security). Emits results as CSV.
 //
 // Usage:
-//   node scripts/detect.mjs <url> [--report <path>] [--no-report] [--open]
+//   node scripts/detect.mjs <url1>[,<url2>,...] [--csv <path>]
 
 import { writeFileSync, mkdirSync } from 'fs';
 import { dirname, resolve } from 'path';
 import { tmpdir } from 'os';
-import { spawn } from 'child_process';
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
@@ -58,7 +56,7 @@ function normalizeURL(raw) {
     raw = 'https://' + raw;
   }
   const u = new URL(raw);
-  if (u.scheme !== 'http' && u.scheme !== 'https' && u.protocol !== 'http:' && u.protocol !== 'https:') {
+  if (u.protocol !== 'http:' && u.protocol !== 'https:') {
     throw new Error('invalid URL scheme');
   }
   if (!u.host) throw new Error('invalid URL host');
@@ -118,7 +116,6 @@ const COOKIE_NAMES = {
   anubis: ['techaro.lol-anubis-cookie-verification'],
 };
 
-// Shape Security inline payload signature.
 const SHAPE_ASSET_PATTERNS = [
   /"[a-zA-Z0-9+/_-]{40,}={0,2}"\s*,\s*"[a-zA-Z0-9+/=_-]{40,}"\s*,\s*\[[^\]]*\]\s*,\s*\[\s*\d{7,10}(?:\s*,\s*\d{7,10}){7}\s*\]/,
 ];
@@ -246,7 +243,6 @@ function extractScriptURLs(html, baseURL, max = 10) {
       continue;
     }
     if (resolved.protocol !== 'http:' && resolved.protocol !== 'https:') continue;
-    // Same-origin only — Shape payloads ship from the protected site, not third parties.
     if (resolved.origin !== base.origin) continue;
     const abs = resolved.toString();
     if (seen.has(abs)) continue;
@@ -282,174 +278,15 @@ async function detectAssetLevel(html, baseURL) {
 }
 
 // ---------------------------------------------------------------------------
-// HTML report
+// Per-URL probe
 // ---------------------------------------------------------------------------
 
-const ANTIBOT_META = {
-  cloudflare: { label: 'Cloudflare', color: '#f6821f' },
-  'cloudflare waf': { label: 'Cloudflare WAF', color: '#f48120' },
-  akamai: { label: 'Akamai', color: '#0099cc' },
-  incapsula: { label: 'Imperva / Incapsula', color: '#ff5a3c' },
-  perimeterx: { label: 'PerimeterX (HUMAN)', color: '#0a2540' },
-  datadome: { label: 'DataDome', color: '#1f2bff' },
-  hcaptcha: { label: 'hCaptcha', color: '#00838f' },
-  'recaptcha v2': { label: 'reCAPTCHA v2', color: '#4285f4' },
-  'recaptcha v2 invisible': { label: 'reCAPTCHA v2 (invisible)', color: '#4285f4' },
-  'recaptcha v3': { label: 'reCAPTCHA v3', color: '#1a73e8' },
-  kasada: { label: 'Kasada', color: '#7d2bff' },
-  anubis: { label: 'Anubis', color: '#3b3b3b' },
-  'shape security': { label: 'Shape Security (F5)', color: '#e21d38' },
-};
-
-function escapeHTML(s) {
-  return String(s)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-}
-
-function renderReport({ url, status, antibots, context }) {
-  const ts = new Date().toISOString();
-  const hostname = (() => { try { return new URL(url).hostname; } catch { return url; } })();
-
-  const cards = antibots.length === 0
-    ? `<div class="empty">No antibot detected on this page.</div>`
-    : antibots.map(name => {
-        const meta = ANTIBOT_META[name] || { label: name, color: '#444' };
-        const ctxLines = (context[name] || []).map(c => `<li>${escapeHTML(c)}</li>`).join('');
-        return `
-          <div class="card" style="border-left-color:${meta.color}">
-            <div class="card-header">
-              <span class="dot" style="background:${meta.color}"></span>
-              <span class="name">${escapeHTML(meta.label)}</span>
-            </div>
-            ${ctxLines ? `<ul class="ctx">${ctxLines}</ul>` : ''}
-          </div>`;
-      }).join('');
-
-  return `<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8" />
-<title>Antibot detection — ${escapeHTML(hostname)}</title>
-<style>
-  :root { color-scheme: light dark; }
-  * { box-sizing: border-box; }
-  body {
-    margin: 0;
-    font: 15px/1.55 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-    background: #fafafa;
-    color: #1c1c1c;
-  }
-  @media (prefers-color-scheme: dark) {
-    body { background: #0d0d0f; color: #e8e8ea; }
-    .card, header, .meta { background: #17171a; border-color: #2a2a2e; }
-    .empty { background: #17171a; border-color: #2a2a2e; }
-    a { color: #6aa9ff; }
-  }
-  main { max-width: 820px; margin: 40px auto; padding: 0 20px; }
-  header {
-    background: #fff;
-    border: 1px solid #e6e6e8;
-    border-radius: 14px;
-    padding: 24px 28px;
-    margin-bottom: 20px;
-  }
-  h1 { margin: 0 0 6px; font-size: 22px; font-weight: 600; letter-spacing: -0.01em; }
-  .url { word-break: break-all; font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 13px; opacity: 0.85; }
-  .meta {
-    margin-top: 14px;
-    display: flex;
-    gap: 18px;
-    flex-wrap: wrap;
-    font-size: 13px;
-    color: #555;
-  }
-  @media (prefers-color-scheme: dark) { .meta { color: #aaa; } }
-  .meta span b { font-weight: 600; color: inherit; }
-  .grid { display: grid; gap: 12px; }
-  .card {
-    background: #fff;
-    border: 1px solid #e6e6e8;
-    border-left: 4px solid #888;
-    border-radius: 12px;
-    padding: 16px 20px;
-  }
-  .card-header { display: flex; align-items: center; gap: 10px; }
-  .dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
-  .name { font-weight: 600; font-size: 16px; }
-  ul.ctx { margin: 10px 0 0; padding-left: 20px; font-size: 13px; opacity: 0.85; }
-  ul.ctx li { font-family: ui-monospace, "SF Mono", Menlo, monospace; }
-  .empty {
-    background: #fff;
-    border: 1px dashed #d4d4d6;
-    border-radius: 12px;
-    padding: 30px;
-    text-align: center;
-    color: #777;
-  }
-  footer { margin-top: 24px; font-size: 12px; opacity: 0.6; text-align: center; }
-</style>
-</head>
-<body>
-<main>
-  <header>
-    <h1>Antibot Detection Report</h1>
-    <div class="url"><a href="${escapeHTML(url)}" target="_blank" rel="noreferrer">${escapeHTML(url)}</a></div>
-    <div class="meta">
-      <span><b>HTTP status:</b> ${escapeHTML(String(status))}</span>
-      <span><b>Detected:</b> ${antibots.length}</span>
-      <span><b>Generated:</b> ${escapeHTML(ts)}</span>
-    </div>
-  </header>
-  <div class="grid">
-    ${cards}
-  </div>
-  <footer>Made with ❤️ at Browserbase</footer>
-</main>
-</body>
-</html>`;
-}
-
-function openInBrowser(path) {
-  const cmd = process.platform === 'darwin' ? 'open'
-    : process.platform === 'win32' ? 'start'
-    : 'xdg-open';
-  spawn(cmd, [path], { stdio: 'ignore', detached: true }).unref();
-}
-
-// ---------------------------------------------------------------------------
-// Main
-// ---------------------------------------------------------------------------
-
-function parseArgs(argv) {
-  const out = { url: null, report: null, writeReport: true, open: false };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === '--report' && argv[i + 1]) { out.report = argv[++i]; }
-    else if (a === '--no-report') { out.writeReport = false; }
-    else if (a === '--open') { out.open = true; }
-    else if (!out.url) { out.url = a; }
-  }
-  return out;
-}
-
-async function main() {
-  const opts = parseArgs(process.argv.slice(2));
-  const raw = opts.url;
-  if (!raw) {
-    console.error('Usage: node scripts/detect.mjs <url> [--report <path>] [--no-report] [--open]');
-    process.exit(2);
-  }
-
+async function probe(rawURL) {
   let target;
   try {
-    target = normalizeURL(raw);
+    target = normalizeURL(rawURL);
   } catch (e) {
-    console.error(`Error: ${e.message}`);
-    process.exit(2);
+    return { url: rawURL, status: '', antibots: [], context: {}, error: e.message };
   }
 
   const ctrl = new AbortController();
@@ -460,15 +297,13 @@ async function main() {
     res = await fetch(target, { headers: NAV_HEADERS, signal: ctrl.signal, redirect: 'follow' });
   } catch (e) {
     clearTimeout(t);
-    console.error(JSON.stringify({ url: target, error: `fetch failed: ${e.message}` }, null, 2));
-    process.exit(1);
+    return { url: target, status: '', antibots: [], context: {}, error: `fetch failed: ${e.message}` };
   }
   clearTimeout(t);
 
   const headers = {};
   for (const [k, v] of res.headers.entries()) headers[k] = v;
 
-  // getSetCookie() returns the array of raw Set-Cookie headers; fall back to the merged header for older runtimes.
   let cookies = [];
   if (typeof res.headers.getSetCookie === 'function') {
     cookies = res.headers.getSetCookie();
@@ -492,24 +327,128 @@ async function main() {
     }
   }
 
-  const out = {
+  return {
     url: res.url || target,
     status: res.status,
     antibots: [...new Set(antibots)],
     context,
+    error: '',
   };
+}
 
-  console.log(JSON.stringify(out, null, 2));
+// ---------------------------------------------------------------------------
+// CSV
+// ---------------------------------------------------------------------------
 
-  if (opts.writeReport) {
-    const host = (() => { try { return new URL(out.url).hostname.replace(/^www\./, ''); } catch { return 'site'; } })();
-    const ts = new Date().toISOString().replace(/[:.]/g, '-');
-    const defaultPath = resolve(tmpdir(), `antibot-${host}-${ts}.html`);
-    const reportPath = opts.report ? resolve(opts.report) : defaultPath;
-    mkdirSync(dirname(reportPath), { recursive: true });
-    writeFileSync(reportPath, renderReport(out));
-    console.log(`\nReport: ${reportPath}`);
-    if (opts.open) openInBrowser(reportPath);
+function csvField(v) {
+  const s = v == null ? '' : String(v);
+  if (/[",\r\n]/.test(s)) {
+    return '"' + s.replace(/"/g, '""') + '"';
+  }
+  return s;
+}
+
+const NONE_LABEL = 'no antibot detected';
+
+function flattenRow(r) {
+  return {
+    url: r.url,
+    status: r.status === '' ? '' : String(r.status),
+    antibots: r.antibots.join(', ') || NONE_LABEL,
+    context: Object.entries(r.context)
+      .map(([k, v]) => `${k}: ${v.join(', ')}`)
+      .join('; '),
+    error: r.error || '',
+  };
+}
+
+function rowsToCSV(rows) {
+  const header = ['url', 'status', 'antibots', 'context', 'error'];
+  const lines = [header.join(',')];
+  for (const r of rows) {
+    const f = flattenRow(r);
+    lines.push([
+      csvField(f.url),
+      csvField(f.status),
+      csvField(f.antibots),
+      csvField(f.context),
+      csvField(f.error),
+    ].join(','));
+  }
+  return lines.join('\n') + '\n';
+}
+
+function rowsToTable(rows) {
+  const flat = rows.map(flattenRow);
+  const cols = [
+    { key: 'url', label: 'URL' },
+    { key: 'status', label: 'STATUS' },
+    { key: 'antibots', label: 'ANTIBOTS' },
+  ];
+  const hasContext = flat.some(r => r.context);
+  const hasError = flat.some(r => r.error);
+  if (hasContext) cols.push({ key: 'context', label: 'CONTEXT' });
+  if (hasError) cols.push({ key: 'error', label: 'ERROR' });
+
+  const widths = cols.map(c => Math.max(c.label.length, ...flat.map(r => r[c.key].length)));
+  const pad = (s, w) => s + ' '.repeat(w - s.length);
+  const sep = '  ';
+
+  const lines = [];
+  lines.push(cols.map((c, i) => pad(c.label, widths[i])).join(sep));
+  lines.push(widths.map(w => '─'.repeat(w)).join(sep));
+  for (const r of flat) {
+    lines.push(cols.map((c, i) => pad(r[c.key], widths[i])).join(sep));
+  }
+  return lines.join('\n') + '\n';
+}
+
+// ---------------------------------------------------------------------------
+// Main
+// ---------------------------------------------------------------------------
+
+function parseArgs(argv) {
+  const out = { urls: [], csv: null, writeFile: true };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--csv' && argv[i + 1]) { out.csv = argv[++i]; }
+    else if (a === '--no-csv') { out.writeFile = false; }
+    else if (!a.startsWith('--')) {
+      for (const part of a.split(',')) {
+        const u = part.trim();
+        if (u) out.urls.push(u);
+      }
+    }
+  }
+  return out;
+}
+
+function defaultCSVPath(urls) {
+  const host = (() => {
+    try { return new URL(urls[0].includes('://') ? urls[0] : `https://${urls[0]}`).hostname.replace(/^www\./, ''); }
+    catch { return 'site'; }
+  })();
+  const suffix = urls.length > 1 ? `-plus${urls.length - 1}` : '';
+  const ts = new Date().toISOString().replace(/[:.]/g, '-');
+  return resolve(tmpdir(), `antibot-${host}${suffix}-${ts}.csv`);
+}
+
+async function main() {
+  const opts = parseArgs(process.argv.slice(2));
+  if (opts.urls.length === 0) {
+    console.error('Usage: node scripts/detect.mjs <url1>[,<url2>,...] [--csv <path>] [--no-csv]');
+    process.exit(2);
+  }
+
+  const results = await Promise.all(opts.urls.map(probe));
+
+  process.stdout.write(rowsToTable(results));
+
+  if (opts.writeFile) {
+    const out = opts.csv ? resolve(opts.csv) : defaultCSVPath(opts.urls);
+    mkdirSync(dirname(out), { recursive: true });
+    writeFileSync(out, rowsToCSV(results));
+    console.error(`\nCSV: ${out}`);
   }
 }
 
