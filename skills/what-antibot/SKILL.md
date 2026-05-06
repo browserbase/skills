@@ -1,20 +1,20 @@
 ---
 name: what-antibot
-description: Detect antibot solutions (Cloudflare, Akamai, DataDome, PerimeterX, Imperva/Incapsula, Kasada, reCAPTCHA, hCaptcha, Anubis, Shape Security) on one or more URLs by sending a single Node fetch request per target with a Chrome 135 macOS user agent and inspecting the HTML, response headers, and Set-Cookie values. Output is CSV. Use when the user asks "what antibot is on <site>", "/what-antibot <url>", "/what-antibot url1, url2, url3", or wants to know which bot-mitigation vendor protects one or more sites.
+description: Detect antibot solutions (Cloudflare, Akamai, DataDome, PerimeterX, Imperva/Incapsula, Kasada, reCAPTCHA, hCaptcha, Anubis, Shape Security) on one or more URLs by sending a single Node fetch request per target with a Chrome 135 macOS user agent and inspecting the HTML, response headers, and Set-Cookie values. Prints a clean aligned table. Use when the user asks "what antibot is on <site>", "/what-antibot <url>", "/what-antibot url1, url2, url3", or wants to know which bot-mitigation vendor protects one or more sites.
 license: MIT
 allowed-tools: Bash
 ---
 
 # What Antibot
 
-Send a single HTTP GET to each target URL with a Chrome 135 macOS user agent, then run pattern detection across the HTML body, response headers, and Set-Cookie values to identify which antibot solution(s) are deployed. Results are emitted as CSV.
+Send a single HTTP GET to each target URL with a Chrome 135 macOS user agent, then run pattern detection across the HTML body, response headers, and Set-Cookie values to identify which antibot solution(s) are deployed. Results are printed as a clean aligned table.
 
 Detection logic is ported from the internal `whatantibot` Go service (`browserbase-go/go/services/whatantibot`).
 
 ## Usage
 
 ```bash
-node scripts/detect.mjs <url1>[,<url2>,...] [--csv <path>] [--no-csv]
+node scripts/detect.mjs <url1>[,<url2>,...]
 ```
 
 URLs may be passed as a single comma-delimited string, as multiple positional arguments, or both. Each URL may be passed with or without a scheme (defaults to `https://`).
@@ -25,29 +25,20 @@ Examples:
 node scripts/detect.mjs https://www.nike.com
 node scripts/detect.mjs nike.com,zocdoc.com,ticketmaster.com
 node scripts/detect.mjs nike.com zocdoc.com ticketmaster.com
-node scripts/detect.mjs nike.com,zocdoc.com --csv ~/Desktop/antibots.csv
 ```
-
-Flags:
-- `--csv <path>` — write the CSV to a specific path (default: `$TMPDIR/antibot-<host>-<timestamp>.csv`)
-- `--no-csv` — skip file output, print CSV to stdout only
-
-CSV is always printed to stdout. By default a copy is also written to `$TMPDIR` and the path is reported on stderr.
 
 ## Output
 
-CSV with columns: `url, status, antibots, context, error`.
-
-- `antibots` is a `; `-delimited list of detected vendors
-- `context` is a `; `-delimited list of `vendor: key=value` extras (e.g. hCaptcha sitekey)
-- `error` is non-empty only when the URL was malformed or the fetch failed
+A clean aligned table with columns `URL`, `STATUS`, `ANTIBOTS` (and `CONTEXT` / `ERROR` only when those columns have data). Rows with no detection show `no antibot detected`.
 
 Example:
 
 ```
-url,status,antibots,context,error
-https://www.nike.com/,200,akamai; kasada,,
-https://www.zocdoc.com/,403,datadome,,
+URL                            STATUS  ANTIBOTS
+─────────────────────────────  ──────  ───────────────────
+https://www.nike.com/          200     akamai, kasada
+https://www.zocdoc.com/        403     datadome
+https://www.ticketmaster.com/  200     no antibot detected
 ```
 
 ## Detected Antibots

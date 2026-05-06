@@ -1,17 +1,13 @@
 #!/usr/bin/env node
-// detect-antibot — single-request antibot fingerprinting.
+// what-antibot — single-request antibot fingerprinting.
 //
 // Sends one Node `fetch` GET per target URL with a Chrome 135 macOS UA, then
 // runs pattern detection across the HTML body, response headers, and
 // Set-Cookie values. Optionally fetches same-origin <script src=...> assets
-// to surface asset-level signals (Shape Security). Emits results as CSV.
+// to surface asset-level signals (Shape Security). Prints a clean table.
 //
 // Usage:
-//   node scripts/detect.mjs <url1>[,<url2>,...] [--csv <path>]
-
-import { writeFileSync, mkdirSync } from 'fs';
-import { dirname, resolve } from 'path';
-import { tmpdir } from 'os';
+//   node scripts/detect.mjs <url1>[,<url2>,...]
 
 const UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/135.0.0.0 Safari/537.36';
 
@@ -337,16 +333,8 @@ async function probe(rawURL) {
 }
 
 // ---------------------------------------------------------------------------
-// CSV
+// Output
 // ---------------------------------------------------------------------------
-
-function csvField(v) {
-  const s = v == null ? '' : String(v);
-  if (/[",\r\n]/.test(s)) {
-    return '"' + s.replace(/"/g, '""') + '"';
-  }
-  return s;
-}
 
 const NONE_LABEL = 'no antibot detected';
 
@@ -360,22 +348,6 @@ function flattenRow(r) {
       .join('; '),
     error: r.error || '',
   };
-}
-
-function rowsToCSV(rows) {
-  const header = ['url', 'status', 'antibots', 'context', 'error'];
-  const lines = [header.join(',')];
-  for (const r of rows) {
-    const f = flattenRow(r);
-    lines.push([
-      csvField(f.url),
-      csvField(f.status),
-      csvField(f.antibots),
-      csvField(f.context),
-      csvField(f.error),
-    ].join(','));
-  }
-  return lines.join('\n') + '\n';
 }
 
 function rowsToTable(rows) {
@@ -408,48 +380,26 @@ function rowsToTable(rows) {
 // ---------------------------------------------------------------------------
 
 function parseArgs(argv) {
-  const out = { urls: [], csv: null, writeFile: true };
-  for (let i = 0; i < argv.length; i++) {
-    const a = argv[i];
-    if (a === '--csv' && argv[i + 1]) { out.csv = argv[++i]; }
-    else if (a === '--no-csv') { out.writeFile = false; }
-    else if (!a.startsWith('--')) {
-      for (const part of a.split(',')) {
-        const u = part.trim();
-        if (u) out.urls.push(u);
-      }
+  const urls = [];
+  for (const a of argv) {
+    if (a.startsWith('--')) continue;
+    for (const part of a.split(',')) {
+      const u = part.trim();
+      if (u) urls.push(u);
     }
   }
-  return out;
-}
-
-function defaultCSVPath(urls) {
-  const host = (() => {
-    try { return new URL(urls[0].includes('://') ? urls[0] : `https://${urls[0]}`).hostname.replace(/^www\./, ''); }
-    catch { return 'site'; }
-  })();
-  const suffix = urls.length > 1 ? `-plus${urls.length - 1}` : '';
-  const ts = new Date().toISOString().replace(/[:.]/g, '-');
-  return resolve(tmpdir(), `antibot-${host}${suffix}-${ts}.csv`);
+  return { urls };
 }
 
 async function main() {
   const opts = parseArgs(process.argv.slice(2));
   if (opts.urls.length === 0) {
-    console.error('Usage: node scripts/detect.mjs <url1>[,<url2>,...] [--csv <path>] [--no-csv]');
+    console.error('Usage: node scripts/detect.mjs <url1>[,<url2>,...]');
     process.exit(2);
   }
 
   const results = await Promise.all(opts.urls.map(probe));
-
   process.stdout.write(rowsToTable(results));
-
-  if (opts.writeFile) {
-    const out = opts.csv ? resolve(opts.csv) : defaultCSVPath(opts.urls);
-    mkdirSync(dirname(out), { recursive: true });
-    writeFileSync(out, rowsToCSV(results));
-    console.error(`\nCSV: ${out}`);
-  }
 }
 
 main().catch(e => {
