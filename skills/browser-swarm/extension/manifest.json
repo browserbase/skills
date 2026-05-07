@@ -1,0 +1,27 @@
+{
+  "manifest_version": 3,
+  "name": "Browser Swarm Bridge",
+  "version": "0.1.0",
+  "description": "Bridge a scoped Chrome tab group to browser-swarm agents through localhost.",
+  "permissions": [
+    "alarms",
+    "debugger",
+    "storage",
+    "tabGroups",
+    "tabs"
+  ],
+  "host_permissions": [
+    "<all_urls>"
+  ],
+  "background": {
+    "service_worker": "service-worker.js",
+    "type": "module"
+  },
+  "action": {
+    "default_title": "Browser Swarm Bridge"
+  },
+  "content_security_policy": {
+    "extension_pages": "script-src 'self'; connect-src 'self' ws://127.0.0.1:* http://127.0.0.1:*; object-src 'none';"
+  }
+}
+

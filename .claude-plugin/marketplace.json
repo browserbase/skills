@@ -25,6 +25,21 @@
       ]
     },
     {
+      "name": "browser-swarm",
+      "source": "./",
+      "description": "Coordinate multiple browser agents in one real Chrome profile through a Chrome extension bridge, colored tab group, and target-bound browse CLI endpoints.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "automation",
+      "keywords": ["browser", "swarm", "chrome-extension", "tab-groups", "stagehand", "understudy", "browse-cli"],
+      "strict": false,
+      "skills": [
+        "./skills/browser-swarm"
+      ]
+    },
+    {
       "name": "functions",
       "source": "./",
       "description": "Deploy serverless browser automation to the cloud using Browserbase Functions. Use when the user wants to deploy automation to run on a schedule, needs a webhook endpoint for browser automation, wants to run automation in the cloud instead of locally, or asks about Browserbase Functions.",

@@ -1,0 +1,15 @@
+{
+  "name": "@browserbase/browser-swarm-skill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "serve": "node scripts/swarm-relay.mjs serve",
+    "launch": "node scripts/launch-chrome.mjs",
+    "e2e": "node scripts/e2e-poc.mjs"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
+
