@@ -27,24 +27,34 @@ cd skills/browser-swarm
 npm install
 ```
 
-Start the relay:
+Start the real-browser setup helper with the browser the user chose:
 
 ```bash
-node scripts/swarm-relay.mjs serve --port 19989
+node scripts/setup-real-browser.mjs --browser arc
 ```
 
 ### Real Browser Mode
 
 Use this mode when the user wants the swarm in their own browser profile, for example Arc, Chrome, Chrome Canary, Chromium, or Chrome for Testing.
 
-Do not guess which browser/profile to use. If the user has not named one, ask. Default-browser detection is not enough because it does not identify the desired profile, space, or test browser. On macOS it may come from LaunchServices, on Windows from default app registry associations, and on Linux from `xdg-settings`, but those are only hints.
+Do not guess which browser/profile to use. If the user has not named one, ask. Default-browser detection is not enough because it does not identify the desired profile, space, or test browser. On macOS it may come from LaunchServices, on Windows from default app registry associations, and on Linux from `xdg-settings`, but those are only hints. Use `--browser default` only when the user explicitly asks to open the OS default browser.
 
-The user must approve/install the extension in the browser they want controlled:
+The setup helper starts the relay if needed, opens the chosen browser's extension management page, prints the unpacked extension path, and waits until the extension connects:
 
-1. Open that browser's extension management page, such as `chrome://extensions` or the browser-specific equivalent like `arc://extensions`.
-2. Enable developer mode if needed.
-3. Load `skills/browser-swarm/extension` as an unpacked extension.
-4. Confirm the relay is connected:
+```bash
+node scripts/setup-real-browser.mjs --browser arc
+node scripts/setup-real-browser.mjs --browser chrome
+node scripts/setup-real-browser.mjs --browser canary
+node scripts/setup-real-browser.mjs --browser chromium
+node scripts/setup-real-browser.mjs --browser chrome-for-testing
+```
+
+The user must still approve/install the extension in the browser they want controlled:
+
+1. Enable developer mode if needed.
+2. Click "Load unpacked".
+3. Select the printed `skills/browser-swarm/extension` path.
+4. Wait for the helper or confirm manually:
 
 ```bash
 curl -s http://127.0.0.1:19989/health

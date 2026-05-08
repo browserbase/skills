@@ -235,7 +235,10 @@ class Relay {
 
     ws.on("message", (raw) => this.handleExtensionMessage(raw));
     ws.on("close", () => {
-      if (this.extension === ws) this.extension = null;
+      if (this.extension === ws) {
+        this.extension = null;
+        this.targets.clear();
+      }
     });
     ws.on("error", () => {});
   }
@@ -625,4 +628,3 @@ runCli(parseArgs(process.argv.slice(2))).catch((error) => {
   console.error(error instanceof Error ? error.message : String(error));
   process.exit(1);
 });
-

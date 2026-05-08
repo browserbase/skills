@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "serve": "node scripts/swarm-relay.mjs serve",
+    "setup": "node scripts/setup-real-browser.mjs",
     "launch": "node scripts/launch-chrome.mjs",
     "e2e": "node scripts/e2e-poc.mjs"
   },
@@ -12,4 +13,3 @@
     "ws": "^8.18.0"
   }
 }
-
