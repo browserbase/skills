@@ -27,26 +27,28 @@ cd skills/browser-swarm
 npm install
 ```
 
-Start the real-browser setup helper with the browser the user chose:
+Start the real-browser setup helper:
 
 ```bash
-node scripts/setup-real-browser.mjs --browser arc
+node scripts/setup-real-browser.mjs
 ```
 
 ### Real Browser Mode
 
 Use this mode when the user wants the swarm in their own browser profile, for example Arc, Chrome, Chrome Canary, Chromium, or Chrome for Testing.
 
-Do not guess which browser/profile to use. If the user has not named one, ask. Default-browser detection is not enough because it does not identify the desired profile, space, or test browser. On macOS it may come from LaunchServices, on Windows from default app registry associations, and on Linux from `xdg-settings`, but those are only hints. Use `--browser default` only when the user explicitly asks to open the OS default browser.
+By default the helper opens `chrome://extensions` through the OS URL opener using the cross-platform `open` package. On a user's machine this should land in their default Chromium-family browser; for example Arc may route it to `arc://extensions`. This is not profile detection. If the opened browser/profile is not the one the user wants controlled, stop and rerun with an explicit browser.
 
-The setup helper starts the relay if needed, opens the chosen browser's extension management page, prints the unpacked extension path, and waits until the extension connects:
+The setup helper starts the relay if needed, opens the extension management page, prints the unpacked extension path, and waits until the extension connects:
 
 ```bash
+node scripts/setup-real-browser.mjs
 node scripts/setup-real-browser.mjs --browser arc
 node scripts/setup-real-browser.mjs --browser chrome
 node scripts/setup-real-browser.mjs --browser canary
 node scripts/setup-real-browser.mjs --browser chromium
 node scripts/setup-real-browser.mjs --browser chrome-for-testing
+node scripts/setup-real-browser.mjs --extensions-url arc://extensions
 ```
 
 The user must still approve/install the extension in the browser they want controlled:

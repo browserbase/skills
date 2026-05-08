@@ -1,8 +1,9 @@
 #!/usr/bin/env node
-import { spawn, spawnSync } from "node:child_process";
+import { spawn } from "node:child_process";
 import { existsSync, mkdirSync, openSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import open, { apps } from "open";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const skillDir = resolve(__dirname, "..");
@@ -13,46 +14,44 @@ const DEFAULT_HOST = "127.0.0.1";
 const BROWSERS = {
   arc: {
     label: "Arc",
-    macApp: "Arc",
-    commandCandidates: ["arc"],
+    appName: process.platform === "darwin" ? "Arc" : "arc",
     extensionsUrl: "arc://extensions",
   },
   chrome: {
     label: "Google Chrome",
-    macApp: "Google Chrome",
-    commandCandidates: ["google-chrome", "chrome"],
+    appName: apps.chrome,
     extensionsUrl: "chrome://extensions",
   },
   canary: {
     label: "Google Chrome Canary",
-    macApp: "Google Chrome Canary",
-    commandCandidates: ["google-chrome-canary"],
+    appName: process.platform === "darwin" ? "Google Chrome Canary" : "google-chrome-canary",
     extensionsUrl: "chrome://extensions",
   },
   chromium: {
     label: "Chromium",
-    macApp: "Chromium",
-    commandCandidates: ["chromium", "chromium-browser"],
+    appName: process.platform === "darwin" ? "Chromium" : ["chromium", "chromium-browser"],
     extensionsUrl: "chrome://extensions",
   },
   "chrome-for-testing": {
     label: "Chrome for Testing",
-    macApp: "Google Chrome for Testing",
-    commandCandidates: ["chrome-for-testing", "google-chrome-for-testing"],
+    appName: process.platform === "darwin"
+      ? "Google Chrome for Testing"
+      : ["chrome-for-testing", "google-chrome-for-testing"],
     extensionsUrl: "chrome://extensions",
   },
   default: {
-    label: "OS default browser",
+    label: "default browser for chrome:// URLs",
     extensionsUrl: "chrome://extensions",
   },
 };
 
 function usage() {
   console.log(`Usage:
-  node scripts/setup-real-browser.mjs --browser <arc|chrome|canary|chromium|chrome-for-testing|default>
+  node scripts/setup-real-browser.mjs [--browser <arc|chrome|canary|chromium|chrome-for-testing|default>]
 
 Options:
-  --browser <name>        Browser to open. Required unless BROWSER_SWARM_BROWSER is set.
+  --browser <name>        Browser to open. Defaults to OS URL handler for chrome://extensions.
+  --extensions-url <url>  Override the extensions page URL.
   --port <port>           Relay port. Default: ${DEFAULT_PORT}
   --host <host>           Relay host. Default: ${DEFAULT_HOST}
   --no-open               Print instructions without opening the browser.
@@ -68,7 +67,8 @@ and waits until the user-approved extension connects.`);
 
 function parseArgs(argv) {
   const opts = {
-    browser: process.env.BROWSER_SWARM_BROWSER,
+    browser: process.env.BROWSER_SWARM_BROWSER || "default",
+    extensionsUrl: process.env.BROWSER_SWARM_EXTENSIONS_URL,
     port: DEFAULT_PORT,
     host: DEFAULT_HOST,
     open: true,
@@ -81,6 +81,7 @@ function parseArgs(argv) {
   for (let i = 0; i < argv.length; i++) {
     const arg = argv[i];
     if (arg === "--browser") opts.browser = argv[++i];
+    else if (arg === "--extensions-url") opts.extensionsUrl = argv[++i];
     else if (arg === "--port") opts.port = Number(argv[++i]);
     else if (arg === "--host") opts.host = argv[++i];
     else if (arg === "--no-open") opts.open = false;
@@ -147,31 +148,19 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
-function openBrowser(browser) {
+async function openBrowser(browser) {
   const url = browser.extensionsUrl;
-  if (process.platform === "darwin") {
-    const args = browser.macApp ? ["-a", browser.macApp, url] : [url];
-    const result = spawnSync("open", args, { stdio: "ignore" });
-    if (result.status === 0) return { opened: true, command: ["open", ...args].join(" ") };
-    throw new Error(`Failed to open ${browser.label}. Is it installed?`);
-  }
-
-  if (process.platform === "win32") {
-    const result = spawnSync("cmd", ["/c", "start", "", url], { stdio: "ignore" });
-    if (result.status === 0) return { opened: true, command: `start ${url}` };
-    throw new Error(`Failed to open ${url}`);
-  }
-
-  if (browser.commandCandidates) {
-    for (const command of browser.commandCandidates) {
-      const result = spawnSync(command, [url], { stdio: "ignore" });
-      if (result.status === 0) return { opened: true, command: `${command} ${url}` };
+  try {
+    if (browser.appName) {
+      await open(url, { app: { name: browser.appName } });
+      return { opened: true, target: url, app: browser.appName };
     }
+    await open(url);
+    return { opened: true, target: url, app: "default" };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Failed to open ${url}: ${message}. Open it manually in the browser you want to use.`);
   }
-
-  const result = spawnSync("xdg-open", [url], { stdio: "ignore" });
-  if (result.status === 0) return { opened: true, command: `xdg-open ${url}` };
-  throw new Error(`Failed to open ${url}`);
 }
 
 function printInstructions({ browser, host, port, relayStarted, initialHealth }) {
@@ -202,16 +191,12 @@ async function main() {
   if (!existsSync(extensionDir)) {
     throw new Error(`Missing extension directory: ${extensionDir}`);
   }
-  if (!opts.browser) {
-    usage();
-    throw new Error("Pass --browser explicitly. Do not rely on default browser guessing.");
-  }
-
   const browserKey = opts.browser.toLowerCase();
-  const browser = BROWSERS[browserKey];
+  const browser = { ...BROWSERS[browserKey] };
   if (!browser) {
     throw new Error(`Unknown browser: ${opts.browser}. Supported: ${Object.keys(BROWSERS).join(", ")}`);
   }
+  if (opts.extensionsUrl) browser.extensionsUrl = opts.extensionsUrl;
 
   let initialHealth = await tryHealth(opts.host, opts.port);
   let relayStarted = null;
@@ -226,8 +211,8 @@ async function main() {
 
   let openResult = null;
   if (opts.open) {
-    openResult = openBrowser(browser);
-    console.log(`Opened extensions page with: ${openResult.command}\n`);
+    openResult = await openBrowser(browser);
+    console.log(`Opened extensions page: ${JSON.stringify(openResult)}\n`);
   }
 
   let finalHealth = initialHealth;
