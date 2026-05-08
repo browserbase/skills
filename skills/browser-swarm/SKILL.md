@@ -1,14 +1,14 @@
 ---
 name: browser-swarm
-description: Coordinate multiple browser agents in one real Chrome profile through a Chrome extension bridge, a colored tab group, and target-bound browse CLI endpoints.
-compatibility: "Requires Node.js 20+, Chrome, the browse CLI (`npm install -g @browserbasehq/browse-cli`), and a locally loaded browser-swarm Chrome extension."
+description: Coordinate multiple browser agents in one real Chromium-family profile through a Chrome extension bridge, a colored tab group, and target-bound browse CLI endpoints.
+compatibility: "Requires Node.js 20+, a Chromium-family browser with extension support, the browse CLI (`npm install -g @browserbasehq/browse-cli`), a locally loaded browser-swarm Chrome extension, and the `/browser` skill for CLI command reference."
 license: MIT
 allowed-tools: Bash
 ---
 
 # Browser Swarm
 
-Use this skill when one task benefits from several independent browser workstreams that should share the user's real Chrome profile, cookies, and extensions.
+Use this skill when one task benefits from several independent browser workstreams that should share the user's real browser profile, cookies, and extensions.
 
 The swarm has three parts:
 
@@ -33,13 +33,50 @@ Start the relay:
 node scripts/swarm-relay.mjs serve --port 19989
 ```
 
-Load the extension:
+### Real Browser Mode
+
+Use this mode when the user wants the swarm in their own browser profile, for example Arc, Chrome, Chrome Canary, Chromium, or Chrome for Testing.
+
+Do not guess which browser/profile to use. If the user has not named one, ask. Default-browser detection is not enough because it does not identify the desired profile, space, or test browser. On macOS it may come from LaunchServices, on Windows from default app registry associations, and on Linux from `xdg-settings`, but those are only hints.
+
+The user must approve/install the extension in the browser they want controlled:
+
+1. Open that browser's extension management page, such as `chrome://extensions` or the browser-specific equivalent like `arc://extensions`.
+2. Enable developer mode if needed.
+3. Load `skills/browser-swarm/extension` as an unpacked extension.
+4. Confirm the relay is connected:
+
+```bash
+curl -s http://127.0.0.1:19989/health
+```
+
+Proceed only when `extensionConnected` is `true`. If it is false, ask the user to confirm the extension is installed and enabled in the chosen browser/profile.
+
+Do not try to install an unpacked extension into an already-running personal browser profile without the user's approval. The only automated install path in this POC is launching a separate browser process with `--load-extension`, which creates a separate test browser rather than using the user's active browser.
+
+### Disposable Test Browser Mode
+
+Use this mode only for e2e tests, demos, and throwaway profiles. It launches a separate browser profile:
 
 ```bash
 node scripts/launch-chrome.mjs
 ```
 
-For a persistent install, load `skills/browser-swarm/extension` from `chrome://extensions` as an unpacked extension. The relay listens only on `127.0.0.1`.
+The relay listens only on `127.0.0.1`.
+
+## Prerequisites
+
+The `/browser` skill contains the canonical `browse` CLI command reference. Ensure it is installed, then read it:
+
+```bash
+# Install if not already present
+npx skills add browserbase/skills --skill browser -a '*' -g -y
+
+# Load the command reference into context
+cat ~/.agents/skills/browser/SKILL.md
+```
+
+Use only commands from that reference. Do not invent flags or subcommands.
 
 ## Create A Swarm
 
@@ -63,24 +100,27 @@ The response contains a `wsUrl` per target. Hand exactly one `wsUrl` to each wor
 
 Every worker must:
 
-- Use only its assigned `wsUrl`.
+- Use only its assigned `wsUrl` by passing `--ws "<wsUrl>"` on every `browse` command.
 - Never use `tab_switch`.
+- Only use commands documented in the `/browser` skill.
 - Return concrete evidence: final URL, title, useful extracted facts, and screenshot path when relevant.
 - Avoid irreversible actions such as purchases, reservations, or form submission without explicit user confirmation.
+
+When writing worker prompts, read the `/browser` skill's SKILL.md and include its Commands section in each worker prompt so the worker agent knows exact syntax. Workers are subagents with no prior context.
 
 Worker prompt shape:
 
 ```text
-You own the "flights" browser-swarm tab.
+You own the "<label>" browser-swarm tab.
 Use browse with this exact target-bound CDP endpoint:
 <wsUrl>
 
-Run commands like:
-browse --ws "<wsUrl>" snapshot --compact --json
-browse --ws "<wsUrl>" open "https://www.google.com/travel/flights" --json
-browse --ws "<wsUrl>" get title --json
+<Include the Commands section from ~/.agents/skills/browser/SKILL.md here>
 
-Do not switch tabs. Do not use any other browser target. Find options, collect evidence, and report concise results.
+All browse commands must include: --ws "<wsUrl>"
+Do not switch tabs. Do not use any other browser target.
+Do not invent browse flags or commands. Only use commands from the reference above.
+Find options, collect evidence, and report concise results.
 ```
 
 ## Offsite Pattern
@@ -103,4 +143,3 @@ browse --ws "ws://127.0.0.1:19989/devtools/browser/<targetId>"
 ```
 
 That endpoint advertises only one target to Playwright/Stagehand, so the existing `browse` active-page commands resolve to the owned tab. This is the next-best solution until `browse --target <targetId>` lands.
-
