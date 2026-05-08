@@ -1,7 +1,7 @@
 {
   "name": "autobrowse",
   "version": "0.1.0",
-  "description": "Self-improving browser agent via skill learning — autoresearch pattern + Browse CLI + Anthropic API",
+  "description": "Self-improving browser agent via skill learning — autoresearch pattern + Browse CLI + Anthropic/OpenAI-compatible APIs",
   "type": "module",
   "scripts": {
     "evaluate": "node scripts/evaluate.mjs"
