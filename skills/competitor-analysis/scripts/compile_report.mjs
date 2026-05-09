@@ -238,9 +238,12 @@ for (const file of files) {
 }
 
 // Deduplicate by normalized competitor name (keep first occurrence — richer data tends to come first alphabetically)
+// The `\b` word boundary before the suffix group is load-bearing: without it the regex would
+// strip "co" from inside names like "Cisco" or "Costco" (`\s*` matches zero chars), corrupting
+// the dedup key and silently dropping legit competitors.
 const seen = new Map();
 for (const c of competitors) {
-  const name = (c.competitor_name || '').toLowerCase().replace(/\s*(inc|llc|ltd|corp|co)\s*\.?$/i, '').trim();
+  const name = (c.competitor_name || '').toLowerCase().replace(/\s*\b(inc|llc|ltd|corp|co)\b\s*\.?$/i, '').trim();
   if (!seen.has(name)) seen.set(name, c);
 }
 const deduped = [...seen.values()].sort((a, b) => (a.competitor_name || '').localeCompare(b.competitor_name || ''));

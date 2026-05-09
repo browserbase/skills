@@ -37,7 +37,10 @@ const seeds = seedIdx !== -1 && args[seedIdx + 1]
   : [];
 const seedSet = new Set(seeds);
 
-const pattern = new RegExp(`^${prefix}_discovery_batch_.*\\.json$`);
+// Escape regex metacharacters in the user-supplied prefix so a value like
+// "comp.+" matches the literal filename, not as a regex pattern.
+const escapedPrefix = prefix.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const pattern = new RegExp(`^${escapedPrefix}_discovery_batch_.*\\.json$`);
 
 let files;
 try {
