@@ -91,21 +91,6 @@
   .two-col .col.good li::before { content: '+'; position: absolute; left: 0; color: var(--grade-a); font-weight: 700; }
   .two-col .col.bad li::before { content: '−'; position: absolute; left: 0; color: var(--grade-f); font-weight: 700; }
 
-  /* Dimension breakdown */
-  .dimension { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; margin-bottom: 0.5rem; }
-  .dimension-head { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 0.5rem; gap: 1rem; flex-wrap: wrap; }
-  .dimension-name { font-size: 0.9375rem; font-weight: 600; color: var(--black); }
-  .dimension-weight { font-size: 0.75rem; color: var(--muted); margin-left: 0.5rem; font-weight: 400; }
-  .dimension-score { font-family: Inter, sans-serif; font-variant-numeric: tabular-nums; font-weight: 700; font-size: 1.125rem; }
-  .dimension-bar-track { height: 6px; background: #f6f5f5; border-radius: 3px; overflow: hidden; margin-bottom: 0.5rem; }
-  .dimension-bar-fill { height: 100%; border-radius: 3px; transition: width 0.3s; }
-  .dimension-bar-fill.grade-a { background: var(--grade-a); }
-  .dimension-bar-fill.grade-b { background: var(--grade-b); }
-  .dimension-bar-fill.grade-c { background: var(--grade-c); }
-  .dimension-bar-fill.grade-d { background: var(--grade-d); }
-  .dimension-bar-fill.grade-f { background: var(--grade-f); }
-  .dimension-rationale { font-size: 0.875rem; color: var(--muted); }
-
   /* Per-agent trace cards (Arena-style event log) */
   .trace-card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; overflow: hidden; }
   .trace-card.completed { border-left: 3px solid var(--grade-a); }

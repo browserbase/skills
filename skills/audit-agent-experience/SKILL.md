@@ -243,7 +243,7 @@ Classify each `WebFetch` URL into one of four provenance categories and render w
 Classification heuristic:
 1. If the same trace earlier contained a successful `llms.txt` WebFetch whose output mentioned this URL → `FROM LLMS.TXT`
 2. Else if the same trace earlier contained any WebFetch/Bash output that mentioned this exact URL → `FROM PREV PAGE`
-3. Else if the subsequent tool_result has `err: true` with 404 content → `GUESS · 404`
+3. Else if the subsequent tool_result has `error: true` with 404 content → `GUESS · 404`
 4. Else → `TRAINING PRIOR`
 
 Score interpretation:
