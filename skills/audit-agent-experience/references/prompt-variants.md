@@ -5,32 +5,38 @@ The subagent gets **one or two sentences**. Do not paste docs. Do not list "rule
 ## Template
 
 ```
-{persona_prefix} {product}'s getting-started guide using {language}. You've completed it when you've done whatever the guide treats as its primary successful outcome.
+{persona_prefix} {product}'s getting-started guide using {language}.{persona_tail} You've completed it when you've done whatever the guide treats as its primary successful outcome.
 ```
 
-No checklist. No prescriptive steps. The agent reads the docs and decides what "done" means. Only `{persona_prefix}` and `{language}` vary between agents.
+No checklist. No prescriptive steps. The agent reads the docs and decides what "done" means. Only `{persona_prefix}`, `{persona_tail}`, and `{language}` vary between agents.
+
+`{persona_tail}` is a short clause appended after the language and before the success-criterion sentence. Most personas leave it empty (a literal empty string — no leading space). The Skeptical persona uses it to inject its "note anything wrong" guidance without breaking the prefix sentence's grammar.
 
 ## Persona prefixes
 
 ### Standard (default, no persona flavoring)
-> Follow
+- Prefix: `Follow`
+- Tail: *(empty)*
 
 No adjectives, no role-play, no behavioral hint. Just the task. Use this as the neutral baseline — removes the Hawthorne effect of telling the agent "you are X type of developer" and lets you measure the docs against an agent doing its natural thing.
 
 ### Pragmatic
-> Skim and then follow
+- Prefix: `Skim and then follow`
+- Tail: *(empty)*
 
 Behavioural hint: shortest path to working. Skips docs when possible. Flags friction bluntly.
 
 ### Thorough
-> Read and then follow
+- Prefix: `Read and then follow`
+- Tail: *(empty)*
 
 Behavioural hint: reads end-to-end before coding. Surfaces ambiguity. Catches docs that don't survive a close read.
 
 ### Skeptical
-> Follow — note anything in the docs that seems wrong or unclear as you go while following
+- Prefix: `Follow`
+- Tail: ` Note anything in the docs that seems wrong or unclear as you go.`
 
-Behavioural hint: verifies claims. Calls out marketing vs. code.
+Behavioural hint: verifies claims. Calls out marketing vs. code. The tail (note the leading space) appends a sentence after the language clause so the prefix sentence stays grammatical.
 
 ## Core task (single phrase — derived from the target)
 
@@ -69,7 +75,7 @@ Worked example with `{product} = Acme` (placeholder — not a default):
 - **Standard × TypeScript** → *"Follow Acme's getting-started guide using TypeScript (Node.js). You've completed it when you've done whatever the guide treats as its primary successful outcome."*
 - **Pragmatic × Python** → *"Skim and then follow Acme's getting-started guide using Python. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
 - **Thorough × Go** → *"Read and then follow Acme's getting-started guide using Go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
-- **Skeptical × Shell** → *"Follow Acme's getting-started guide using bash/curl only — note anything in the docs that seems wrong or unclear as you go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
+- **Skeptical × Shell** → *"Follow Acme's getting-started guide using bash/curl only. Note anything in the docs that seems wrong or unclear as you go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
 
 Each agent figures out on its own what the success outcome is from the docs.
 

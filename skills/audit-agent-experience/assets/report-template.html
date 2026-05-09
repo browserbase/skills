@@ -57,13 +57,14 @@
   .scorecard .score-block .score-sub { font-size: 0.875rem; color: var(--muted); }
 
   /* Agent stat grid */
-  .stat-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; margin-bottom: 2rem; }
+  .stat-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0.75rem; margin-bottom: 2rem; }
   .stat { background: var(--card); border: 1px solid var(--border); border-radius: 4px; padding: 1rem 1.25rem; }
   .stat .label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-bottom: 0.25rem; }
   .stat .value { font-size: 1.5rem; font-weight: 700; color: var(--black); font-variant-numeric: tabular-nums; }
   .stat .value.ok { color: var(--grade-a); }
   .stat .value.warn { color: var(--grade-d); }
   .stat .value.bad { color: var(--grade-f); }
+  .stat .value.muted { color: var(--muted-gray); }
 
   /* Section */
   .section { margin-bottom: 2rem; }
@@ -104,34 +105,6 @@
   .dimension-bar-fill.grade-d { background: var(--grade-d); }
   .dimension-bar-fill.grade-f { background: var(--grade-f); }
   .dimension-rationale { font-size: 0.875rem; color: var(--muted); }
-
-  /* Agent cards */
-  .agent-card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; overflow: hidden; }
-  .agent-card.completed { border-left: 3px solid var(--grade-a); }
-  .agent-card.stuck { border-left: 3px solid var(--grade-d); }
-  .agent-card.wrong-result { border-left: 3px solid var(--grade-f); }
-  .agent-card.errored { border-left: 3px solid var(--muted-gray); }
-  .agent-card summary { padding: 0.875rem 1.25rem; cursor: pointer; display: flex; align-items: center; gap: 0.75rem; list-style: none; flex-wrap: wrap; }
-  .agent-card summary::-webkit-details-marker { display: none; }
-  .agent-card summary::before { content: '▶'; font-size: 0.5rem; color: var(--muted); transition: transform 0.15s; flex-shrink: 0; }
-  .agent-card[open] summary::before { transform: rotate(90deg); }
-  .agent-card .badge { font-size: 0.6875rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; padding: 2px 10px; border-radius: 2px; flex-shrink: 0; }
-  .agent-card .badge.completed { background: rgba(34,197,94,0.12); color: #166534; border: 1px solid rgba(34,197,94,0.3); }
-  .agent-card .badge.stuck { background: rgba(249,115,22,0.1); color: #9a3412; border: 1px solid rgba(249,115,22,0.25); }
-  .agent-card .badge.wrong-result { background: rgba(239,68,68,0.08); color: var(--grade-f); border: 1px solid rgba(239,68,68,0.2); }
-  .agent-card .badge.errored { background: rgba(138,135,135,0.1); color: var(--muted); border: 1px solid rgba(138,135,135,0.25); }
-  .agent-card .chip { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.75rem; padding: 1px 8px; border-radius: 2px; background: #f6f5f5; color: var(--text); border: 1px solid var(--border); }
-  .agent-card .turns { font-size: 0.75rem; color: var(--muted); margin-left: auto; font-variant-numeric: tabular-nums; }
-  .agent-card .body { padding: 0 1.25rem 1.25rem 1.25rem; border-top: 1px solid var(--border); padding-top: 0.875rem; }
-  .agent-card .body h4 { font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); margin-top: 1rem; margin-bottom: 0.5rem; }
-  .agent-card .body h4:first-child { margin-top: 0; }
-  .agent-card .body ul { list-style: none; display: flex; flex-direction: column; gap: 0.5rem; }
-  .agent-card .body li { font-size: 0.875rem; }
-  .agent-card .body .confusion { padding: 0.5rem 0.75rem; background: rgba(239,68,68,0.04); border: 1px solid rgba(239,68,68,0.15); border-radius: 3px; }
-  .agent-card .body .confusion .section-tag { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.75rem; color: var(--grade-f); font-weight: 500; }
-  .agent-card .body .confusion .issue { margin-top: 0.25rem; color: var(--text); }
-  .agent-card .body .positive { padding: 0.5rem 0.75rem; background: rgba(34,197,94,0.05); border: 1px solid rgba(34,197,94,0.2); border-radius: 3px; color: var(--text); }
-  .agent-card .body .suggestion { padding: 0.5rem 0.75rem; background: rgba(77,169,228,0.06); border: 1px solid rgba(77,169,228,0.2); border-radius: 3px; color: #2a7ab5; }
 
   /* Per-agent trace cards (Arena-style event log) */
   .trace-card { background: var(--card); border: 1px solid var(--border); border-radius: 4px; margin-bottom: 0.5rem; overflow: hidden; }
@@ -251,21 +224,13 @@
   .tool-row .bar-fill { height: 100%; background: var(--brand); border-radius: 2px; }
   .tool-row .count { text-align: right; font-variant-numeric: tabular-nums; font-weight: 600; color: var(--text); }
 
-  /* Error list on agent card */
-  .agent-card .body .error { padding: 0.5rem 0.75rem; background: rgba(239,68,68,0.06); border: 1px solid rgba(239,68,68,0.2); border-radius: 3px; font-size: 0.8125rem; }
-  .agent-card .body .error .stage { font-family: 'Geist Mono', 'SF Mono', monospace; font-size: 0.6875rem; color: var(--grade-f); text-transform: uppercase; letter-spacing: 0.05em; margin-right: 0.5rem; }
-  .agent-card .body .error .msg { color: var(--text); }
-  .agent-card .body .error .recovered { font-size: 0.6875rem; padding: 1px 6px; border-radius: 2px; margin-left: 0.5rem; }
-  .agent-card .body .error .recovered.yes { background: rgba(34,197,94,0.12); color: #166534; }
-  .agent-card .body .error .recovered.no { background: rgba(239,68,68,0.12); color: var(--grade-f); }
-
   footer { margin-top: 3rem; padding-top: 1.5rem; border-top: 1px solid var(--border); display: flex; align-items: center; justify-content: center; gap: 0.5rem; font-size: 0.75rem; color: var(--muted); }
   footer a { color: var(--brand); text-decoration: none; font-weight: 500; }
   footer a:hover { text-decoration: underline; }
 
   @media (max-width: 720px) {
     .scorecard { grid-template-columns: 1fr; justify-items: center; text-align: center; }
-    .stat-grid { grid-template-columns: repeat(2, 1fr); }
+    .stat-grid { grid-template-columns: repeat(3, 1fr); }
     .metrics-grid { grid-template-columns: repeat(2, 1fr); }
     .two-col { grid-template-columns: 1fr; }
     .timeline-row { grid-template-columns: 50px 90px 1fr; }
@@ -299,8 +264,10 @@
   <div class="stat-grid">
     <div class="stat"><div class="label">Agents</div><div class="value">{{AGENT_COUNT}}</div></div>
     <div class="stat"><div class="label">Completed</div><div class="value ok">{{COMPLETED_COUNT}}</div></div>
+    <div class="stat"><div class="label">Partial</div><div class="value warn">{{PARTIAL_COUNT}}</div></div>
     <div class="stat"><div class="label">Stuck</div><div class="value warn">{{STUCK_COUNT}}</div></div>
-    <div class="stat"><div class="label">Errored</div><div class="value bad">{{ERRORED_COUNT}}</div></div>
+    <div class="stat"><div class="label">Blocked</div><div class="value bad">{{BLOCKED_COUNT}}</div></div>
+    <div class="stat"><div class="label">Errored</div><div class="value muted">{{ERRORED_COUNT}}</div></div>
   </div>
 
   {{NARRATIVE_REVIEW_SECTION}}

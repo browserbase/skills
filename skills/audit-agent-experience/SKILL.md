@@ -181,13 +181,15 @@ For each of N variants, produce a `(persona, language, prompt)` tuple. The promp
 Template:
 
 ```
-{persona_prefix} {product}'s getting-started guide using {language}. You've completed it when you've done whatever the guide treats as the primary successful outcome.
+{persona_prefix} {product}'s getting-started guide using {language}.{persona_tail} You've completed it when you've done whatever the guide treats as the primary successful outcome.
 ```
 
+`{persona_tail}` is empty for most personas. The Skeptical persona uses it to inject its "note anything wrong" guidance as a separate sentence (with a leading space) so the prefix sentence stays grammatical. See `references/prompt-variants.md` for the full prefix/tail per persona.
+
 Examples (using `Acme` as a placeholder — substitute the user-supplied product name):
-- Pragmatic × TypeScript → *"Get started with Acme using TypeScript (Node.js). Complete whatever the getting-started guide considers a successful first run."*
-- Thorough × Python → *"Read Acme's getting-started guide and follow it end-to-end using Python. You're done when the guide's expected outcome is achieved."*
-- Skeptical × Shell → *"Figure out how to complete Acme's getting-started flow using bash/curl. Note anything in the docs that seems wrong as you go."*
+- Pragmatic × TypeScript → *"Skim and then follow Acme's getting-started guide using TypeScript (Node.js). You've completed it when you've done whatever the guide treats as its primary successful outcome."*
+- Thorough × Python → *"Read and then follow Acme's getting-started guide using Python. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
+- Skeptical × Shell → *"Follow Acme's getting-started guide using bash/curl only. Note anything in the docs that seems wrong or unclear as you go. You've completed it when you've done whatever the guide treats as its primary successful outcome."*
 
 The subagent is NOT told what the success outcome is — they have to read the docs to figure that out. That's the point: if the docs are good, they'll convey it clearly. If the docs are bad, the agent won't know when they're done, which IS a finding.
 
@@ -273,11 +275,11 @@ Read `references/evaluation-rubric.md` for full criteria. Score 0–100 based on
 
 **Onboarding success rate is the primary sanity check.** See `references/evaluation-rubric.md` § 0 for the exact cap tiers — at <50% completion, every dimension is capped at 55 regardless of other evidence.
 
-- **Setup Friction (25%)** — credential prompts, auth retries, install errors. Goal items in the "setup" phase failing = big hit.
+- **Setup Friction (25%)** — credential prompts, auth retries, install errors. Failures in the "setup" phase = big hit.
 - **Speed (20%)** — total wall time, time-to-first-working-code.
-- **Efficiency (20%)** — tool calls per passed goal item, wasted calls.
-- **Error Recovery (15%)** — did errors block goal items, or did agents route around?
-- **Doc Quality (20%)** — did docs supply what was needed to pass the checklist?
+- **Efficiency (20%)** — `completed_subtasks` / total `tool_calls` ratio, wasted calls.
+- **Error Recovery (15%)** — did errors block onboarding completion, or did agents route around?
+- **Doc Quality (20%)** — did the docs provide what agents needed?
 
 Weighted total → letter grade (90+ A, 75+ B, 60+ C, 45+ D, else F).
 
@@ -297,7 +299,9 @@ Produce:
 
 Read `assets/report-template.html`. Fill placeholders:
 
-`{{TITLE}}`, `{{TARGET_REF}}`, `{{META}}`, `{{GRADE_LETTER}}`, `{{GRADE_CLASS}}`, `{{OVERALL_SCORE}}`, `{{AGENT_COUNT}}`, `{{COMPLETED_COUNT}}`, `{{STUCK_COUNT}}`, `{{ERRORED_COUNT}}`, `{{NARRATIVE_REVIEW_SECTION}}` (see format below), `{{EXEC_SUMMARY}}`, `{{WENT_WELL_ITEMS}}`, `{{DIDNT_GO_WELL_ITEMS}}`, `{{TIMELINE_SECTION}}`, `{{TOOL_BREAKDOWN_SECTION}}`, `{{METRICS_GRID}}`, `{{PATTERNS_SECTION}}`, `{{FIXES_LIST}}`, `{{AGENT_RESULTS_TABLE}}` (at-a-glance summary table — see format below), `{{AGENT_TRACES_SECTION}}` (full collapsible per-agent trace cards — see format below).
+`{{TITLE}}`, `{{TARGET_REF}}`, `{{META}}`, `{{GRADE_LETTER}}`, `{{GRADE_CLASS}}`, `{{OVERALL_SCORE}}`, `{{AGENT_COUNT}}`, `{{COMPLETED_COUNT}}`, `{{PARTIAL_COUNT}}`, `{{STUCK_COUNT}}`, `{{BLOCKED_COUNT}}`, `{{ERRORED_COUNT}}`, `{{NARRATIVE_REVIEW_SECTION}}` (see format below), `{{EXEC_SUMMARY}}`, `{{WENT_WELL_ITEMS}}`, `{{DIDNT_GO_WELL_ITEMS}}`, `{{TIMELINE_SECTION}}`, `{{TOOL_BREAKDOWN_SECTION}}`, `{{METRICS_GRID}}`, `{{PATTERNS_SECTION}}`, `{{FIXES_LIST}}`, `{{AGENT_RESULTS_TABLE}}` (at-a-glance summary table — see format below), `{{AGENT_TRACES_SECTION}}` (full collapsible per-agent trace cards — see format below).
+
+**Status counter mapping.** The 5 status counters partition the agents exactly: every agent contributes to exactly one of `{{COMPLETED_COUNT}}` (onboarding_status=`completed`), `{{PARTIAL_COUNT}}` (`partial`), `{{STUCK_COUNT}}` (`stuck`), `{{BLOCKED_COUNT}}` (`blocked-on-credentials`), or `{{ERRORED_COUNT}}` (parser-failed traces). The five sub-counts must sum to `{{AGENT_COUNT}}`.
 
 **Section order in the rendered report** (the template enforces this — do not reorder):
 1. Scorecard + agent-status stat grid

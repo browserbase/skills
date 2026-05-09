@@ -1,0 +1,16 @@
+{
+  "company": "Browserbase",
+  "website": "https://www.browserbase.com",
+  "product": "Cloud browser infrastructure for AI agents and automation. Headless Chrome-as-a-service with stealth mode, captcha solving, proxies, session recording. Ships with Stagehand (agent framework) and Director (AI workflow builder). Integrates via SDK, MCP, or Playwright/Puppeteer. Scales from 1 to thousands of concurrent browsers.",
+  "existing_customers": ["Ramp", "Amplitude", "Numeral", "Firecrawl"],
+  "competitors": ["Browserless", "Apify", "BrowserCloud", "BrowserTree", "Notte", "Hyperbrowser", "Anchor Browser", "Steel.dev", "ScrapingBee"],
+  "use_cases": [
+    "Browser agents / AI agents that interact with the web",
+    "Web scraping at scale with stealth + proxies",
+    "Workflow automation (replacing manual SaaS clicking)",
+    "E2E testing in the cloud (Playwright cloud)",
+    "Data extraction — job boards, real estate, news, ecommerce, price monitoring, lead gen",
+    "Vertical automation — fintech, insurance, healthcare, legal, supply chain, GTM"
+  ],
+  "researched_at": "2026-04-23"
+}
