@@ -20,6 +20,7 @@
 
 import { readdirSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { parseFrontmatter, parseBody, parseSections } from './md_utils.mjs';
 
 const args = process.argv.slice(2);
 if (args.includes('--help') || args.includes('-h') || args.length === 0) {
@@ -34,41 +35,6 @@ const dir = args[0];
 const partialsDir = join(dir, 'partials');
 
 const LANES = ['marketing', 'discussion', 'social', 'news', 'technical', 'battle'];
-
-function parseFrontmatter(content) {
-  const m = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!m) return { fm: null, body: content };
-  const fields = {};
-  for (const line of m[1].split('\n')) {
-    const idx = line.indexOf(':');
-    if (idx > 0) {
-      const k = line.slice(0, idx).trim();
-      const v = line.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
-      if (k && v) fields[k] = v;
-    }
-  }
-  const bodyMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)/);
-  return { fm: fields, body: bodyMatch ? bodyMatch[1].trim() : '' };
-}
-
-function parseSections(body) {
-  const sections = {};
-  const lines = body.split('\n');
-  let currentKey = null;
-  let buffer = [];
-  for (const line of lines) {
-    const m = line.match(/^## (.+)$/);
-    if (m) {
-      if (currentKey !== null) sections[currentKey] = buffer.join('\n').trim();
-      currentKey = m[1].trim();
-      buffer = [];
-    } else if (currentKey !== null) {
-      buffer.push(line);
-    }
-  }
-  if (currentKey !== null) sections[currentKey] = buffer.join('\n').trim();
-  return sections;
-}
 
 function extractBullets(sectionText) {
   if (!sectionText) return [];
@@ -169,7 +135,7 @@ for (const f of files) {
   if (!LANES.includes(lane)) continue;
   if (!bySlug.has(slug)) bySlug.set(slug, {});
   const content = readFileSync(join(partialsDir, f), 'utf-8');
-  bySlug.get(slug)[lane] = parseFrontmatter(content);
+  bySlug.get(slug)[lane] = { fm: parseFrontmatter(content), body: parseBody(content) };
 }
 
 let merged = 0;

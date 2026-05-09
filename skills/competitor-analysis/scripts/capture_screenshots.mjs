@@ -12,6 +12,7 @@
 import { readdirSync, readFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
 import { spawnSync } from 'child_process';
+import { parseFrontmatter } from './md_utils.mjs';
 
 const args = process.argv.slice(2);
 
@@ -50,21 +51,6 @@ if (concurrency > 1) {
 
 const shotsDir = join(dir, 'screenshots');
 mkdirSync(shotsDir, { recursive: true });
-
-function parseFrontmatter(content) {
-  const m = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!m) return null;
-  const fields = {};
-  for (const line of m[1].split('\n')) {
-    const idx = line.indexOf(':');
-    if (idx > 0) {
-      const k = line.slice(0, idx).trim();
-      const v = line.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
-      if (k && v) fields[k] = v;
-    }
-  }
-  return fields;
-}
 
 function run(cmd, args, { timeout = 30000 } = {}) {
   return spawnSync(cmd, args, { encoding: 'utf-8', timeout, maxBuffer: 4 * 1024 * 1024 });

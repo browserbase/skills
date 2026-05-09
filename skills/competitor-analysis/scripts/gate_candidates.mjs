@@ -120,6 +120,11 @@ function classify(title, heroFull, includes, excludes) {
   else if (incEarly.length > 0 && excEarly.length === 0) { status = 'PASS'; reason = `hero200→include(${incEarly[0]})`; }
   else if (excEarly.length > 0)                   { status = 'REJECT'; reason = `hero200→exclude(${excEarly[0]})`; }
   else if (incHero.length > 0 && excHero.length === 0)   { status = 'PASS'; reason = `hero→include(${incHero[0]})`; }
+  // Late-hero conflict: both include AND exclude appear in chars 200–800 (nothing in
+  // title or early hero). This is genuine ambiguous signal, not absence — return UNKNOWN
+  // so the candidate surfaces in the user-confirmation bucket at Step 4.5 instead of
+  // being silently dropped as REJECT.
+  else if (incHero.length > 0 && excHero.length > 0)     { status = 'UNKNOWN'; reason = `hero→conflict(include:${incHero[0]}, exclude:${excHero[0]})`; }
   else                                            { status = 'REJECT'; reason = 'no category signal'; }
 
   return {

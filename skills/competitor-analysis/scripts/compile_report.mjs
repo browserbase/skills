@@ -9,6 +9,7 @@
 import { readdirSync, readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { parseFrontmatter, parseBody, parseSections } from './md_utils.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -69,44 +70,7 @@ if (files.length === 0) {
 
 // ---------- Parsing ----------
 
-function parseFrontmatter(content) {
-  const fmMatch = content.match(/^---\n([\s\S]*?)\n---/);
-  if (!fmMatch) return null;
-  const fields = {};
-  for (const line of fmMatch[1].split('\n')) {
-    const idx = line.indexOf(':');
-    if (idx > 0) {
-      const key = line.slice(0, idx).trim();
-      const val = line.slice(idx + 1).trim().replace(/^["']|["']$/g, '');
-      if (key && val) fields[key] = val;
-    }
-  }
-  return fields;
-}
-
-function parseBody(content) {
-  const bodyMatch = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)/);
-  return bodyMatch ? bodyMatch[1].trim() : '';
-}
-
-function parseSections(body) {
-  const sections = {};
-  const lines = body.split('\n');
-  let currentKey = null;
-  let buffer = [];
-  for (const line of lines) {
-    const m = line.match(/^## (.+)$/);
-    if (m) {
-      if (currentKey !== null) sections[currentKey] = buffer.join('\n').trim();
-      currentKey = m[1].trim();
-      buffer = [];
-    } else if (currentKey !== null) {
-      buffer.push(line);
-    }
-  }
-  if (currentKey !== null) sections[currentKey] = buffer.join('\n').trim();
-  return sections;
-}
+// parseFrontmatter, parseBody, parseSections imported from md_utils.mjs
 
 // Normalize subagent-invented source types onto the canonical taxonomy so the mentions
 // feed CSS has a pill class for every entry. Observed drift: HackerNews→HN, VendorBlog→Blog,
@@ -940,6 +904,8 @@ console.error(JSON.stringify({
 console.log(join(dir, 'index.html'));
 
 if (shouldOpen) {
-  const { execSync } = await import('child_process');
-  try { execSync(`open "${join(dir, 'index.html')}"`); } catch {}
+  const { execFileSync } = await import('child_process');
+  // Use execFileSync (not execSync with string interpolation) so a `dir` containing
+  // shell metacharacters like `"`, `$`, or backticks can't break out into command exec.
+  try { execFileSync('open', [join(dir, 'index.html')]); } catch {}
 }
