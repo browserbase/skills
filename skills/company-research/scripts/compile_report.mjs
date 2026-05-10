@@ -97,7 +97,11 @@ function escapeHtml(str) {
 // field can't smuggle a `javascript:` payload into the rendered href.
 function safeUrl(u) {
   if (!u || typeof u !== 'string') return null;
-  const trimmed = u.trim();
+  // Strip C0 controls + DEL before any scheme check. The WHATWG URL parser
+  // removes these before parsing, so `java\tscript:` reaches the browser as
+  // `javascript:` and runs — but the scheme regex below wouldn't catch it
+  // because `[a-z0-9+.-]` rejects the tab and falls through to return trimmed.
+  const trimmed = u.trim().replace(/[\x00-\x1F\x7F]/g, '');
   if (/^(\/\/|https?:\/\/|mailto:)/i.test(trimmed)) return trimmed;
   if (/^[a-z][a-z0-9+.-]*:/i.test(trimmed)) return null;
   return trimmed;
