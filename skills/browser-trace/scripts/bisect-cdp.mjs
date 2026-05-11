@@ -59,9 +59,19 @@ function toMs(ts) {
 // so they fold into the first concrete page (their requests really are part
 // of loading that first page).
 let pid = -1;
+const requestPidById = new Map();
 for (const ev of events) {
   if (isTopNav(ev)) pid += 1;
-  ev._pid = pid < 0 ? 0 : pid;
+
+  const currentPid = pid < 0 ? 0 : pid;
+  const requestId = ev?.params?.requestId;
+  if (ev.method === 'Network.requestWillBeSent' && requestId) {
+    requestPidById.set(requestId, currentPid);
+  }
+
+  ev._pid = requestId && requestPidById.has(requestId)
+    ? requestPidById.get(requestId)
+    : currentPid;
 }
 
 // ---- session-wide buckets (always written, including empty files) ----
