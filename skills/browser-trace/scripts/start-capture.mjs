@@ -65,13 +65,22 @@ const loop = spawn(process.execPath, [loopScript, target, RD, String(interval)],
 loop.unref();
 fs.writeFileSync(path.join(RD, '.loop.pid'), String(loop.pid));
 
-// Give browse cdp a beat to fail loudly on bad targets so the user sees the
-// real error instead of a silent zero-event capture.
+// Give both children a beat to fail loudly on bad targets so the user sees
+// the real error instead of a silent zero-event capture. The snapshot loop
+// is checked too: a syntax error or missing dep there would otherwise leave
+// the run with CDP events but no DOM/screenshots, and the user would only
+// notice after stop-capture.
 await sleepMs(1000);
 if (!isAlive(cdp.pid)) {
   console.error(`browse cdp exited immediately — check ${RD}/cdp/stderr.log`);
   try { console.error(fs.readFileSync(path.join(RD, 'cdp', 'stderr.log'), 'utf8')); } catch {}
   try { process.kill(loop.pid); } catch {}
+  process.exit(1);
+}
+if (!isAlive(loop.pid)) {
+  console.error(`snapshot-loop exited immediately — check ${RD}/snapshot-loop.log`);
+  try { console.error(fs.readFileSync(path.join(RD, 'snapshot-loop.log'), 'utf8')); } catch {}
+  try { process.kill(cdp.pid); } catch {}
   process.exit(1);
 }
 
