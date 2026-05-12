@@ -10,6 +10,17 @@ All scripts are Node ESM (`type: module`). They depend only on the Node standard
 
 Top-level dispatcher. Runs `load → filter → normalize → infer → emit` in order. With `--stage <name>`, runs only that stage (assumes prior stages already wrote their intermediate file).
 
+### `open-swagger-ui.mjs (--run <path> | --spec <path>) [flags]`
+
+Preview an emitted OpenAPI spec in a local Swagger UI checkout. The script serves the Swagger UI `dist/` assets and the generated spec from one local HTTP origin, injects a per-run `swagger-initializer.js`, opens the browser by default, and keeps the server alive until interrupted.
+
+- `--run <path>` loads `<run>/api-spec/openapi.yaml`, falling back to `openapi.json`.
+- `--spec <path>` previews an explicit OpenAPI YAML/JSON file.
+- `--swagger-ui <path>` points at a Swagger UI checkout/package directory. If omitted, the script tries `$SWAGGER_UI_DIR`, `~/Developer/swagger-ui`, and `node_modules/swagger-ui-dist`.
+- `--host <host>` defaults to `127.0.0.1`.
+- `--port <port>` defaults to a random free port.
+- `--no-open` prints the URL without opening a browser.
+
 ### `load.mjs <run-path> <out-dir> [bodies-dir]`
 
 - Reads `cdp/network/requests.jsonl` and `cdp/network/responses.jsonl`.
@@ -152,6 +163,17 @@ Internals (matched in `lib/io.mjs` + `load.mjs`):
 | `--min-samples <n>` | `1` | Drop endpoints below this threshold (still listed in the report) |
 | `--stage <name>` | (all) | One of `load`, `filter`, `normalize`, `infer`, `emit` |
 
+## Swagger UI preview flags
+
+| Flag | Default | Notes |
+|---|---|---|
+| `--run <path>` | required unless `--spec` is set | Resolves a browser-trace run and previews `<run>/api-spec/openapi.yaml` or `openapi.json` |
+| `--spec <path>` | required unless `--run` is set | Explicit OpenAPI YAML/JSON path |
+| `--swagger-ui <path>` | auto | Checkout/package dir containing either `dist/index.html` or `index.html` + `swagger-ui-bundle.js` |
+| `--host <host>` | `127.0.0.1` | Preview server bind host |
+| `--port <port>` | random | Preview server bind port |
+| `--no-open` | false | Print the URL without launching the browser |
+
 ## Default exclude list
 
 URLs matching these patterns are dropped before any analysis (regex, applied to the full URL):
@@ -213,6 +235,7 @@ These extensions are stripped from `report.md` (which is human-facing) but prese
 | `O11Y_ROOT` | `.o11y` | Inherited from `browser-trace`. Used only when `--run` is bare run id rather than a full path |
 | `DISCOVER_ENUM_MAX_DISTINCT` | `8` | Max distinct values to consider a field an enum |
 | `DISCOVER_ENUM_MIN_SAMPLES` | `5` | Min samples before enum detection runs |
+| `SWAGGER_UI_DIR` | auto | Optional Swagger UI checkout/package dir for `open-swagger-ui.mjs` |
 
 ## Troubleshooting
 
@@ -223,3 +246,4 @@ These extensions are stripped from `report.md` (which is human-facing) but prese
 | Path templating collapses too aggressively | numeric IDs being misread as enums, or dictionary words misread as slugs | add `--exclude` for the noisy paths and re-run, or file an issue with the trace |
 | Schemas show `type: "string"` for everything | request/response bodies aren't valid JSON or weren't captured | check `paired.jsonl` for `reqBody`/`respBody` content — if `null`, bodies weren't in the trace |
 | Spec validator complains about `info.version` | derived version is `0.1.0-discovered` which some tools dislike | pass `--version 0.1.0` (TODO) or post-edit the file |
+| `Swagger UI not found` | no local Swagger UI checkout/package was detected | clone `https://github.com/swagger-api/swagger-ui` to `~/Developer/swagger-ui`, or pass `--swagger-ui <path>` / set `SWAGGER_UI_DIR` |

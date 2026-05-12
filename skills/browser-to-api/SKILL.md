@@ -31,12 +31,12 @@ If the user wants to **capture** traffic, send them to `browser-trace` first.
 ### 1. Capture with `browser-trace` (and optionally bodies via `browse network on`)
 
 ```bash
-# Local Chrome example (see browser-trace SKILL.md for Browserbase variant)
-"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" \
-  --remote-debugging-port=9222 --user-data-dir=/tmp/chrome-spec about:blank &
+# Local example (see browser-trace SKILL.md for Browserbase variant)
+browse env local
+browse open about:blank
+TARGET="$(browse status --json | jq -r .wsUrl)"
 
-node ../browser-trace/scripts/start-capture.mjs 9222 my-site
-browse env local 9222
+node ../browser-trace/scripts/start-capture.mjs "$TARGET" my-site
 browse network on                                    # capture request/response bodies
 browse open https://example.com
 # ...drive whatever flows you want covered...
@@ -69,6 +69,16 @@ node scripts/discover.mjs --run .o11y/my-site
 
 The two primary deliverables are `openapi.yaml` (machine-readable spec) and `report.md` (human-readable coverage summary).
 
+### 3. Preview in Swagger UI when available
+
+If Swagger UI is installed locally, open the generated spec there:
+
+```bash
+node scripts/open-swagger-ui.mjs --run .o11y/my-site
+```
+
+The helper auto-detects `$SWAGGER_UI_DIR`, `~/Developer/swagger-ui`, or `node_modules/swagger-ui-dist`. If none exists, deliver `openapi.yaml` and `report.md` directly and tell the user Swagger UI was not found.
+
 ## CLI flags
 
 | Flag | Required | Meaning |
@@ -84,6 +94,8 @@ The two primary deliverables are `openapi.yaml` (machine-readable spec) and `rep
 | `--redact <list>` | no | Extra header names / JSON keys to redact (comma-separated) |
 | `--min-samples <n>` | no | Minimum samples per endpoint to include. Default `1` |
 | `--stage <name>` | no | Run only one stage: `load`, `filter`, `normalize`, `infer`, `emit` |
+
+`scripts/open-swagger-ui.mjs` accepts `--run <path>` or `--spec <path>`, plus optional `--swagger-ui <path>`, `--host`, `--port`, and `--no-open`.
 
 ## Output layout
 
