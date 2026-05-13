@@ -14,7 +14,7 @@ This skill **does not capture traffic**. It is purely offline post-processing on
 
 ```
 browser-trace    →  .o11y/<run>/cdp/network/{requests,responses}.jsonl
-browser-to-api   →  .o11y/<run>/api-spec/openapi.yaml + report.md
+browser-to-api   →  .o11y/<run>/api-spec/index.html + openapi.yaml + client.mjs
 ```
 
 ## When to use
@@ -57,7 +57,9 @@ node ../browser-trace/scripts/bisect-cdp.mjs my-site
 
 ```bash
 node scripts/discover.mjs --run .o11y/my-site
-# → .o11y/my-site/api-spec/openapi.yaml
+# → .o11y/my-site/api-spec/index.html          ← open this
+#   .o11y/my-site/api-spec/client.mjs
+#   .o11y/my-site/api-spec/openapi.yaml
 #   .o11y/my-site/api-spec/openapi.json
 #   .o11y/my-site/api-spec/report.md
 #   .o11y/my-site/api-spec/confidence.json
@@ -67,17 +69,15 @@ node scripts/discover.mjs --run .o11y/my-site
 
 `discover.mjs` auto-detects `<run>/cdp/network/bodies/`. To use a body capture from elsewhere (e.g. didn't snapshot, want the live `browse network` dir), pass `--bodies <path>` explicitly.
 
-The two primary deliverables are `openapi.yaml` (machine-readable spec) and `report.md` (human-readable coverage summary).
+### 3. Open the HTML report
 
-### 3. Preview in Swagger UI when available
-
-If Swagger UI is installed locally, open the generated spec there:
+After `discover.mjs` finishes, **always open the generated HTML report**:
 
 ```bash
-node scripts/open-swagger-ui.mjs --run .o11y/my-site
+open .o11y/my-site/api-spec/index.html
 ```
 
-The helper auto-detects `$SWAGGER_UI_DIR`, `~/Developer/swagger-ui`, or `node_modules/swagger-ui-dist`. If none exists, deliver `openapi.yaml` and `report.md` directly and tell the user Swagger UI was not found.
+The report is a self-contained HTML file (no server needed) that shows each discovered operation as an expandable card with variables, client usage, request/response examples, and a generated `client.mjs` snippet at the bottom. This is the primary deliverable — always open it for the user.
 
 ## CLI flags
 
@@ -95,15 +95,16 @@ The helper auto-detects `$SWAGGER_UI_DIR`, `~/Developer/swagger-ui`, or `node_mo
 | `--min-samples <n>` | no | Minimum samples per endpoint to include. Default `1` |
 | `--stage <name>` | no | Run only one stage: `load`, `filter`, `normalize`, `infer`, `emit` |
 
-`scripts/open-swagger-ui.mjs` accepts `--run <path>` or `--spec <path>`, plus optional `--swagger-ui <path>`, `--host`, `--port`, and `--no-open`.
 
 ## Output layout
 
 ```
 <run>/api-spec/
-├── openapi.yaml              primary deliverable
+├── index.html                visual report — open this (self-contained, no server)
+├── client.mjs                zero-dep fetch client with typed functions per operation
+├── openapi.yaml              machine-readable spec
 ├── openapi.json              mirror
-├── report.md                 human-readable summary + coverage caveats
+├── report.md                 markdown summary + curl examples
 ├── confidence.json           per-endpoint confidence + normalization flags
 ├── samples/                  redacted request/response examples
 │   └── <method>__<path-hash>.json
