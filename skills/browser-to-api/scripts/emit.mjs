@@ -126,8 +126,11 @@ function makeOperation(ep, refOrInline) {
   for (const p of ep.pathParams || []) params.push(p);
   for (const p of ep.queryParams || []) params.push(p);
 
+  const summary = ep.operationName
+    ? `${ep.operationName} (${ep.method} ${ep.parentPath || ep.path})`
+    : `${ep.method} ${ep.path}`;
   const op = {
-    summary: `${ep.method} ${ep.path}`,
+    summary,
     operationId: makeOpId(ep),
   };
   if (params.length) op.parameters = params;
@@ -189,6 +192,9 @@ function defaultDescriptionFor(status) {
 }
 
 function makeOpId(ep) {
+  if (ep.operationName) {
+    return `${ep.method.toLowerCase()}_${ep.operationName.replace(/[^A-Za-z0-9]/g, '_')}`;
+  }
   const parts = ep.path.split('/').filter(Boolean).map(s => s.replace(/[{}]/g, ''));
   const tail = parts.map(p => p.replace(/[^A-Za-z0-9]/g, '_')).join('_');
   return `${ep.method.toLowerCase()}_${tail || 'root'}`;
@@ -203,6 +209,16 @@ export function emit(outDir, opts = {}) {
   const kept = endpoints.filter(e => e.sampleCount >= minSamples);
   const dropped = endpoints.filter(e => e.sampleCount < minSamples);
 
+  // Load raw samples for header extraction (client generation needs them)
+  const samplesByKey = new Map();
+  for (const row of readJsonl(intermediatePath(outDir, 'endpoint-samples.jsonl'))) {
+    samplesByKey.set(row.endpointKey, row.samples);
+  }
+  // Attach to kept endpoints temporarily for client gen
+  for (const ep of kept) {
+    ep.sampleRows = samplesByKey.get(ep.endpointKey) || [];
+  }
+
   // Servers: one entry per distinct origin, sorted by frequency.
   const originCounts = new Map();
   for (const e of kept) originCounts.set(e.origin, (originCounts.get(e.origin) || 0) + e.sampleCount);
@@ -213,30 +229,31 @@ export function emit(outDir, opts = {}) {
 
   const { components, refOrInline } = buildComponents(kept);
 
-  // Build paths: one keyed entry per templated path; each method becomes an
-  // operation. When the same (path, method) is observed on multiple origins
-  // (common for third-party analytics endpoints fanned across vendors), keep
-  // the highest-sample-count operation and record the other origins under
-  // `x-also-served-from` so no data is silently dropped.
+  // Build paths. Decomposed operations (e.g. GraphQL) get a synthetic path
+  // like /dapi/fe/gql#Autocomplete so each operation is a distinct entry.
   const paths = {};
-  const collisions = {}; // pathKey -> [{origin, samples}]
+  const collisions = {};
   for (const ep of kept) {
     const m = ep.method.toLowerCase();
-    if (!paths[ep.path]) paths[ep.path] = {};
-    const existing = paths[ep.path][m];
+    // Use the path as-is (includes [OpName] for decomposed endpoints)
+    const pathKey = ep.path;
+    if (!paths[pathKey]) paths[pathKey] = {};
+    const existing = paths[pathKey][m];
     if (!existing) {
-      paths[ep.path][m] = makeOperation(ep, refOrInline);
+      paths[pathKey][m] = makeOperation(ep, refOrInline);
     } else {
-      const key = `${m} ${ep.path}`;
+      const key = `${m} ${pathKey}`;
       if (!collisions[key]) collisions[key] = [{ origin: existing['x-origin'], samples: existing['x-sample-count'] }];
       collisions[key].push({ origin: ep.origin, samples: ep.sampleCount });
       if (ep.sampleCount > (existing['x-sample-count'] || 0)) {
-        paths[ep.path][m] = makeOperation(ep, refOrInline);
+        paths[pathKey][m] = makeOperation(ep, refOrInline);
       }
     }
   }
   for (const [key, origins] of Object.entries(collisions)) {
-    const [m, p] = key.split(' ');
+    const [m, ...rest] = key.split(' ');
+    const p = rest.join(' ');
+    if (!paths[p]?.[m]) continue;
     const op = paths[p][m];
     const winner = op['x-origin'];
     op['x-also-served-from'] = origins.filter(o => o.origin !== winner).map(o => o.origin);
@@ -278,73 +295,318 @@ export function emit(outDir, opts = {}) {
 
   // report.md
   const redaction = readJson(intermediatePath(outDir, 'redaction-stats.json'), { headers: 0, bodyKeys: 0, bodyValues: 0 });
-  writeText(path.join(outDir, 'report.md'), buildReport({ kept, dropped, servers, redaction, minSamples }));
+
+  // client.mjs — generated SDK wrapping each operation as a callable function
+  const clientCode = buildClient({ kept, servers });
+  if (clientCode) {
+    writeText(path.join(outDir, 'client.mjs'), clientCode);
+  }
+
+  writeText(path.join(outDir, 'report.md'), buildReport({ kept, dropped, servers, redaction, minSamples, hasClient: !!clientCode }));
 
   return {
     endpoints: kept.length,
     droppedLowSample: dropped.length,
     servers: servers.length,
     components: Object.keys(components).length,
+    client: !!clientCode,
   };
 }
 
-function buildReport({ kept, dropped, servers, redaction, minSamples }) {
+// ---------------------------------------------------------------------------
+// Client SDK generation
+// ---------------------------------------------------------------------------
+
+function toFnName(name) {
+  // Autocomplete → autocomplete, RestaurantsAvailability → restaurantsAvailability
+  return name[0].toLowerCase() + name.slice(1);
+}
+
+function extractObservedHeaders(kept) {
+  // Pull non-standard headers that appeared consistently across requests.
+  // These are often required (CSRF tokens, custom auth, etc.)
+  const candidates = new Map(); // headerName -> { values: Set, count }
+  let totalSamples = 0;
+  const skip = new Set([
+    'content-type', 'user-agent', 'accept', 'accept-encoding', 'accept-language',
+    'referer', 'origin', 'host', 'connection', 'content-length',
+    'sec-ch-ua', 'sec-ch-ua-mobile', 'sec-ch-ua-platform',
+    'sec-fetch-dest', 'sec-fetch-mode', 'sec-fetch-site',
+    'cookie', 'authorization', 'x-api-key',
+  ]);
+  for (const ep of kept) {
+    const samples = ep.sampleRows || [];
+    for (const s of samples) {
+      totalSamples++;
+      for (const [k, v] of Object.entries(s.reqHeaders || {})) {
+        const lk = k.toLowerCase();
+        if (skip.has(lk)) continue;
+        if (!candidates.has(lk)) candidates.set(lk, { name: k, values: new Set(), count: 0 });
+        const c = candidates.get(lk);
+        c.count++;
+        c.values.add(v);
+      }
+    }
+  }
+  // Keep headers present in >50% of requests (likely required)
+  const result = {};
+  for (const [, c] of candidates) {
+    if (c.count <= totalSamples * 0.5) continue;
+    if (c.values.size <= 5) {
+      result[c.name] = [...c.values][0];
+    } else {
+      // High cardinality (e.g. CSRF tokens, correlation IDs) — include with a
+      // representative value. The header is likely required even if the value varies.
+      result[c.name] = [...c.values][0];
+    }
+  }
+  return result;
+}
+
+function buildClient({ kept, servers }) {
+  const baseUrl = servers[0]?.url || '';
+  const operations = kept.filter(e => e.operationName);
+  const regular = kept.filter(e => !e.operationName);
+
+  if (!operations.length && !regular.length) return null;
+
+  // Detect required headers from the trace (e.g. CSRF tokens)
+  const observedHeaders = extractObservedHeaders(kept);
+
   const lines = [];
+  lines.push(`// Auto-generated API client from browser-trace capture.`);
+  lines.push(`// Usage: import { ${operations.slice(0, 3).map(e => toFnName(e.operationName)).join(', ')}${operations.length > 3 ? ', ...' : ''} } from './client.mjs';\n`);
+  lines.push(`const BASE = '${baseUrl}';\n`);
+
+  lines.push(`const defaultHeaders = {`);
+  lines.push(`  'Content-Type': 'application/json',`);
+  lines.push(`  'User-Agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/136.0.0.0 Safari/537.36',`);
+  for (const [k, v] of Object.entries(observedHeaders)) {
+    lines.push(`  '${k}': '${v}',`);
+  }
+  lines.push(`};\n`);
+
+  lines.push(`async function request(path, { method = 'GET', body, query, headers } = {}) {`);
+  lines.push(`  let url = BASE + path;`);
+  lines.push(`  if (query) {`);
+  lines.push(`    const qs = new URLSearchParams(Object.entries(query).filter(([, v]) => v != null));`);
+  lines.push(`    if (qs.toString()) url += '?' + qs;`);
+  lines.push(`  }`);
+  lines.push(`  const res = await fetch(url, {`);
+  lines.push(`    method,`);
+  lines.push(`    headers: { ...defaultHeaders, ...headers },`);
+  lines.push(`    ...(body ? { body: JSON.stringify(body) } : {}),`);
+  lines.push(`  });`);
+  lines.push(`  if (!res.ok) throw new Error(\`\${res.status} \${res.statusText}: \${await res.text()}\`);`);
+  lines.push(`  const ct = res.headers.get('content-type') || '';`);
+  lines.push(`  return ct.includes('json') ? res.json() : res.text();`);
+  lines.push(`}\n`);
+
+  // GraphQL / multiplexed operations
+  if (operations.length) {
+    // Group by parent path + discriminator to emit one dispatcher per GQL endpoint
+    const byParent = new Map();
+    for (const op of operations) {
+      const key = op.parentPath || op.path;
+      if (!byParent.has(key)) byParent.set(key, []);
+      byParent.get(key).push(op);
+    }
+
+    for (const [parentPath, ops] of byParent) {
+      // Check if it's a persisted-query GraphQL endpoint
+      const isPersisted = ops.some(op =>
+        op.requestExample?.extensions?.persistedQuery?.sha256Hash);
+
+      if (isPersisted) {
+        // Build a hash lookup table
+        lines.push(`// Persisted query hashes for ${parentPath}`);
+        lines.push(`const HASHES = {`);
+        for (const op of ops) {
+          const hash = op.requestExample?.extensions?.persistedQuery?.sha256Hash;
+          if (hash) lines.push(`  ${op.operationName}: '${hash}',`);
+        }
+        lines.push(`};\n`);
+      }
+
+      // Emit a function per operation
+      for (const op of ops) {
+        const fnName = toFnName(op.operationName);
+        const vars = op.requestExample?.variables;
+        const varKeys = vars && typeof vars === 'object' ? Object.keys(vars) : [];
+
+        // Build JSDoc
+        lines.push(`/**`);
+        if (varKeys.length) {
+          for (const k of varKeys) {
+            const v = vars[k];
+            const t = v === null ? '*' : Array.isArray(v) ? 'Array' : typeof v;
+            lines.push(` * @param {${t}} variables.${k}`);
+          }
+        }
+        lines.push(` * @returns {Promise<object>}`);
+        lines.push(` */`);
+
+        lines.push(`export async function ${fnName}(variables = {}) {`);
+        if (isPersisted) {
+          lines.push(`  return request('${parentPath}', {`);
+          lines.push(`    method: 'POST',`);
+          lines.push(`    query: { optype: 'query', opname: '${op.operationName}' },`);
+          lines.push(`    body: {`);
+          lines.push(`      operationName: '${op.operationName}',`);
+          lines.push(`      variables,`);
+          lines.push(`      extensions: { persistedQuery: { version: 1, sha256Hash: HASHES.${op.operationName} } },`);
+          lines.push(`    },`);
+          lines.push(`  });`);
+        } else {
+          lines.push(`  return request('${parentPath}', {`);
+          lines.push(`    method: 'POST',`);
+          lines.push(`    body: { ${op.discriminatorField || 'operationName'}: '${op.operationName}', variables },`);
+          lines.push(`  });`);
+        }
+        lines.push(`}\n`);
+      }
+    }
+  }
+
+  // Regular REST endpoints
+  for (const ep of regular) {
+    const fnName = makeOpId(ep).replace(/^(get|post|put|patch|delete)_/, (_, m) => m);
+    const hasBody = ['POST', 'PUT', 'PATCH'].includes(ep.method) && ep.requestBodyKnown;
+
+    lines.push(`export async function ${fnName}(${hasBody ? 'body, ' : ''}options = {}) {`);
+    lines.push(`  return request('${ep.path}', {`);
+    lines.push(`    method: '${ep.method}',`);
+    if (hasBody) lines.push(`    body,`);
+    lines.push(`    ...options,`);
+    lines.push(`  });`);
+    lines.push(`}\n`);
+  }
+
+  return lines.join('\n') + '\n';
+}
+
+function buildReport({ kept, dropped, servers, redaction, minSamples, hasClient }) {
+  const lines = [];
+  const baseUrl = servers[0]?.url || '';
   lines.push('# Discovered API\n');
-  lines.push('## Servers\n');
-  for (const s of servers) lines.push(`- ${s.url}`);
-  if (!servers.length) lines.push('_(none)_');
-  lines.push('');
+  lines.push(`**Base URL:** \`${baseUrl || '(unknown)'}\`\n`);
 
-  lines.push('## Endpoints\n');
-  lines.push('| Method | Path | Samples | Statuses | Confidence | Flags |');
-  lines.push('|---|---|---|---|---|---|');
-  const sorted = [...kept].sort((a, b) => a.path.localeCompare(b.path) || a.method.localeCompare(b.method));
-  for (const ep of sorted) {
-    const flags = ep.normalizationFlags.length ? ep.normalizationFlags.join(', ') : '—';
-    lines.push(`| ${ep.method} | \`${ep.path}\` | ${ep.sampleCount} | ${ep.statusCodes.join(', ') || '—'} | ${confidenceBucket(ep)} | ${flags} |`);
+  // Separate decomposed (named operations) from regular endpoints
+  const operations = kept.filter(e => e.operationName);
+  const regular = kept.filter(e => !e.operationName);
+
+  // Quick-start with generated client
+  if (hasClient) {
+    const allFns = [...operations, ...regular];
+    const fnNames = allFns.map(e => e.operationName ? toFnName(e.operationName) : makeOpId(e));
+    lines.push('## Quick start\n');
+    lines.push('```js');
+    lines.push(`import { ${fnNames.join(', ')} } from './client.mjs';`);
+    lines.push('```\n');
+    lines.push(`**${fnNames.length} functions**, zero dependencies. See [\`client.mjs\`](./client.mjs) for full signatures.\n`);
   }
-  if (!kept.length) lines.push('| — | — | — | — | — | — |');
-  lines.push('');
 
-  if (dropped.length) {
-    lines.push(`## Dropped (below --min-samples=${minSamples})\n`);
-    for (const ep of dropped) lines.push(`- \`${ep.method} ${ep.path}\` (${ep.sampleCount} sample${ep.sampleCount === 1 ? '' : 's'})`);
+  // --- Named operations (GraphQL / multiplexed) ---
+  if (operations.length) {
+    lines.push('## Operations\n');
+    lines.push('These are logical operations multiplexed over a single endpoint.\n');
+
+    const sorted = [...operations].sort((a, b) => b.sampleCount - a.sampleCount);
+    for (const ep of sorted) {
+      lines.push(`### ${ep.operationName}\n`);
+      lines.push(`- **Endpoint:** \`${ep.method} ${ep.parentPath || ep.path}\``);
+      lines.push(`- **Discriminator:** \`${ep.discriminatorField}: "${ep.operationName}"\``);
+      lines.push(`- **Samples:** ${ep.sampleCount} | **Statuses:** ${ep.statusCodes.join(', ') || '—'}`);
+      lines.push('');
+
+      // Curl example from request body
+      if (ep.requestExample) {
+        const body = JSON.stringify(ep.requestExample, null, 2);
+        const curlPath = ep.parentPath || ep.path;
+        lines.push('```bash');
+        lines.push(`curl -X ${ep.method} '${baseUrl}${curlPath}' \\`);
+        lines.push(`  -H 'Content-Type: application/json' \\`);
+        lines.push(`  -d '${body}'`);
+        lines.push('```\n');
+      }
+
+      // Key variables (for GraphQL, show the variables object shape)
+      if (ep.requestExample?.variables && typeof ep.requestExample.variables === 'object') {
+        const vars = ep.requestExample.variables;
+        const varKeys = Object.keys(vars);
+        if (varKeys.length) {
+          lines.push('**Variables:**\n');
+          lines.push('| Name | Example | Type |');
+          lines.push('|---|---|---|');
+          for (const k of varKeys) {
+            const v = vars[k];
+            const t = Array.isArray(v) ? 'array' : typeof v;
+            const example = JSON.stringify(v);
+            const truncated = example.length > 60 ? example.slice(0, 57) + '...' : example;
+            lines.push(`| \`${k}\` | \`${truncated}\` | ${t} |`);
+          }
+          lines.push('');
+        }
+      }
+
+      // Response shape summary
+      if (ep.responseExample) {
+        const respStr = JSON.stringify(ep.responseExample, null, 2);
+        const truncResp = respStr.length > 1500 ? respStr.slice(0, 1500) + '\n  ...\n}' : respStr;
+        lines.push('<details><summary>Example response</summary>\n');
+        lines.push('```json');
+        lines.push(truncResp);
+        lines.push('```\n</details>\n');
+      }
+    }
+  }
+
+  // --- Regular REST endpoints ---
+  if (regular.length) {
+    lines.push('## Endpoints\n');
+    lines.push('| Method | Path | Samples | Statuses | Confidence |');
+    lines.push('|---|---|---|---|---|');
+    const sorted = [...regular].sort((a, b) => b.sampleCount - a.sampleCount);
+    for (const ep of sorted) {
+      lines.push(`| ${ep.method} | \`${ep.path}\` | ${ep.sampleCount} | ${ep.statusCodes.join(', ') || '—'} | ${confidenceBucket(ep)} |`);
+    }
     lines.push('');
+
+    // Curl examples for top regular endpoints
+    const withExamples = sorted.filter(e => e.requestExample || e.responseExample).slice(0, 5);
+    for (const ep of withExamples) {
+      lines.push(`### \`${ep.method} ${ep.path}\`\n`);
+      if (ep.requestExample) {
+        const body = JSON.stringify(ep.requestExample, null, 2);
+        lines.push('```bash');
+        lines.push(`curl -X ${ep.method} '${baseUrl}${ep.path}' \\`);
+        lines.push(`  -H 'Content-Type: application/json' \\`);
+        lines.push(`  -d '${body}'`);
+        lines.push('```\n');
+      }
+      if (ep.responseExample) {
+        const respStr = JSON.stringify(ep.responseExample, null, 2);
+        const truncResp = respStr.length > 1000 ? respStr.slice(0, 1000) + '\n  ...\n}' : respStr;
+        lines.push('<details><summary>Example response</summary>\n');
+        lines.push('```json');
+        lines.push(truncResp);
+        lines.push('```\n</details>\n');
+      }
+    }
   }
 
-  lines.push('## Coverage caveats\n');
+  if (!kept.length) lines.push('No API endpoints discovered.\n');
+
+  // --- Coverage ---
+  lines.push('## Coverage\n');
+  lines.push(`- **${kept.length}** API endpoints discovered`);
+  if (dropped.length) lines.push(`- **${dropped.length}** dropped (below --min-samples=${minSamples})`);
   const noResp = kept.filter(e => !e.responseBodyKnown);
-  if (noResp.length) {
-    lines.push(`- **${noResp.length}** endpoint${noResp.length === 1 ? '' : 's'} have no response-body schema. \`browse cdp\` does not embed response bodies; pair with \`browse network on\` to capture them.`);
-  }
+  if (noResp.length) lines.push(`- **${noResp.length}** missing response-body schemas`);
   const singleSample = kept.filter(e => e.sampleCount === 1);
-  if (singleSample.length) {
-    lines.push(`- **${singleSample.length}** endpoint${singleSample.length === 1 ? '' : 's'} were observed only once. Drive the same flow again to gain confidence.`);
-  }
-  const noBodyOnPost = kept.filter(e => ['POST', 'PUT', 'PATCH'].includes(e.method) && !e.requestBodyKnown);
-  if (noBodyOnPost.length) {
-    lines.push(`- **${noBodyOnPost.length}** mutation endpoint${noBodyOnPost.length === 1 ? '' : 's'} have no request body in the trace (form-encoded? non-JSON? not captured?).`);
-  }
-
-  lines.push('');
-  lines.push('## Redaction\n');
-  lines.push(`- Headers redacted: ${redaction.headers}`);
-  lines.push(`- Body keys redacted: ${redaction.bodyKeys}`);
-  lines.push(`- Body values redacted by pattern: ${redaction.bodyValues}`);
+  if (singleSample.length) lines.push(`- **${singleSample.length}** observed only once`);
   lines.push('');
 
-  lines.push('## Suggested follow-up flows\n');
-  const status404 = kept.filter(e => e.statusCodes.includes(404));
-  if (status404.length) {
-    lines.push(`- Endpoints that returned 404: ${status404.slice(0, 5).map(e => '`' + e.method + ' ' + e.path + '`').join(', ')}. Re-run with valid IDs to widen the success-path schema.`);
-  }
-  if (singleSample.length) {
-    lines.push('- Re-exercise the single-sample endpoints listed above to promote them out of `low` confidence.');
-  }
-  if (!status404.length && !singleSample.length) {
-    lines.push('- The captured flow looks reasonably balanced. Add an authenticated session if the unauth view is what was captured.');
-  }
   return lines.join('\n') + '\n';
 }
 

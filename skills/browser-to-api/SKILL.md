@@ -129,6 +129,26 @@ What changes when bodies are present:
 
 The report flags every endpoint that has no response-body sample.
 
+## Automatic noise filtering
+
+The normalize stage automatically classifies and drops infrastructure noise:
+
+- **Tracking / analytics** — paths containing `/track`, `/pixel`, `/beacon`, `/impression`, `/pageview`, `/dag/v*`
+- **Bot defense** — Akamai (`/akam/`), fingerprint payloads (`sensor_data`), obfuscated multi-segment paths
+- **Session plumbing** — `/session`, `/authenticate/start`, cookie consent, A/B experiment endpoints
+- **HTML page renders** — `GET` requests returning `text/html` (the rendered page, not the API)
+
+This typically drops 60-80% of captured traffic. The `--include` flag can rescue a false positive.
+
+## GraphQL / multiplexed endpoint decomposition
+
+When a single endpoint (like `/dapi/fe/gql`) is called with different `operationName` values, the skill automatically splits it into separate logical operations. Each gets its own:
+- OpenAPI path entry (e.g. `/dapi/fe/gql [Autocomplete]`)
+- Request/response schema inferred from only that operation's samples
+- Curl example and variables table in the report
+
+Detection works on body fields (`operationName`, `method`, `action`) and query params (`opname`, `op`). This covers GraphQL (APQ and inline), JSON-RPC, and similar dispatch patterns.
+
 ## Limitations
 
 - **Coverage is bounded by the captured flow.** Endpoints not exercised in the trace will not appear. The skill cannot prove completeness.
@@ -141,7 +161,7 @@ The report flags every endpoint that has no response-body sample.
 
 1. **Drive the flows you want documented.** The richer the browser-trace, the richer the spec.
 2. **Use `--origins` for noisy sites.** A marketing page hits dozens of analytics hosts; restrict to the API origin you care about.
-3. **Inspect `report.md` first.** Low-sample endpoints, single-status endpoints, and missing request bodies are listed there with concrete suggestions.
+3. **Inspect `report.md` first.** It has curl-ready examples and response samples for every discovered operation.
 4. **Bump `--min-samples` to 2+** when you want only confidently-shaped endpoints in the final doc — drop the long tail.
 5. **Pair with `browse network on`** when response-body schemas matter. The CDP firehose alone has request bodies but not response bodies.
 

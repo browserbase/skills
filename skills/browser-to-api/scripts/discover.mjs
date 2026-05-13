@@ -84,7 +84,7 @@ function main() {
   }
 
   console.log(`\noutput: ${outDir}`);
-  for (const f of ['openapi.yaml', 'openapi.json', 'report.md', 'confidence.json']) {
+  for (const f of ['client.mjs', 'openapi.yaml', 'openapi.json', 'report.md', 'confidence.json']) {
     const p = path.join(outDir, f);
     if (fs.existsSync(p)) console.log(`  ${path.relative(process.cwd(), p)}`);
   }
