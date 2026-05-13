@@ -1,6 +1,6 @@
 ---
 name: browser
-description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications. Supports remote Browserbase sessions with automatic CAPTCHA solving, anti-bot stealth mode, and residential proxies — ideal for scraping protected websites, bypassing bot detection, and interacting with JavaScript-heavy pages.
+description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications. Supports remote Browserbase sessions with Browserbase Identity, Verified browsers, automatic CAPTCHA solving, and residential proxies — ideal for protected websites and JavaScript-heavy pages.
 compatibility: "Requires the browse CLI (`npm install -g browse`). Remote Browserbase sessions need `BROWSERBASE_API_KEY`. Local mode uses Chrome/Chromium on your machine."
 license: MIT
 allowed-tools: Bash
@@ -41,7 +41,7 @@ The CLI supports explicit per-command environment flags. If you do nothing, the 
 ### Remote mode (Browserbase)
 - `browse open <url> --remote` starts a Browserbase session
 - Without a local flag, Browserbase is also the default when `BROWSERBASE_API_KEY` is set
-- Provides: anti-bot stealth, automatic CAPTCHA solving, residential proxies, session persistence
+- Provides: Browserbase Identity, Verified browsers, automatic CAPTCHA solving, residential proxies, session persistence
 - **Use remote mode when:** the target site has bot detection, CAPTCHAs, IP rate limiting, Cloudflare protection, or requires geo-specific access
 - Get credentials at https://browserbase.com/settings
 
@@ -130,11 +130,11 @@ browse stop
 | Speed | Faster | Slightly slower |
 | Setup | Chrome required | API key required |
 | Reuse existing local cookies | With `browse open <url> --auto-connect` | N/A |
-| Stealth mode | No | Yes (custom Chromium, anti-bot fingerprinting) |
+| Verified browser | No | Yes (Browserbase Verified browser via Identity) |
 | CAPTCHA solving | No | Yes (automatic reCAPTCHA/hCaptcha) |
 | Residential proxies | No | Yes (201 countries, geo-targeting) |
 | Session persistence | No | Yes (cookies/auth persist via contexts) |
-| Best for | Development/simple pages | Protected sites, bot detection, production scraping |
+| Best for | Development/simple pages | Protected sites, Browserbase Identity + Verified access, production scraping |
 
 ## Best Practices
 

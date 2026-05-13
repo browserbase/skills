@@ -52,13 +52,13 @@ node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --context ctx_abc123
 
 Re-injects fresh cookies into a previously created context. Use this when cookies have expired.
 
-### Advanced stealth mode
+### Verified browser mode
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --stealth
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --verified
 ```
 
-Enables Browserbase's advanced stealth mode to reduce bot detection. Recommended for sites like Google that fingerprint browsers.
+Enables Browserbase Identity with a Verified browser to improve access on protected sites. Recommended for sites like Google that fingerprint browsers.
 
 ### Residential proxy with geolocation
 
@@ -71,7 +71,7 @@ Routes through a residential proxy in the specified location. Format: `"City,ST,
 ### Combine flags
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains github.com,google.com --stealth --proxy "San Francisco,CA,US"
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains github.com,google.com --verified --proxy "San Francisco,CA,US"
 ```
 
 ## Browsing Authenticated Sites
@@ -121,4 +121,4 @@ Contexts persist across sessions, making them ideal for scheduled/recurring task
 - **"No open page targets found"** → Open at least one tab in Chrome
 - **"WebSocket error"** → Chrome may be hung; force quit and reopen it
 - **Cookies expired in context** → Re-run cookie-sync with `--context <id>` to refresh
-- **Auth rejected by site** → Try adding `--stealth` and/or `--proxy` with a location near you
+- **Auth rejected by site** → Try adding `--verified` and/or `--proxy` with a location near you

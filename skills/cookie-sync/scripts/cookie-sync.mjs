@@ -9,7 +9,7 @@
 //   node scripts/cookie-sync.mjs                                        # sync all cookies into a new context
 //   node scripts/cookie-sync.mjs --domains google.com,github.com        # only sync cookies for these domains
 //   node scripts/cookie-sync.mjs --context ctx_abc123                   # refresh cookies in an existing context
-//   node scripts/cookie-sync.mjs --stealth                              # enable advanced stealth mode
+//   node scripts/cookie-sync.mjs --verified                             # enable Browserbase Verified browser mode
 //   node scripts/cookie-sync.mjs --proxy "San Francisco,CA,US"          # use residential proxy with geolocation
 //
 // After syncing, use the browse CLI to open an authenticated session:
@@ -37,15 +37,15 @@ import { resolve } from 'path';
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const result = { domains: [], contextId: null, stealth: false, proxy: null };
+  const result = { domains: [], contextId: null, verified: false, proxy: null };
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--domains' && args[i + 1]) {
       result.domains = args[++i].split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
     } else if (args[i] === '--context' && args[i + 1]) {
       result.contextId = args[++i];
-    } else if (args[i] === '--stealth') {
-      result.stealth = true;
+    } else if (args[i] === '--verified') {
+      result.verified = true;
     } else if (args[i] === '--proxy' && args[i + 1]) {
       const parts = args[++i].split(',').map(s => s.trim());
       if (!parts[0] || !parts[1]) {
@@ -266,7 +266,7 @@ async function main() {
 
   // Step 4: Create a temporary Browserbase session to inject cookies
   const browserSettings = { context: { id: contextId, persist: true } };
-  if (CLI.stealth) browserSettings.advancedStealth = true;
+  if (CLI.verified) browserSettings.verified = true;
 
   const cloud = new Stagehand({
     env: 'BROWSERBASE',

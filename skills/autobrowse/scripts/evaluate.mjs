@@ -274,7 +274,7 @@ function executeCommand(command) {
 function buildSystemPrompt(strategy, traceDir, browseEnv) {
   const openFlag = browseEnv === "remote" ? "--remote" : "--local";
   const envDesc = browseEnv === "remote"
-    ? `Use **remote mode** (Browserbase) — anti-bot stealth, CAPTCHA solving, residential proxies:
+    ? `Use **remote mode** (Browserbase) — Browserbase Identity, Verified browsers, CAPTCHA solving, residential proxies:
 \`\`\`
 browse stop
 browse open <url> --remote

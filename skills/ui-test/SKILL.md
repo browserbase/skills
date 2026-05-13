@@ -237,7 +237,7 @@ browse stop
 browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
-Cookie-sync flags: `--domains`, `--context`, `--stealth`, `--proxy "City,ST,US"`
+Cookie-sync flags: `--domains`, `--context`, `--verified`, `--proxy "City,ST,US"`
 
 ## Workflow A: Diff-Driven Testing
 
@@ -599,6 +599,6 @@ For worked examples with exact commands, read [EXAMPLES.md](EXAMPLES.md) if you 
 - **Element ref not found**: `browse snapshot` again — refs change on page update
 - **Blank snapshot**: `browse wait load` or `browse wait selector ".expected"` before snapshotting
 - **SPA deep links 404**: Navigate to `/` first, then click through
-- **Remote auth fails**: Re-run cookie-sync with `--context <id>`, try `--stealth`
+- **Remote auth fails**: Re-run cookie-sync with `--context <id>`, try `--verified`
 - **Parallel session conflicts**: Ensure every `browse` command uses `BROWSE_SESSION=<name>` — without it, commands go to the default session
 - **Session not stopping**: `BROWSE_SESSION=<name> browse stop`. For zombies: `pkill -f "browse.*<name>.*daemon"`

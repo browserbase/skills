@@ -126,7 +126,7 @@ The pending-requests query is the smoking gun: if a fetch never finishes, the pa
 **User says**: "Production logs say `TypeError: Cannot read properties of undefined (reading 'foo')` on `/dashboard`. I can't reproduce locally."
 
 ```bash
-# Use Browserbase remote so the run uses the same Chromium build / stealth as prod.
+# Use Browserbase remote so the run uses the same Browserbase Identity / Verified browser setup as prod.
 export BROWSERBASE_API_KEY=...
 SESSION=$(browse cloud sessions create --keep-alive --timeout 600)
 SID=$(echo "$SESSION" | jq -r .id)

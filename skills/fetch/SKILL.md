@@ -25,7 +25,7 @@ export BROWSERBASE_API_KEY="your_api_key"
 | Check HTTP status/headers | Yes | No |
 | JavaScript-rendered pages | No | Yes |
 | Form interactions | No | Yes |
-| Page behind bot detection | Possible (with proxies) | Yes (stealth mode) |
+| Page behind bot detection | Possible (with proxies) | Yes (Browserbase Identity + Verified browser) |
 | Simple scraping | Yes | Overkill |
 | Speed | Fast | Slower |
 

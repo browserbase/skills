@@ -84,7 +84,7 @@ browse stop
 
 The agent detects bot protection and tells the user:
 
-> This site has Cloudflare bot detection. Browserbase remote mode can bypass this with anti-bot stealth and residential proxies. Want me to set it up?
+> This site has Cloudflare bot detection. Browserbase remote mode can use Browserbase Identity with a Verified browser and residential proxies. Want me to set it up?
 
 If the user agrees:
 
