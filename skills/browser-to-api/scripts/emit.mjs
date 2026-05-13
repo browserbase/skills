@@ -304,6 +304,9 @@ export function emit(outDir, opts = {}) {
 
   writeText(path.join(outDir, 'report.md'), buildReport({ kept, dropped, servers, redaction, minSamples, hasClient: !!clientCode }));
 
+  // index.html — self-contained visual report
+  writeText(path.join(outDir, 'index.html'), buildHtmlReport({ kept, servers, title, clientCode }));
+
   return {
     endpoints: kept.length,
     droppedLowSample: dropped.length,
@@ -608,6 +611,168 @@ function buildReport({ kept, dropped, servers, redaction, minSamples, hasClient 
   lines.push('');
 
   return lines.join('\n') + '\n';
+}
+
+// ---------------------------------------------------------------------------
+// HTML report
+// ---------------------------------------------------------------------------
+
+function escHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function buildHtmlReport({ kept, servers, title, clientCode }) {
+  const baseUrl = servers[0]?.url || '';
+  const operations = kept.filter(e => e.operationName);
+  const regular = kept.filter(e => !e.operationName);
+  const all = [...operations.sort((a, b) => b.sampleCount - a.sampleCount), ...regular];
+
+  const opCards = all.map((ep, i) => {
+    const name = ep.operationName || `${ep.method} ${ep.path}`;
+    const fnName = ep.operationName ? toFnName(ep.operationName) : null;
+    const vars = ep.requestExample?.variables;
+    const varRows = vars && typeof vars === 'object'
+      ? Object.entries(vars).map(([k, v]) => {
+          const t = v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v;
+          const ex = JSON.stringify(v);
+          return `<tr><td><code>${escHtml(k)}</code></td><td>${escHtml(t)}</td><td><code>${escHtml(ex.length > 50 ? ex.slice(0, 47) + '...' : ex)}</code></td></tr>`;
+        }).join('\n')
+      : '';
+
+    const reqBody = ep.requestExample ? JSON.stringify(ep.requestExample, null, 2) : null;
+    const respBody = ep.responseExample ? JSON.stringify(ep.responseExample, null, 2) : null;
+    const truncResp = respBody && respBody.length > 2000 ? respBody.slice(0, 2000) + '\n  ...' : respBody;
+
+    return `
+    <div class="card" id="op-${i}">
+      <div class="card-header" onclick="this.parentElement.classList.toggle('open')">
+        <div class="card-title">
+          <span class="method">POST</span>
+          <span class="op-name">${escHtml(name)}</span>
+        </div>
+        <div class="card-meta">
+          <span class="badge">${ep.sampleCount} sample${ep.sampleCount !== 1 ? 's' : ''}</span>
+          ${fnName ? `<code class="fn-name">${escHtml(fnName)}()</code>` : ''}
+        </div>
+      </div>
+      <div class="card-body">
+        ${ep.parentPath ? `<p class="endpoint-line"><strong>Endpoint:</strong> <code>${escHtml(ep.method)} ${escHtml(baseUrl)}${escHtml(ep.parentPath)}</code></p>` : ''}
+        ${ep.discriminatorField ? `<p class="endpoint-line"><strong>Discriminator:</strong> <code>${escHtml(ep.discriminatorField)}: "${escHtml(ep.operationName)}"</code></p>` : ''}
+
+        ${varRows ? `
+        <h4>Variables</h4>
+        <table class="var-table">
+          <thead><tr><th>Name</th><th>Type</th><th>Example</th></tr></thead>
+          <tbody>${varRows}</tbody>
+        </table>` : ''}
+
+        ${fnName ? `
+        <h4>Client usage</h4>
+        <pre><code>import { ${escHtml(fnName)} } from './client.mjs';
+
+const result = await ${escHtml(fnName)}(${vars ? JSON.stringify(Object.fromEntries(Object.entries(vars).filter(([,v]) => v !== '<redacted>').slice(0, 4).map(([k, v]) => {
+          if (Array.isArray(v) && v.length > 2) return [k, v.slice(0, 2)];
+          return [k, v];
+        })), null, 2) : '{}'});</code></pre>` : ''}
+
+        ${reqBody ? `
+        <h4>Request body</h4>
+        <pre class="scrollable"><code>${escHtml(reqBody)}</code></pre>` : ''}
+
+        ${truncResp ? `
+        <h4>Response</h4>
+        <pre class="scrollable"><code>${escHtml(truncResp)}</code></pre>` : ''}
+      </div>
+    </div>`;
+  }).join('\n');
+
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>${escHtml(title)} — API Report</title>
+<style>
+  :root {
+    --brand: #F03603;
+    --black: #100D0D;
+    --gray: #514F4F;
+    --border: #edebeb;
+    --bg: #F9F6F4;
+    --card: #ffffff;
+    --text: #100D0D;
+    --muted: #514F4F;
+    --green: #22863a;
+    --code-bg: #f6f5f5;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; font-size: 15px; }
+  .container { max-width: 900px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+  header { margin-bottom: 2rem; }
+  header h1 { font-size: 1.5rem; font-weight: 600; margin-bottom: 0.25rem; }
+  header .meta { color: var(--muted); font-size: 0.875rem; }
+
+  .summary { display: flex; gap: 0.75rem; margin-bottom: 2rem; flex-wrap: wrap; }
+  .stat { background: var(--card); border: 1px solid var(--border); border-radius: 6px; padding: 1rem 1.25rem; flex: 1; min-width: 120px; }
+  .stat .label { font-size: 0.6875rem; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); font-weight: 600; margin-bottom: 0.25rem; }
+  .stat .value { font-size: 1.5rem; font-weight: 700; color: var(--black); }
+
+  .card { background: var(--card); border: 1px solid var(--border); border-radius: 6px; margin-bottom: 0.5rem; overflow: hidden; }
+  .card-header { padding: 0.875rem 1.25rem; cursor: pointer; display: flex; justify-content: space-between; align-items: center; user-select: none; }
+  .card-header:hover { background: #faf9f8; }
+  .card-title { display: flex; align-items: center; gap: 0.75rem; }
+  .card-meta { display: flex; align-items: center; gap: 0.75rem; }
+  .method { background: var(--green); color: white; font-size: 0.6875rem; font-weight: 700; padding: 0.2rem 0.5rem; border-radius: 3px; text-transform: uppercase; letter-spacing: 0.03em; }
+  .op-name { font-weight: 600; font-size: 0.9375rem; }
+  .fn-name { font-size: 0.8125rem; color: var(--muted); background: var(--code-bg); padding: 0.15rem 0.4rem; border-radius: 3px; }
+  .badge { font-size: 0.75rem; color: var(--muted); background: var(--code-bg); padding: 0.15rem 0.5rem; border-radius: 10px; }
+
+  .card-body { display: none; padding: 0 1.25rem 1.25rem; border-top: 1px solid var(--border); }
+  .card.open .card-body { display: block; padding-top: 1rem; }
+  .card-body h4 { font-size: 0.8125rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted); margin: 1.25rem 0 0.5rem; }
+  .card-body h4:first-child { margin-top: 0; }
+  .endpoint-line { font-size: 0.875rem; margin-bottom: 0.25rem; }
+
+  .var-table { width: 100%; border-collapse: collapse; font-size: 0.8125rem; }
+  .var-table th { text-align: left; font-weight: 600; color: var(--muted); padding: 0.4rem 0.75rem; border-bottom: 1px solid var(--border); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
+  .var-table td { padding: 0.35rem 0.75rem; border-bottom: 1px solid #f5f4f3; }
+  .var-table code { font-size: 0.8125rem; }
+
+  pre { background: var(--code-bg); border-radius: 4px; padding: 0.75rem 1rem; overflow-x: auto; font-size: 0.8125rem; line-height: 1.5; }
+  pre.scrollable { max-height: 400px; overflow-y: auto; }
+  code { font-family: 'SF Mono', 'Fira Code', 'Fira Mono', Menlo, Consolas, monospace; font-size: 0.875em; }
+
+  .client-section { margin-top: 2rem; }
+  .client-section h2 { font-size: 1.125rem; font-weight: 600; margin-bottom: 0.75rem; }
+</style>
+</head>
+<body>
+<div class="container">
+  <header>
+    <h1>${escHtml(title)}</h1>
+    <p class="meta">${escHtml(baseUrl)} · ${all.length} operation${all.length !== 1 ? 's' : ''} discovered from browser trace</p>
+  </header>
+
+  <div class="summary">
+    <div class="stat"><div class="label">Operations</div><div class="value">${all.length}</div></div>
+    <div class="stat"><div class="label">Endpoint</div><div class="value" style="font-size:0.875rem">${escHtml(operations[0]?.parentPath || regular[0]?.path || '—')}</div></div>
+    <div class="stat"><div class="label">Protocol</div><div class="value" style="font-size:0.875rem">${operations.length ? 'GraphQL (APQ)' : 'REST'}</div></div>
+    <div class="stat"><div class="label">Total samples</div><div class="value">${all.reduce((s, e) => s + e.sampleCount, 0)}</div></div>
+  </div>
+
+  ${opCards}
+
+  ${clientCode ? `
+  <div class="client-section">
+    <h2>Generated client</h2>
+    <p style="color:var(--muted);font-size:0.875rem;margin-bottom:0.75rem;">Copy <code>client.mjs</code> into your project. Zero dependencies — uses native <code>fetch</code>.</p>
+    <pre class="scrollable"><code>${escHtml(clientCode)}</code></pre>
+  </div>` : ''}
+</div>
+</body>
+</html>
+`;
 }
 
 if (import.meta.url === `file://${process.argv[1]}`) {
