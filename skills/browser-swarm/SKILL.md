@@ -157,6 +157,8 @@ To verify Arc's latest extension-level parallel input queue, use the parallel-cl
 BROWSER_SWARM_BROWSE_BIN=<browse-cli> npm run e2e:arc-parallel-click
 ```
 
+Treat `e2e:arc-parallel-click` as the acceptance gate for Arc parallel pointer input. A `PASS` means parallel same-page pointer-click submission worked against the active Arc extension worker. `BLOCKED_STALE_EXTENSION` means Arc did not load the current unpacked worker yet; reload Browser Swarm Bridge or restart Arc, confirm `/health` shows the expected version, then rerun the same command.
+
 ### Disposable Test Browser Mode
 
 Use this mode only for e2e tests, demos, and throwaway profiles. It launches a separate browser profile:
