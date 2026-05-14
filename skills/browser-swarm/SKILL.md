@@ -151,6 +151,12 @@ To smoke-test Arc-safe writes without restarting Arc, use the serialized-click e
 BROWSER_SWARM_BROWSE_BIN=<browse-cli> npm run e2e:arc-serialized-click
 ```
 
+To verify Arc's latest extension-level parallel input queue, use the parallel-click e2e after `/health` reports the connected extension version matches the unpacked manifest version. This command intentionally exits `3` with `BLOCKED_STALE_EXTENSION` when Arc is still running an old MV3 service worker:
+
+```bash
+BROWSER_SWARM_BROWSE_BIN=<browse-cli> npm run e2e:arc-parallel-click
+```
+
 ### Disposable Test Browser Mode
 
 Use this mode only for e2e tests, demos, and throwaway profiles. It launches a separate browser profile:
