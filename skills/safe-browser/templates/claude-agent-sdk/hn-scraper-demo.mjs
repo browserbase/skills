@@ -51,13 +51,22 @@ function normalizeHost(url) {
   return parsed.hostname.toLowerCase().replace(/^www\./, "");
 }
 
-function isInternalUrl(url) {
-  return (
-    url.startsWith("about:") ||
-    url.startsWith("chrome:") ||
-    url.startsWith("devtools:") ||
-    url.startsWith("data:")
-  );
+// Classify a URL by scheme before any host-allowlist decision.
+//   "allowed-internal" — safe browser-internal URLs (e.g. about:blank for new pages).
+//   "blocked-scheme"   — content-bearing schemes that bypass host allowlists entirely
+//                        (data:, blob:, javascript:, file:, etc.) — must be blocked.
+//   "check-host"       — http(s) URLs: defer to the host allowlist.
+function classifyUrlScheme(url) {
+  if (url === "about:blank") return "allowed-internal";
+  let parsed;
+  try {
+    parsed = new URL(url);
+  } catch {
+    return "blocked-scheme";
+  }
+  const protocol = parsed.protocol.toLowerCase();
+  if (protocol === "http:" || protocol === "https:") return "check-host";
+  return "blocked-scheme";
 }
 
 function toAbsoluteUrl(href) {
@@ -91,13 +100,8 @@ function waitForAuditEntry(url, startIndex = 0, timeoutMs = 6000) {
   });
 }
 
-async function setupBrowser() {
-  const headless = process.env.SAFE_BROWSER_HEADLESS !== "false";
-  browser = await chromium.launch({ headless });
-  page = await browser.newPage({ viewport: { width: 1280, height: 900 } });
-  cdp = await page.context().newCDPSession(page);
-
-  cdp.on("Fetch.requestPaused", async (params) => {
+async function installFetchInterception(session, sourceLabel) {
+  session.on("Fetch.requestPaused", async (params) => {
     const url = params.request?.url ?? "";
     const baseEntry = {
       time: new Date().toISOString(),
@@ -105,25 +109,44 @@ async function setupBrowser() {
       url,
       resourceType: params.resourceType,
       cdpEvent: "Fetch.requestPaused",
+      source: sourceLabel,
     };
 
     try {
-      if (isInternalUrl(url)) {
-        await cdp.send("Fetch.continueRequest", { requestId: params.requestId });
+      const classification = classifyUrlScheme(url);
+
+      if (classification === "allowed-internal") {
+        await session.send("Fetch.continueRequest", { requestId: params.requestId });
         auditLog.push({
           ...baseEntry,
           host: null,
           verdict: "allowed",
-          reason: "Internal browser URL",
+          reason: "Internal browser URL (about:blank)",
           cdpDecision: "Fetch.continueRequest",
           networkContinued: true,
         });
         return;
       }
 
+      if (classification === "blocked-scheme") {
+        await session.send("Fetch.failRequest", {
+          requestId: params.requestId,
+          errorReason: "BlockedByClient",
+        });
+        auditLog.push({
+          ...baseEntry,
+          host: null,
+          verdict: "blocked",
+          reason: "Non-http(s) scheme bypasses host allowlist",
+          cdpDecision: "Fetch.failRequest",
+          networkContinued: false,
+        });
+        return;
+      }
+
       const host = normalizeHost(url);
       if (allowlist.has(host)) {
-        await cdp.send("Fetch.continueRequest", { requestId: params.requestId });
+        await session.send("Fetch.continueRequest", { requestId: params.requestId });
         auditLog.push({
           ...baseEntry,
           host,
@@ -135,7 +158,7 @@ async function setupBrowser() {
         return;
       }
 
-      await cdp.send("Fetch.failRequest", {
+      await session.send("Fetch.failRequest", {
         requestId: params.requestId,
         errorReason: "BlockedByClient",
       });
@@ -158,7 +181,7 @@ async function setupBrowser() {
       });
 
       try {
-        await cdp.send("Fetch.failRequest", {
+        await session.send("Fetch.failRequest", {
           requestId: params.requestId,
           errorReason: "BlockedByClient",
         });
@@ -171,9 +194,50 @@ async function setupBrowser() {
   cdpCommandLog.push({
     method: "Fetch.enable",
     params: { patterns: [{ urlPattern: "*" }] },
+    source: sourceLabel,
   });
-  await cdp.send("Fetch.enable", {
+  await session.send("Fetch.enable", {
     patterns: [{ urlPattern: "*" }],
+  });
+}
+
+async function setupBrowser() {
+  const headless = process.env.SAFE_BROWSER_HEADLESS !== "false";
+  browser = await chromium.launch({ headless });
+
+  // Throwaway isolated context: deny downloads and block service workers so a
+  // single attacker-controlled page can't side-channel out of the firewall.
+  const context = await browser.newContext({
+    viewport: { width: 1280, height: 900 },
+    serviceWorkers: "block",
+    acceptDownloads: false,
+  });
+
+  page = await context.newPage();
+  cdp = await context.newCDPSession(page);
+  await installFetchInterception(cdp, "page:initial");
+
+  // Cover popups, target="_blank" navigations, and window.open(): a new page
+  // is its own CDP target whose requests would otherwise escape interception.
+  // We close the popup immediately and log it — the safe-browser policy does
+  // not allow secondary windows for the demo's threat model.
+  context.on("page", async (newPage) => {
+    if (newPage === page) return;
+    const popupUrl = newPage.url();
+    auditLog.push({
+      time: new Date().toISOString(),
+      requestId: null,
+      url: popupUrl,
+      resourceType: "Document",
+      cdpEvent: "Page.popupOpened",
+      host: null,
+      verdict: "blocked",
+      reason: "Secondary window blocked by safe-browser policy",
+      cdpDecision: "Page.close",
+      networkContinued: false,
+      source: "popup",
+    });
+    await newPage.close().catch(() => {});
   });
 }
 
@@ -182,6 +246,38 @@ async function teardownBrowser() {
 }
 
 async function navigateWithCdp(url) {
+  // Reject non-http(s) schemes at the navigate entrypoint. The Fetch
+  // interception below would also catch this, but refusing here keeps the
+  // audit log honest about *what* was attempted and avoids edge cases where
+  // a scheme handler renders before the firewall sees the request.
+  if (classifyUrlScheme(url) === "blocked-scheme") {
+    const entry = {
+      time: new Date().toISOString(),
+      requestId: null,
+      url,
+      resourceType: "Document",
+      cdpEvent: "navigateWithCdp.refusedScheme",
+      host: null,
+      verdict: "blocked",
+      reason: "Non-http(s) scheme bypasses host allowlist",
+      cdpDecision: "refused",
+      networkContinued: false,
+    };
+    auditLog.push(entry);
+    return {
+      action: "goto",
+      url,
+      host: null,
+      verdict: "blocked",
+      reason: entry.reason,
+      cdpMethod: null,
+      cdpDecision: "refused",
+      networkContinued: false,
+      currentUrl: page.url(),
+      restoredTo: null,
+    };
+  }
+
   const auditStart = auditLog.length;
   cdpCommandLog.push({ method: "Page.navigate", params: { url } });
   await cdp.send("Page.navigate", { url });
@@ -241,9 +337,17 @@ async function extractFrontPage(limit = 10) {
     });
   }, limit);
 
+  // Only surface http(s) URLs to the agent. Page-derived hrefs are attacker-
+  // influenced: a malicious story link of the form data:text/html,... must
+  // never reach the agent's context, or it becomes a navigation probe target.
+  const httpOnly = (rawUrl) => {
+    const absolute = toAbsoluteUrl(rawUrl);
+    return absolute && classifyUrlScheme(absolute) === "check-host" ? absolute : null;
+  };
+
   const normalizedStories = stories.map((story) => {
-    const url = toAbsoluteUrl(story.url);
-    const commentsUrl = toAbsoluteUrl(story.commentsUrl);
+    const url = httpOnly(story.url);
+    const commentsUrl = httpOnly(story.commentsUrl);
     const host = url ? normalizeHost(url) : null;
     return {
       ...story,
@@ -366,9 +470,10 @@ try {
       "2. Extract the first 10 front-page stories.",
       "3. Visit the first internal Hacker News comments page from those stories.",
       "4. Extract the first 5 comments.",
-      "5. Then deliberately attempt to visit the first external story URL from the front page.",
-      "6. Report the story count, comment count, external URL attempted, and whether CDP blocked it.",
-      "If there is no external story URL, attempt https://example.com/ as the blocked control.",
+      "5. Then deliberately attempt to visit https://example.com/ as the blocked control.",
+      "6. Report the story count, comment count, blocked URL attempted, and whether CDP blocked it.",
+      "Do not use any URL parsed out of the page as the bypass probe — page-derived",
+      "URLs are attacker-influenced and would only test whichever scheme the page chose.",
     ].join("\n"),
     options: {
       cwd: __dirname,
