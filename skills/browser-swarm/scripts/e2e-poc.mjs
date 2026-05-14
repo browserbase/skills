@@ -161,6 +161,46 @@ async function cdpProbe(wsUrl, commands) {
   }
 }
 
+async function cdpRootLifecycle(wsUrl, createUrl) {
+  const ws = new WebSocket(wsUrl);
+  await new Promise((resolve, reject) => {
+    ws.once("open", resolve);
+    ws.once("error", reject);
+  });
+
+  let nextId = 1;
+  async function send(method, params = {}) {
+    const id = nextId++;
+    ws.send(JSON.stringify({ id, method, params }));
+    return new Promise((resolve, reject) => {
+      const onMessage = (raw) => {
+        const message = JSON.parse(raw.toString());
+        if (message.id !== id) return;
+        ws.off("message", onMessage);
+        resolve(message);
+      };
+      ws.on("message", onMessage);
+      setTimeout(() => {
+        ws.off("message", onMessage);
+        reject(new Error(`Timed out waiting for ${method}`));
+      }, 5000).unref();
+    });
+  }
+
+  try {
+    const before = await send("Target.getTargets");
+    const created = await send("Target.createTarget", { url: createUrl });
+    const createdTargetId = created.result?.targetId;
+    assert(createdTargetId, `Expected root createTarget to return a targetId: ${JSON.stringify(created)}`);
+    const afterCreate = await send("Target.getTargets");
+    const closed = await send("Target.closeTarget", { targetId: createdTargetId });
+    const afterClose = await send("Target.getTargets");
+    return { before, created, afterCreate, closed, afterClose, createdTargetId };
+  } finally {
+    ws.close();
+  }
+}
+
 const relay = spawn("node", ["scripts/swarm-relay.mjs", "serve", "--port", String(port)], {
   cwd: skillDir,
   stdio: ["ignore", "pipe", "pipe"]
@@ -239,8 +279,11 @@ try {
   const isolation = await cdpProbe(firstTarget.wsUrl, [
     { name: "visible", method: "Target.getTargets" },
     { name: "attachOwn", method: "Target.attachToTarget", params: { targetId: firstTarget.targetId, flatten: true } },
+    { name: "visibleWithSession", method: "Target.getTargets", sessionIdFrom: "attachOwn" },
     { name: "attachOther", method: "Target.attachToTarget", params: { targetId: secondTarget.targetId, flatten: true } },
+    { name: "attachOtherWithSession", method: "Target.attachToTarget", sessionIdFrom: "attachOwn", params: { targetId: secondTarget.targetId, flatten: true } },
     { name: "infoOther", method: "Target.getTargetInfo", params: { targetId: secondTarget.targetId } },
+    { name: "infoOtherWithSession", method: "Target.getTargetInfo", sessionIdFrom: "attachOwn", params: { targetId: secondTarget.targetId } },
     { name: "createTarget", method: "Target.createTarget", params: { url: "https://example.net/#worker-created" } },
     { name: "closeOwn", method: "Target.closeTarget", params: { targetId: firstTarget.targetId } },
     { name: "createWithSession", method: "Target.createTarget", sessionIdFrom: "attachOwn", params: { url: "https://example.net/#session-worker-created" } },
@@ -248,16 +291,28 @@ try {
     { name: "unknownSessionEval", method: "Runtime.evaluate", sessionId: "browser-swarm-stale-session", params: { expression: "location.href", returnByValue: true } }
   ]);
   const visibleTargets = isolation.visible.result?.targetInfos || [];
+  const visibleTargetsWithSession = isolation.visibleWithSession.result?.targetInfos || [];
   assert(visibleTargets.length === 1, `Expected raw CDP probe to see one target, saw ${visibleTargets.length}`);
   assert(visibleTargets[0].targetId === firstTarget.targetId, "Raw CDP probe saw the wrong target");
+  assert(visibleTargetsWithSession.length === 1, `Expected session-scoped Target.getTargets to see one target, saw ${visibleTargetsWithSession.length}`);
+  assert(visibleTargetsWithSession[0].targetId === firstTarget.targetId, "Session-scoped Target.getTargets saw the wrong target");
   assert(!isolation.attachOwn.error, `Expected attaching own target to succeed: ${JSON.stringify(isolation.attachOwn)}`);
   assert(isolation.attachOther.error, "Expected attaching sibling target to fail");
+  assert(isolation.attachOtherWithSession.error, "Expected attaching sibling target with sessionId to fail");
   assert(isolation.infoOther.error, "Expected reading sibling target info to fail");
+  assert(isolation.infoOtherWithSession.error, "Expected reading sibling target info with sessionId to fail");
   assert(isolation.createTarget.error, "Expected worker Target.createTarget to be blocked");
   assert(isolation.closeOwn.error, "Expected worker Target.closeTarget to be blocked");
   assert(isolation.createWithSession.error, "Expected worker Target.createTarget with sessionId to be blocked");
   assert(isolation.closeWithSession.error, "Expected worker Target.closeTarget with sessionId to be blocked");
   assert(isolation.unknownSessionEval.error, "Expected unknown sessionId to fail instead of falling back to the worker target");
+
+  const samePageUrl = await startSamePageServer();
+  const rootLifecycle = await cdpRootLifecycle(`ws://127.0.0.1:${port}/devtools/browser`, `${samePageUrl}#root-created`);
+  const afterCreateTargets = rootLifecycle.afterCreate.result?.targetInfos || [];
+  const afterCloseTargets = rootLifecycle.afterClose.result?.targetInfos || [];
+  assert(afterCreateTargets.some((target) => target.targetId === rootLifecycle.createdTargetId), "Expected root-created target to appear after createTarget");
+  assert(!afterCloseTargets.some((target) => target.targetId === rootLifecycle.createdTargetId), "Expected root-created target to be absent after closeTarget");
 
   const relayScreenshotPath = resolve(artifactsDir, "relay-screenshot.png");
   const relayScreenshot = await run("node", [
@@ -275,7 +330,6 @@ try {
   const relayScreenshotBytes = statSync(relayScreenshotPath).size;
   assert(relayScreenshotBytes > 0, "Expected relay screenshot CLI to write a non-empty image");
 
-  const samePageUrl = await startSamePageServer();
   const writeTargets = swarm.targets.slice(0, 3);
   await Promise.all(writeTargets.map((target) => run("node", [
     "scripts/swarm-relay.mjs",
@@ -355,14 +409,28 @@ try {
         url: target.url,
         title: target.title
       })),
+      visibleTargetsWithSession: visibleTargetsWithSession.map((target) => ({
+        targetId: target.targetId,
+        url: target.url,
+        title: target.title
+      })),
       attachOwn: isolation.attachOwn,
       attachOther: isolation.attachOther,
+      attachOtherWithSession: isolation.attachOtherWithSession,
       infoOther: isolation.infoOther,
+      infoOtherWithSession: isolation.infoOtherWithSession,
       createTarget: isolation.createTarget,
       closeOwn: isolation.closeOwn,
       createWithSession: isolation.createWithSession,
       closeWithSession: isolation.closeWithSession,
       unknownSessionEval: isolation.unknownSessionEval
+    },
+    rootLifecycle: {
+      createdTargetId: rootLifecycle.createdTargetId,
+      beforeCount: rootLifecycle.before.result?.targetInfos?.length,
+      afterCreateCount: afterCreateTargets.length,
+      afterCloseCount: afterCloseTargets.length,
+      closed: rootLifecycle.closed
     },
     relayScreenshot: {
       path: relayScreenshotPath,

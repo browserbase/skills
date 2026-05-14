@@ -47,9 +47,15 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Fix: blocked worker lifecycle commands before the session forwarding path, made unknown sessions fail closed, clear targets on extension `hello`, write relay CLI screenshots to `--path`, warn instead of failing on synthetic event emission, close the parent relay log fd after spawn, validate browser names before spreading config, and only accept bare Chrome candidates when they exist on `PATH`.
 - Evidence: `BROWSER_SWARM_PORT=19997 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed with extra probes for `Target.createTarget` / `Target.closeTarget` with an attached session, unknown session fallback, relay CLI screenshot writing (`1509844` bytes), one-target visibility, public read tasks, and three same-page parallel `fill` + `click #submit` write tasks. `node scripts/setup-real-browser.mjs --browser not-a-browser --no-open --no-start-relay --no-wait` now exits `1` with the supported browser list.
 
+### Session-scoped Target command and root closeTarget regressions
+
+- Repro: follow-up review found that a worker could send `Target.getTargets`, `Target.getTargetInfo`, or `Target.attachToTarget` with its own synthetic `sessionId` and skip the no-session isolation switch, forwarding the command to Chrome raw. It also found that root `Target.closeTarget` relied on an extension detach event that could be skipped after `chrome.tabs.remove`, leaving stale relay targets.
+- Fix: relay now scopes `Target.getTargets`, `Target.getTargetInfo`, and `Target.attachToTarget` before the session forwarding path and validates any provided `sessionId`. Root `Target.closeTarget` removes the closed target from the relay map and broadcasts a detach after a successful close response.
+- Evidence: `BROWSER_SWARM_PORT=20000 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed. The run verified session-scoped `Target.getTargets` saw exactly one worker target, session-scoped sibling attach/info errored, root create increased target count `3 -> 4`, root close reduced it `4 -> 3`, relay screenshot wrote `1510778` bytes, and the three same-page parallel write tasks still passed.
+
 ## Current Evidence
 
-- Chrome disposable grouped e2e: PASS on relay ports `19990` and `19997`; the latest run includes lifecycle/session isolation regression probes and relay CLI screenshot output.
+- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, and `20000`; the latest run includes lifecycle/session isolation regression probes, root create/close cleanup, and relay CLI screenshot output.
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.

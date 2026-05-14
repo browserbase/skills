@@ -419,6 +419,30 @@ class Relay {
       throw new Error("Target.closeTarget is disabled on browser-swarm worker endpoints; release tabs through the browser-swarm harness.");
     }
 
+    const sessionTarget = sessionId ? this.findTargetBySession(sessionId, client) : null;
+
+    switch (method) {
+      case "Target.getTargets":
+        return {
+          targetInfos: targets.map((target) => ({
+            ...target.targetInfo,
+            attached: true
+          }))
+        };
+      case "Target.getTargetInfo": {
+        const target = params.targetId
+          ? this.findTarget(params.targetId, client)
+          : sessionTarget || this.findTarget(null, client);
+        return { targetInfo: { ...target.targetInfo, attached: true } };
+      }
+      case "Target.attachToTarget": {
+        const target = params.targetId
+          ? this.findTarget(params.targetId, client)
+          : sessionTarget || this.findTarget(null, client);
+        return { sessionId: target.sessionId };
+      }
+    }
+
     if (!sessionId) {
       switch (method) {
         case "Browser.getVersion":
@@ -441,21 +465,6 @@ class Relay {
             targetId: firstTarget?.targetId
           }).catch(() => {});
           return {};
-        case "Target.getTargets":
-          return {
-            targetInfos: targets.map((target) => ({
-              ...target.targetInfo,
-              attached: true
-            }))
-          };
-        case "Target.getTargetInfo": {
-          const target = this.findTarget(params.targetId, client);
-          return { targetInfo: { ...target.targetInfo, attached: true } };
-        }
-        case "Target.attachToTarget": {
-          const target = this.findTarget(params.targetId, client);
-          return { sessionId: target.sessionId };
-        }
         case "Target.createTarget": {
           const result = await this.sendToExtension("createTarget", {
             url: params.url || "about:blank",
@@ -468,12 +477,23 @@ class Relay {
         }
         case "Target.closeTarget": {
           const target = this.findTarget(params.targetId, client);
-          return this.sendToExtension("closeTarget", { targetId: target.targetId });
+          const result = await this.sendToExtension("closeTarget", { targetId: target.targetId });
+          if (result?.success !== false) {
+            this.targets.delete(target.targetId);
+            this.broadcast({
+              method: "Target.detachedFromTarget",
+              params: {
+                sessionId: target.sessionId,
+                targetId: target.targetId
+              }
+            }, target.targetId);
+          }
+          return result;
         }
       }
     }
 
-    const target = this.findTargetBySession(sessionId, client);
+    const target = sessionTarget || this.findTargetBySession(sessionId, client);
     return this.sendToExtension("forwardCDPCommand", {
       targetId: target.targetId,
       tabId: target.tabId,
