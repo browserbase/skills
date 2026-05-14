@@ -101,6 +101,8 @@ function scanServiceWorkerDatabase(profile, expectedWorker) {
   const oldWorker = "service-worker.js";
   const extensionId = "fnkkfpnldmkoglemodoamghhienkeodp";
   const extensionOrigin = `chrome-extension://${extensionId}/`;
+  const oldWorkerUrl = `${extensionOrigin}${oldWorker}`;
+  const expectedWorkerUrl = expectedWorker ? `${extensionOrigin}${expectedWorker}` : null;
   const files = walkFiles(databaseDir);
   const matches = [];
 
@@ -112,8 +114,8 @@ function scanServiceWorkerDatabase(profile, expectedWorker) {
       continue;
     }
     const extensionHits = countBuffer(buffer, extensionOrigin);
-    const expectedWorkerHits = countBuffer(buffer, expectedWorker);
-    const oldWorkerHits = expectedWorker === oldWorker ? 0 : countBuffer(buffer, oldWorker);
+    const expectedWorkerHits = countBuffer(buffer, expectedWorkerUrl);
+    const oldWorkerHits = expectedWorker === oldWorker ? 0 : countBuffer(buffer, oldWorkerUrl);
     if (extensionHits || expectedWorkerHits || oldWorkerHits) {
       matches.push({
         file,
@@ -127,6 +129,8 @@ function scanServiceWorkerDatabase(profile, expectedWorker) {
   return {
     databaseDir,
     exists: existsSync(databaseDir),
+    oldWorkerUrl,
+    expectedWorkerUrl,
     filesScanned: files.length,
     matches,
   };
