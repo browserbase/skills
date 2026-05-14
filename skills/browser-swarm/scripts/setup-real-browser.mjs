@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, openSync } from "node:fs";
+import { existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import open, { apps } from "open";
@@ -148,6 +148,16 @@ function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function readExpectedExtension() {
+  const manifestPath = resolve(extensionDir, "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  return {
+    name: manifest.name,
+    version: manifest.version,
+    serviceWorker: manifest.background?.service_worker,
+  };
+}
+
 async function openBrowser(browser) {
   const url = browser.extensionsUrl;
   try {
@@ -163,13 +173,19 @@ async function openBrowser(browser) {
   }
 }
 
-function printInstructions({ browser, host, port, relayStarted, initialHealth }) {
+function extensionVersionMatches(status, expectedExtension) {
+  return status?.extension?.version === expectedExtension.version;
+}
+
+function printInstructions({ browser, host, port, relayStarted, initialHealth, expectedExtension }) {
   console.log(`Browser Swarm real-browser setup
 
 Browser: ${browser.label}
 Relay:   http://${host}:${port}
 Status:  ${initialHealth ? JSON.stringify(initialHealth) : "starting"}
 ${relayStarted ? `Relay log: ${relayStarted.logPath}` : ""}
+Expected extension: ${expectedExtension.name} ${expectedExtension.version}
+Expected worker:    ${expectedExtension.serviceWorker}
 
 Extension path:
 ${extensionDir}
@@ -191,6 +207,7 @@ async function main() {
   if (!existsSync(extensionDir)) {
     throw new Error(`Missing extension directory: ${extensionDir}`);
   }
+  const expectedExtension = readExpectedExtension();
   const browserKey = opts.browser.toLowerCase();
   const browser = { ...BROWSERS[browserKey] };
   if (!browser) {
@@ -207,7 +224,7 @@ async function main() {
     throw new Error(`Relay is not running on http://${opts.host}:${opts.port}`);
   }
 
-  printInstructions({ browser, host: opts.host, port: opts.port, relayStarted, initialHealth });
+  printInstructions({ browser, host: opts.host, port: opts.port, relayStarted, initialHealth, expectedExtension });
 
   let openResult = null;
   if (opts.open) {
@@ -220,6 +237,10 @@ async function main() {
     finalHealth = await waitForExtension(opts.host, opts.port, opts.timeoutSeconds * 1000);
     if (finalHealth.extensionConnected) {
       console.log(`Connected: ${JSON.stringify(finalHealth, null, 2)}`);
+      if (!extensionVersionMatches(finalHealth, expectedExtension)) {
+        console.error(`Stale extension worker detected: connected version ${finalHealth.extension?.version || "unknown"} does not match unpacked manifest version ${expectedExtension.version}. Reload Browser Swarm Bridge in the browser extension manager. If it still reports the old version, restart the browser to force the MV3 service worker registration to refresh.`);
+        process.exitCode = 3;
+      }
     } else {
       console.log(`Not connected yet: ${JSON.stringify(finalHealth, null, 2)}`);
       process.exitCode = 2;
@@ -232,7 +253,9 @@ async function main() {
       extensionDir,
       relayStarted,
       openResult,
+      expectedExtension,
       health: finalHealth,
+      versionMatches: extensionVersionMatches(finalHealth, expectedExtension),
     }, null, 2));
   }
 }

@@ -35,6 +35,12 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Fix: Tightened the worker contract with explicit command-shape guidance: do not probe commands during the run, use `tab list`, and use `screenshot --path <path>`.
 - Evidence: Strict rerun on Chrome relay port `19993` spawned three real Codex workers in parallel. All returned `status: success`, used one target each, reported no errors, and the main harness verified distinct DOM state for all three same-URL tabs.
 
+### Real-browser setup accepted stale extension workers
+
+- Repro: Arc connected to the relay and `/health` returned `extensionConnected: true`, but the active service worker reported version `0.1.0` while the unpacked manifest was `0.1.1`.
+- Fix: `setup-real-browser.mjs` now reads the unpacked manifest, prints the expected extension version/worker, and exits `3` with `versionMatches: false` when the connected worker version is stale.
+- Evidence: `node scripts/setup-real-browser.mjs --browser arc --no-open --no-start-relay --timeout 2 --json` against the stale Arc worker exited `3` and reported `versionMatches: false`; the same helper against disposable Chrome on relay port `19995` exited `0` with `versionMatches: true`.
+
 ## Current Evidence
 
 - Chrome disposable grouped e2e: PASS on relay port `19990`.
