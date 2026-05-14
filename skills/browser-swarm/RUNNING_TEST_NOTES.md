@@ -116,11 +116,9 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
   - `arc-alpha` / `BF917D95D6A0ACE58CA44CDC4D1C2233`: `arc-dom-same-page arc-alpha-codex-dom-worker`, `#result` and `#box` both `arc-alpha-codex-dom-worker`.
   - `arc-beta` / `03022778C08DA83029B6B9C80962B2FF`: `arc-dom-same-page arc-beta-codex-dom-worker`, `#result` and `#box` both `arc-beta-codex-dom-worker`.
   - `arc-gamma` / `A52E444ED6ADF2F84DB4C1FC813BDA36`: `arc-dom-same-page arc-gamma-claude-dom-worker`, `#result` and `#box` both `arc-gamma-claude-dom-worker`.
-- Arc no-group serialized pointer-click workflow: PASS on relay port `19989` with Arc's currently loaded extension version `0.1.0`; two target-bound tabs on identical local pages filled distinct values in parallel, then the top-level harness clicked `#submit` sequentially. Both tabs submitted successfully and each target-bound endpoint still reported one tab. This path is now captured and rerun as `BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e:arc-serialized-click`; the latest reusable-script run created `http://127.0.0.1:53699/same` and verified:
-  - `arc-serialized-a` / `B26CAC8532EFE1057BA296E3608C882B`: title/result/input all `arc-serialized-alpha`, tab count `1`.
-  - `arc-serialized-b` / `12F11D66ECA62740707EA923C1C3CB12`: title/result/input all `arc-serialized-beta`, tab count `1`.
-  - `arc-seq-a` / `F14485EC29508FB47E6452C64D778175`: title/result/input all `arc-sequential-alpha`, tab count `1`.
-  - `arc-seq-b` / `9BD44969D85F07876E7CF102A2480021`: title/result/input all `arc-sequential-beta`, tab count `1`.
+- Arc no-group serialized pointer-click workflow: PASS on relay port `19989` with Arc's currently loaded extension version `0.1.0`; two target-bound tabs on identical local pages filled distinct values in parallel, then the top-level harness clicked `#submit` sequentially. Both tabs submitted successfully and each target-bound endpoint still reported one tab. This path is now captured and rerun as `BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e:arc-serialized-click`; the latest reusable-script run created `http://127.0.0.1:54244/same` and verified:
+  - `arc-serialized-a` / `E20D6529F15C030F2E299280023239D3`: title/result/input all `arc-serialized-alpha`, tab count `1`.
+  - `arc-serialized-b` / `9CED6C18CA1CEBE469BC96A663C34D32`: title/result/input all `arc-serialized-beta`, tab count `1`.
 
 ## Remaining Issues
 
@@ -142,3 +140,14 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 ## Open Checks
 
 - Manually reload the Arc extension and rerun the Arc parallel pointer-click write test against active worker `0.1.1`.
+- Cursor Bugbot is still `in_progress` for PR head `7e87cf2a918600508381d46111616bc6501e37c7` with no annotations or conclusion. This is a PR readiness blocker, not a browser-swarm runtime failure.
+
+## Completion Audit
+
+- Chrome e2e across read/write, same-page tabs, lifecycle isolation, screenshots, and root/worker scoping: covered by the latest current-head disposable Chrome run on relay port `20010` with extension `0.1.1`.
+- Arc read/write workflows: covered for no-group DOM writes and top-level serialized pointer-click submission on live Arc. The live Arc service worker is still `0.1.0`, so this proves the supported Arc workaround path but does not prove the new extension-level `Input.*` serialization path in Arc.
+- Real Codex workers: covered by prior live Codex worker runs, including three concurrent same-page workers and mixed Codex/Claude Chrome runs.
+- Real Claude Code workers: covered by `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json` runs in both Chrome and Arc DOM-write workflows.
+- Worker reporting to the main harness: covered by structured JSON reports plus main-harness independent verification of title/url/text/value/tab count/screenshot artifacts.
+- Running issue log: this file records each reproduced issue, fix/workaround, and evidence.
+- Remaining unverified requirement: Arc parallel pointer-click against the current `0.1.1` extension worker. This requires a real Arc extension service-worker refresh or Arc restart; non-destructive reload/update attempts have not replaced the stale worker.
