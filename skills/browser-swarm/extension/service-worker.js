@@ -2,6 +2,7 @@ const DEFAULT_PORT = 19989;
 const GROUP_TITLE = "browser-swarm";
 const GROUP_COLOR = "cyan";
 const RECONNECT_MS = 2000;
+const CHROME_API_TIMEOUT_MS = 5000;
 
 let ws = null;
 let connectTimer = null;
@@ -17,6 +18,28 @@ function sleep(ms) {
 function send(message) {
   if (ws?.readyState === WebSocket.OPEN) {
     ws.send(JSON.stringify(message));
+  }
+}
+
+function withTimeout(promise, label, timeoutMs = CHROME_API_TIMEOUT_MS) {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      setTimeout(() => reject(new Error(`Timed out waiting for ${label}`)), timeoutMs);
+    })
+  ]);
+}
+
+async function tryChromeApi(label, promise, fallback) {
+  try {
+    return await withTimeout(promise, label);
+  } catch (error) {
+    send({
+      type: "warning",
+      label,
+      message: error instanceof Error ? error.message : String(error)
+    });
+    return fallback;
   }
 }
 
@@ -101,29 +124,33 @@ async function ensureTabs(params) {
   const count = Number(params.count || 1);
   const labels = Array.isArray(params.labels) ? params.labels : [];
   const urls = Array.isArray(params.urls) ? params.urls : [];
-  const title = typeof params.groupTitle === "string" ? params.groupTitle : GROUP_TITLE;
+  const groupDisabled = isGroupDisabled(params);
+  const title = groupDisabled
+    ? null
+    : typeof params.groupTitle === "string" ? params.groupTitle : GROUP_TITLE;
   const color = typeof params.groupColor === "string" ? params.groupColor : GROUP_COLOR;
 
-  let groupId = await findGroup(title);
-  const groupTabs = groupId === null ? [] : await chrome.tabs.query({ groupId });
-  const tabs = [...groupTabs];
+  let groupId = null;
+  let tabs = [];
+  if (groupDisabled) {
+    tabs = await managedTabs();
+  } else {
+    groupId = await findGroup(title);
+    tabs = groupId === null
+      ? []
+      : await tryChromeApi("chrome.tabs.query(group)", chrome.tabs.query({ groupId }), []);
+  }
 
   while (tabs.length < count) {
     const index = tabs.length;
     const url = urls[index] || "about:blank";
-    const tab = await chrome.tabs.create({ url, active: index === 0 });
+    const tab = await withTimeout(chrome.tabs.create({ url, active: index === 0 }), "chrome.tabs.create");
     tabs.push(tab);
   }
 
   const tabIds = tabs.map((tab) => tab.id).filter((id) => typeof id === "number");
-  if (tabIds.length > 0) {
-    if (groupId === null) {
-      groupId = await chrome.tabs.group({ tabIds });
-      await chrome.tabGroups.update(groupId, { title, color, collapsed: false });
-    } else {
-      await chrome.tabs.group({ tabIds, groupId });
-      await chrome.tabGroups.update(groupId, { title, color, collapsed: false });
-    }
+  if (!groupDisabled && tabIds.length > 0) {
+    groupId = await ensureGroup(tabIds, title, color, groupId);
   }
 
   const attached = [];
@@ -131,20 +158,54 @@ async function ensureTabs(params) {
     const tab = tabs[i];
     if (!tab.id) continue;
     if (urls[i] && tab.url !== urls[i] && !tab.url?.startsWith(urls[i])) {
-      await chrome.tabs.update(tab.id, { url: urls[i], active: i === 0 });
+      await withTimeout(chrome.tabs.update(tab.id, { url: urls[i], active: i === 0 }), "chrome.tabs.update");
       await waitForTabLoad(tab.id, 15000).catch(() => {});
     }
     const target = await attachTab(tab.id, labels[i] || `tab-${i + 1}`);
     attached.push(target);
   }
 
-  await syncGroupForAttached(title, color);
-  return { groupId, targets: attached };
+  if (!groupDisabled) {
+    await syncGroupForAttached(title, color);
+  }
+  return { groupId, groupDisabled, targets: attached };
 }
 
 async function findGroup(title) {
-  const groups = await chrome.tabGroups.query({ title });
+  const groups = await tryChromeApi("chrome.tabGroups.query", chrome.tabGroups.query({ title }), []);
   return groups.length > 0 ? groups[0].id : null;
+}
+
+function isGroupDisabled(params = {}) {
+  return params.groupDisabled === true || params.groupTitle === null || params.groupTitle === false;
+}
+
+async function managedTabs() {
+  const tabs = [];
+  for (const tabId of targetsByTab.keys()) {
+    const tab = await tryChromeApi("chrome.tabs.get", chrome.tabs.get(tabId), null);
+    if (tab) {
+      tabs.push(tab);
+    } else {
+      targetsByTab.delete(tabId);
+    }
+  }
+  return tabs;
+}
+
+async function ensureGroup(tabIds, title, color, existingGroupId = null) {
+  if (tabIds.length === 0) return existingGroupId;
+  const groupId = existingGroupId === null
+    ? await tryChromeApi("chrome.tabs.group", chrome.tabs.group({ tabIds }), null)
+    : await tryChromeApi("chrome.tabs.group", chrome.tabs.group({ tabIds, groupId: existingGroupId }), existingGroupId);
+  if (groupId !== null) {
+    await tryChromeApi(
+      "chrome.tabGroups.update",
+      chrome.tabGroups.update(groupId, { title, color, collapsed: false }),
+      null
+    );
+  }
+  return groupId;
 }
 
 async function syncGroupForAttached(title, color) {
@@ -152,39 +213,36 @@ async function syncGroupForAttached(title, color) {
   if (tabIds.length === 0) return;
 
   let groupId = await findGroup(title);
-  if (groupId === null) {
-    groupId = await chrome.tabs.group({ tabIds });
-  } else {
-    await chrome.tabs.group({ tabIds, groupId });
-  }
-  await chrome.tabGroups.update(groupId, { title, color, collapsed: false });
+  await ensureGroup(tabIds, title, color, groupId);
 }
 
 async function waitForTabLoad(tabId, timeoutMs) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
-    const tab = await chrome.tabs.get(tabId);
+    const tab = await withTimeout(chrome.tabs.get(tabId), "chrome.tabs.get");
     if (tab.status === "complete") return;
     await sleep(100);
   }
 }
 
 async function createTarget(params) {
-  const tab = await chrome.tabs.create({
+  const tab = await withTimeout(chrome.tabs.create({
     url: params.url || "about:blank",
     active: false
-  });
+  }), "chrome.tabs.create");
   if (!tab.id) throw new Error("Chrome did not return a tab id");
   await waitForTabLoad(tab.id, 15000).catch(() => {});
   const target = await attachTab(tab.id, params.label || "created");
-  await syncGroupForAttached(params.groupTitle || GROUP_TITLE, params.groupColor || GROUP_COLOR);
+  if (!isGroupDisabled(params)) {
+    await syncGroupForAttached(params.groupTitle || GROUP_TITLE, params.groupColor || GROUP_COLOR);
+  }
   return { targetId: target.targetId, target };
 }
 
 async function closeTarget(params) {
   const target = findTarget(params);
   if (!target) return { success: false };
-  await chrome.tabs.remove(target.tabId);
+  await withTimeout(chrome.tabs.remove(target.tabId), "chrome.tabs.remove");
   targetsByTab.delete(target.tabId);
   return { success: true };
 }
@@ -214,7 +272,7 @@ async function attachTab(tabId, label) {
 
   const debuggee = { tabId };
   try {
-    await chrome.debugger.attach(debuggee, "1.3");
+    await withTimeout(chrome.debugger.attach(debuggee, "1.3"), "chrome.debugger.attach");
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     if (!message.includes("Another debugger is already attached")) {
@@ -222,14 +280,26 @@ async function attachTab(tabId, label) {
     }
   }
 
-  await chrome.debugger.sendCommand(debuggee, "Page.enable").catch(() => {});
-  await chrome.debugger.sendCommand(debuggee, "Runtime.enable").catch(() => {});
+  await withTimeout(
+    chrome.debugger.sendCommand(debuggee, "Page.enable"),
+    "chrome.debugger.sendCommand(Page.enable)"
+  ).catch(() => {});
+  await withTimeout(
+    chrome.debugger.sendCommand(debuggee, "Runtime.enable"),
+    "chrome.debugger.sendCommand(Runtime.enable)"
+  ).catch(() => {});
 
   if (autoAttachParams) {
-    await chrome.debugger.sendCommand(debuggee, "Target.setAutoAttach", autoAttachParams).catch(() => {});
+    await withTimeout(
+      chrome.debugger.sendCommand(debuggee, "Target.setAutoAttach", autoAttachParams),
+      "chrome.debugger.sendCommand(Target.setAutoAttach)"
+    ).catch(() => {});
   }
 
-  const info = await chrome.debugger.sendCommand(debuggee, "Target.getTargetInfo");
+  const info = await withTimeout(
+    chrome.debugger.sendCommand(debuggee, "Target.getTargetInfo"),
+    "chrome.debugger.sendCommand(Target.getTargetInfo)"
+  );
   const targetInfo = normalizeTargetInfo(info.targetInfo, tabId);
   const sessionId = existing?.sessionId || `swarm-tab-${Date.now().toString(36)}-${nextSyntheticSession++}`;
   const target = {
@@ -260,7 +330,10 @@ async function listAttachedTargets() {
   const targets = [];
   for (const [tabId, target] of targetsByTab.entries()) {
     try {
-      const info = await chrome.debugger.sendCommand({ tabId }, "Target.getTargetInfo");
+      const info = await withTimeout(
+        chrome.debugger.sendCommand({ tabId }, "Target.getTargetInfo"),
+        "chrome.debugger.sendCommand(Target.getTargetInfo)"
+      );
       const targetInfo = normalizeTargetInfo(info.targetInfo, tabId);
       const updated = { ...target, targetId: targetInfo.targetId, targetInfo };
       targetsByTab.set(tabId, updated);
@@ -285,7 +358,10 @@ async function forwardCDPCommand(params) {
   if (params.method === "Target.setAutoAttach" && !params.sessionId) {
     autoAttachParams = params.params || {};
     await Promise.all(Array.from(targetsByTab.keys()).map((tabId) =>
-      chrome.debugger.sendCommand({ tabId }, "Target.setAutoAttach", autoAttachParams).catch(() => {})
+      withTimeout(
+        chrome.debugger.sendCommand({ tabId }, "Target.setAutoAttach", autoAttachParams),
+        "chrome.debugger.sendCommand(Target.setAutoAttach)"
+      ).catch(() => {})
     ));
     return {};
   }
@@ -297,10 +373,16 @@ async function forwardCDPCommand(params) {
   const debuggerSession = childSession ? { ...debuggee, sessionId: childSession } : debuggee;
 
   if (params.method === "Runtime.enable") {
-    await chrome.debugger.sendCommand(debuggerSession, "Runtime.disable").catch(() => {});
+    await withTimeout(
+      chrome.debugger.sendCommand(debuggerSession, "Runtime.disable"),
+      "chrome.debugger.sendCommand(Runtime.disable)"
+    ).catch(() => {});
   }
 
-  return chrome.debugger.sendCommand(debuggerSession, params.method, params.params || {});
+  return withTimeout(
+    chrome.debugger.sendCommand(debuggerSession, params.method, params.params || {}),
+    `chrome.debugger.sendCommand(${params.method})`
+  );
 }
 
 chrome.debugger.onEvent.addListener((source, method, params) => {
@@ -378,4 +460,3 @@ chrome.action.onClicked.addListener(() => {
 
 chrome.alarms.create("browser-swarm-heartbeat", { periodInMinutes: 0.1 });
 connect();
-

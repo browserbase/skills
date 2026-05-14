@@ -21,6 +21,7 @@ function parseArgs(argv) {
     else if (arg === "--target-id") opts.targetId = rest[++i];
     else if (arg === "--group-title") opts.groupTitle = rest[++i];
     else if (arg === "--group-color") opts.groupColor = rest[++i];
+    else if (arg === "--no-group") opts.noGroup = true;
     else if (arg === "--json") opts.json = true;
     else if (arg === "--compact") opts.compact = true;
     else if (arg === "--path") opts.path = rest[++i];
@@ -35,7 +36,7 @@ function parseArgs(argv) {
 function usage() {
   console.log(`Usage:
   node scripts/swarm-relay.mjs serve [--host 127.0.0.1] [--port 19989]
-  node scripts/swarm-relay.mjs ensure --count <n> [--label <name>]... [--url <url>]... [--json]
+  node scripts/swarm-relay.mjs ensure --count <n> [--label <name>]... [--url <url>]... [--no-group] [--json]
   node scripts/swarm-relay.mjs tabs [--json]
   node scripts/swarm-relay.mjs browse-url --target-id <id>
   node scripts/swarm-relay.mjs navigate --target-id <id> <url>
@@ -100,6 +101,7 @@ class Relay {
     this.extensionRequests = new Map();
     this.targets = new Map();
     this.clients = new Set();
+    this.groupDisabled = false;
     this.server = http.createServer((req, res) => this.handleHttp(req, res));
     this.wss = new WebSocketServer({ noServer: true });
     this.server.on("upgrade", (req, socket, head) => this.handleUpgrade(req, socket, head));
@@ -271,6 +273,11 @@ class Relay {
       return;
     }
 
+    if (message.type === "warning") {
+      console.warn(JSON.stringify({ source: "browser-swarm-extension", ...message }));
+      return;
+    }
+
     if (message.type === "targetDetached") {
       this.targets.delete(message.targetId);
       this.broadcast({
@@ -321,11 +328,14 @@ class Relay {
   }
 
   async ensureTabs(body) {
+    const groupDisabled = Boolean(body.groupDisabled || body.noGroup);
+    this.groupDisabled = groupDisabled;
     const result = await this.sendToExtension("ensureTabs", {
       count: body.count || 1,
       labels: body.labels || [],
       urls: body.urls || [],
-      groupTitle: body.groupTitle || DEFAULT_GROUP_TITLE,
+      groupDisabled,
+      groupTitle: groupDisabled ? null : body.groupTitle || DEFAULT_GROUP_TITLE,
       groupColor: body.groupColor || DEFAULT_GROUP_COLOR
     });
     this.mergeTargets(result.targets || []);
@@ -424,7 +434,8 @@ class Relay {
           }
           const result = await this.sendToExtension("createTarget", {
             url: params.url || "about:blank",
-            groupTitle: DEFAULT_GROUP_TITLE,
+            groupDisabled: this.groupDisabled,
+            groupTitle: this.groupDisabled ? null : DEFAULT_GROUP_TITLE,
             groupColor: DEFAULT_GROUP_COLOR
           });
           this.mergeTargets([result.target]);
@@ -583,11 +594,13 @@ async function runCli(opts) {
   }
 
   if (opts.command === "ensure") {
+    const groupDisabled = Boolean(opts.noGroup);
     const result = await post("/swarm/ensure", {
       count: opts.count || Math.max(opts.labels.length, opts.urls.length, 1),
       labels: opts.labels,
       urls: opts.urls,
-      groupTitle: opts.groupTitle || DEFAULT_GROUP_TITLE,
+      groupDisabled,
+      groupTitle: groupDisabled ? null : opts.groupTitle || DEFAULT_GROUP_TITLE,
       groupColor: opts.groupColor || DEFAULT_GROUP_COLOR
     }, port, host);
     print(result, opts.json);

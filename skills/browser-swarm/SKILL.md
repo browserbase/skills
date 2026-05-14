@@ -1,6 +1,6 @@
 ---
 name: browser-swarm
-description: Coordinate multiple browser agents in one real Chromium-family profile through a Chrome extension bridge, a colored tab group, and target-bound browse CLI endpoints.
+description: Coordinate multiple browser agents in one real Chromium-family profile through a Chrome extension bridge, browser-managed tabs, and target-bound browse CLI endpoints.
 compatibility: "Requires Node.js 20+, a Chromium-family browser with extension support, the browse CLI with --cdp and --session support, a locally loaded browser-swarm Chrome extension, and the /browser skill for CLI command reference."
 license: MIT
 allowed-tools: Bash
@@ -36,7 +36,7 @@ worker agent
   -> sees only its assigned tab
 ```
 
-The extension is browser transport and tab control. The `browse` CLI remains the worker-facing browser API. The adapter exposes one target-bound CDP URL per tab so each worker keeps a stable active-page model without cross-agent tab races.
+The extension is browser transport and tab control. The `browse` CLI remains the worker-facing browser API. The adapter exposes one target-bound CDP URL per tab so each worker keeps a stable active-page model without cross-agent tab races. Chrome tab groups are only visual organization when the browser supports them cleanly; they are not part of the isolation boundary.
 
 ## Setup
 
@@ -52,6 +52,47 @@ Start the real-browser setup helper:
 ```bash
 node scripts/setup-real-browser.mjs
 ```
+
+## Readiness Check
+
+Before creating a swarm, the top-level agent must verify that the local adapter and browser extension are ready:
+
+```bash
+curl -s http://127.0.0.1:19989/health
+```
+
+If the relay is down, start the real-browser setup helper:
+
+```bash
+node scripts/setup-real-browser.mjs
+```
+
+If the relay is up but `extensionConnected` is `false`, guide the user through the manual extension install instead of trying to install silently:
+
+```text
+I need the Browser Swarm extension loaded in the browser you want controlled.
+
+In Arc or Chrome:
+1. Enable Developer Mode.
+2. Click "Load unpacked".
+3. Select:
+   <printed skills/browser-swarm/extension path>
+4. Leave this setup command running until extensionConnected is true.
+```
+
+For Arc specifically:
+
+```bash
+node scripts/setup-real-browser.mjs --browser arc
+```
+
+For Chrome specifically:
+
+```bash
+node scripts/setup-real-browser.mjs --browser chrome
+```
+
+Proceed to `Create A Swarm` only after `/health` reports `extensionConnected: true`.
 
 ### Real Browser Mode
 
@@ -87,6 +128,8 @@ Proceed only when `extensionConnected` is `true`. If it is false, ask the user t
 Do not try to install an unpacked extension into an already-running personal browser profile without the user's approval. The only automated install path in this POC is launching a separate browser process with `--load-extension`, which creates a separate test browser rather than using the user's active browser.
 
 The default supported relay port is `19989`. The current extension connects to that port by default; non-default ports are only supported after the extension has been explicitly configured to use that port.
+
+Arc Spaces caveat: Arc is Chromium-based, but Arc Spaces are not Chrome tab groups. In Arc real-browser mode, create swarms with `--no-group` so the extension never calls `chrome.tabGroups.*` or `chrome.tabs.group`. Worker isolation still comes from target-bound endpoints, not from Arc's visual grouping.
 
 ### Disposable Test Browser Mode
 
@@ -129,6 +172,17 @@ node scripts/swarm-relay.mjs ensure \
 ```
 
 The response contains a `wsUrl` per target. The top-level agent must create one unique browse session name per worker and hand exactly one `wsUrl` plus one session name to each worker.
+
+When the controlled browser is Arc, always disable visual tab grouping:
+
+```bash
+node scripts/swarm-relay.mjs ensure \
+  --no-group \
+  --count 2 \
+  --label research-a \
+  --label research-b \
+  --json
+```
 
 Session naming pattern:
 
