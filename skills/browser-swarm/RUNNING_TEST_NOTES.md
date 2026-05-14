@@ -35,6 +35,11 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.
+- Codex subagents, same-page live stress: PASS on relay port `19992`; three real Codex workers operated concurrently against `http://127.0.0.1:18084/same` and the main harness verified distinct final states:
+  - `alpha` / `E2AC5EDA9D1D45B81446ADACC928BA77`: `live-same-page alpha-real-codex-worker`, `#result` and `#box` both `alpha-real-codex-worker`.
+  - `beta` / `4094AE97657F06583CF43CC393CD9375`: `live-same-page beta-real-codex-worker`, `#result` and `#box` both `beta-real-codex-worker`.
+  - `gamma` / `3C65F7735D292CBC14A1B1C325400E96`: `live-same-page gamma-real-codex-worker`, `#result` and `#box` both `gamma-real-codex-worker`.
+  - Worker command hygiene issue: beta/gamma tried invalid browse commands before retrying (`screenshot <path>` instead of `screenshot --path`, and `pages`), but the browser mutations, final readback, screenshots, and one-target tab isolation all succeeded.
 - Claude Code CLI agent smoke: PASS with `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json`.
 - Mixed Codex + Claude Code live workflow: PASS; one Codex worker and one Claude Code agent operated concurrently in the same disposable Chrome profile against identical same-page tabs, each reported distinct title/text/value/url/tab evidence, and the main harness independently verified one visible target per worker.
 - Arc no-group read/write workflow: PARTIAL PASS; target isolation, `fill`, `get`, and DOM `eval` submission worked on two identical Arc tabs without tab-group calls or Arc crash.
