@@ -135,7 +135,7 @@ When validating a recently changed extension, also check `/health` for the exten
 }
 ```
 
-If the version is stale, reload Browser Swarm Bridge in the browser's extension manager before testing behavior.
+If the version is stale, reload Browser Swarm Bridge in the browser's extension manager before testing behavior. If `/health` still reports the old version after reload or the browser's extension Update button, restart the browser to force the MV3 service worker registration to refresh before judging the changed extension.
 
 Do not try to install an unpacked extension into an already-running personal browser profile without the user's approval. The only automated install path in this POC is launching a separate browser process with `--load-extension`, which creates a separate test browser rather than using the user's active browser.
 
