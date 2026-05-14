@@ -98,6 +98,7 @@ class Relay {
     this.host = host;
     this.port = port;
     this.extension = null;
+    this.extensionInfo = null;
     this.extensionRequests = new Map();
     this.targets = new Map();
     this.clients = new Set();
@@ -120,6 +121,7 @@ class Relay {
         json(res, 200, {
           ok: true,
           extensionConnected: Boolean(this.extension),
+          extension: this.extensionInfo,
           targetCount: this.targets.size
         });
         return;
@@ -234,11 +236,13 @@ class Relay {
       this.extension.close(4001, "Replaced by new extension connection");
     }
     this.extension = ws;
+    this.extensionInfo = null;
 
     ws.on("message", (raw) => this.handleExtensionMessage(raw));
     ws.on("close", () => {
       if (this.extension === ws) {
         this.extension = null;
+        this.extensionInfo = null;
         this.targets.clear();
       }
     });
@@ -254,6 +258,11 @@ class Relay {
     }
 
     if (message.type === "hello") {
+      this.extensionInfo = {
+        name: message.extension || "unknown",
+        version: message.version || "unknown",
+        connectedAt: new Date().toISOString()
+      };
       this.mergeTargets(message.targets || []);
       return;
     }
