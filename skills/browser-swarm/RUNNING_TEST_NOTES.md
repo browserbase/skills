@@ -122,9 +122,9 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
   - `arc-alpha` / `BF917D95D6A0ACE58CA44CDC4D1C2233`: `arc-dom-same-page arc-alpha-codex-dom-worker`, `#result` and `#box` both `arc-alpha-codex-dom-worker`.
   - `arc-beta` / `03022778C08DA83029B6B9C80962B2FF`: `arc-dom-same-page arc-beta-codex-dom-worker`, `#result` and `#box` both `arc-beta-codex-dom-worker`.
   - `arc-gamma` / `A52E444ED6ADF2F84DB4C1FC813BDA36`: `arc-dom-same-page arc-gamma-claude-dom-worker`, `#result` and `#box` both `arc-gamma-claude-dom-worker`.
-- Arc no-group serialized pointer-click workflow: PASS on relay port `19989` with Arc's currently loaded extension version `0.1.0`; two target-bound tabs on identical local pages filled distinct values in parallel, then the top-level harness clicked `#submit` sequentially. Both tabs submitted successfully and each target-bound endpoint still reported one tab. This path is now captured and rerun as `BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e:arc-serialized-click`; after refactoring both Arc smoke commands to share `scripts/e2e-arc-click-harness.mjs`, the latest reusable-script run created `http://127.0.0.1:54909/same` and verified:
-  - `arc-serialized-a` / `DE1F2AD22E12558799F017FF13391DFC`: title/result/input all `arc-serialized-alpha`, tab count `1`.
-  - `arc-serialized-b` / `25D30F61E5F4736976787C565F246EC7`: title/result/input all `arc-serialized-beta`, tab count `1`.
+- Arc no-group serialized pointer-click workflow: PASS on relay port `19989` with Arc's currently loaded extension version `0.1.0`; two target-bound tabs on identical local pages filled distinct values in parallel, then the top-level harness clicked `#submit` sequentially. Both tabs submitted successfully and each target-bound endpoint still reported one tab. This path is now captured and rerun as `BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e:arc-serialized-click`; after refactoring both Arc smoke commands to share `scripts/e2e-arc-click-harness.mjs` and versioning the worker filename, the latest reusable-script run created `http://127.0.0.1:55382/same` and verified:
+  - `arc-serialized-a` / `35A646354857EC038FCD02BDC13110B3`: title/result/input all `arc-serialized-alpha`, tab count `1`.
+  - `arc-serialized-b` / `1DF40992FD08EE3A5689765A4242C26E`: title/result/input all `arc-serialized-beta`, tab count `1`.
 
 ## Remaining Issues
 
