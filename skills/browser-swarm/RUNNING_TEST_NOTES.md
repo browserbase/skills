@@ -53,6 +53,12 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Fix: relay now scopes `Target.getTargets`, `Target.getTargetInfo`, and `Target.attachToTarget` before the session forwarding path and validates any provided `sessionId`. Root `Target.closeTarget` removes the closed target from the relay map and broadcasts a detach after a successful close response.
 - Evidence: `BROWSER_SWARM_PORT=20000 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed. The run verified session-scoped `Target.getTargets` saw exactly one worker target, session-scoped sibling attach/info errored, root create increased target count `3 -> 4`, root close reduced it `4 -> 3`, relay screenshot wrote `1510778` bytes, and the three same-page parallel write tasks still passed.
 
+### Worker shell selector quoting
+
+- Repro: during a latest-head mixed Codex + Claude Code Chrome smoke, the Codex worker's first `fill #box ...` shell invocation treated `#box` as a shell comment and failed before retrying with a quoted selector.
+- Fix: tightened the worker contract to explicitly quote CSS selectors that contain shell-special characters, such as `"#box"` and `"#submit"`, whenever invoking `browse` through a shell.
+- Evidence: the same worker retried with a quoted selector and completed successfully. The main harness verified the Codex worker tab title/text/value as `latest-head-codex-worker`, the Claude Code worker tab title/text/value as `latest-head-claude-worker`, and exactly one visible tab per target-bound endpoint.
+
 ## Current Evidence
 
 - Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, and `20000`; the latest run includes lifecycle/session isolation regression probes, root create/close cleanup, and relay CLI screenshot output.
@@ -68,6 +74,9 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Mixed Codex + Claude Code latest-head workflow: PASS on relay port `19999` at commit `a3fe8ad`; one real Codex `worker` subagent and one `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json` worker ran concurrently in the same disposable Chrome profile against identical `http://127.0.0.1:18087/same` tabs. Workers reported structured JSON back to the main harness, and the main harness independently verified:
   - `latest-codex` / `4F9712E1E1408A823031DEE300FCC576`: title `latest-mixed-worker latest-codex-worker`, `#result` and `#box` both `latest-codex-worker`, and exactly one visible tab.
   - `latest-claude` / `310A4D4A6038315C96A8D119F13F9885`: title `latest-mixed-worker latest-claude-worker`, `#result` and `#box` both `latest-claude-worker`, and exactly one visible tab.
+- Mixed Codex + Claude Code current-head workflow: PASS on relay port `20001` at commit `5297512`; one real Codex `worker` subagent and one `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json` worker ran concurrently in a disposable Chrome profile against identical `http://127.0.0.1:18088/same` tabs. Workers reported structured JSON back to the main harness, screenshots were written to `/tmp/browser-swarm-current-codex.png` and `/tmp/browser-swarm-current-claude.png`, and the main harness independently verified:
+  - `latest-head-codex` / `1EA89C9D06A7B348181A52C63DE6D245`: title `latest-head-mixed-worker latest-head-codex-worker`, `#result` and `#box` both `latest-head-codex-worker`, and exactly one visible tab.
+  - `latest-head-claude` / `B8D878CE8DC8287AF1D2D737A4B019E0`: title `latest-head-mixed-worker latest-head-claude-worker`, `#result` and `#box` both `latest-head-claude-worker`, and exactly one visible tab.
 - Arc no-group read/write workflow: PASS for DOM-level writes; target isolation, `fill`, `get`, and DOM `eval` submission worked without tab-group calls or Arc crash.
 - Arc mixed Codex + Claude Code DOM-write workflow: PASS on relay port `19989` with Arc's currently loaded extension version `0.1.0`; two Codex workers and one Claude Code worker operated concurrently against `http://127.0.0.1:18086/same`, all reported success, and the main harness verified distinct final states:
   - `arc-alpha` / `BF917D95D6A0ACE58CA44CDC4D1C2233`: `arc-dom-same-page arc-alpha-codex-dom-worker`, `#result` and `#box` both `arc-alpha-codex-dom-worker`.
