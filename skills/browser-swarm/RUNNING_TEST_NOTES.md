@@ -116,6 +116,9 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
   - `arc-alpha` / `BF917D95D6A0ACE58CA44CDC4D1C2233`: `arc-dom-same-page arc-alpha-codex-dom-worker`, `#result` and `#box` both `arc-alpha-codex-dom-worker`.
   - `arc-beta` / `03022778C08DA83029B6B9C80962B2FF`: `arc-dom-same-page arc-beta-codex-dom-worker`, `#result` and `#box` both `arc-beta-codex-dom-worker`.
   - `arc-gamma` / `A52E444ED6ADF2F84DB4C1FC813BDA36`: `arc-dom-same-page arc-gamma-claude-dom-worker`, `#result` and `#box` both `arc-gamma-claude-dom-worker`.
+- Arc no-group serialized pointer-click workflow: PASS on relay port `19989` with Arc's currently loaded extension version `0.1.0`; two target-bound tabs on identical `http://127.0.0.1:53408/same` pages filled distinct values in parallel, then the top-level harness clicked `#submit` sequentially. Both tabs submitted successfully and each target-bound endpoint still reported one tab:
+  - `arc-seq-a` / `F14485EC29508FB47E6452C64D778175`: title/result/input all `arc-sequential-alpha`, tab count `1`.
+  - `arc-seq-b` / `9BD44969D85F07876E7CF102A2480021`: title/result/input all `arc-sequential-beta`, tab count `1`.
 
 ## Remaining Issues
 
@@ -131,7 +134,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Post skill-sync probe: after replacing the stale local `~/.agents/skills/browser-swarm` copy with a symlink to this PR checkout, both the installed manifest and repo manifest read `0.1.1`, but `node scripts/setup-real-browser.mjs --browser arc --no-open --timeout 8 --json` still exited `3` because Arc reconnected with active worker version `0.1.0`.
 - Final non-destructive refresh attempt: using the currently connected Browser Swarm bridge itself to open `chrome://serviceworker-internals` failed with `Cannot access a chrome:// URL`; trying `arc://serviceworker-internals` failed with `Extension manifest must request permission to access this host`. Computer Use also cannot attach to Arc in this environment (`Apple event error -1743`), so the UI-only Stop-then-Reload path cannot be performed by this agent.
 - Additional programmatic refresh probes: Arc exposes `DevToolsActivePort`, but its browser WebSocket rejects external clients with `403 Forbidden` even when Chrome DevTools-style Origin headers are used, so `ServiceWorker.updateRegistration` cannot be called through the browser-level DevTools socket. AppleScript can see Arc windows, but recursive accessibility queries against `chrome://serviceworker-internals` hang or expose unlabeled controls, so clicking the correct Stop control cannot be done safely by this agent.
-- Current status: Arc real-browser workflows are usable for read/write work when irreversible write actions use DOM-level commands (`browse eval`) instead of pointer clicks. The pointer-click path still needs a real Arc extension refresh to `0.1.1` before it can be judged against the input-command queue fix.
+- Current status: Arc real-browser workflows are usable for read/write work when irreversible write actions use DOM-level commands (`browse eval`) or top-level harness serialization for pointer clicks. The parallel pointer-click path still needs a real Arc extension refresh to `0.1.1` before it can be judged against the input-command queue fix.
 - Follow-up: restart Arc or otherwise force Browser Swarm Bridge to reload, confirm `/health` reports version `0.1.1`, and rerun the Arc pointer-click write test.
 
 ## Open Checks
