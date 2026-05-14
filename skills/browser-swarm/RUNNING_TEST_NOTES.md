@@ -59,6 +59,18 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Fix: tightened the worker contract to explicitly quote CSS selectors that contain shell-special characters, such as `"#box"` and `"#submit"`, whenever invoking `browse` through a shell.
 - Evidence: the same worker retried with a quoted selector and completed successfully. The main harness verified the Codex worker tab title/text/value as `latest-head-codex-worker`, the Claude Code worker tab title/text/value as `latest-head-claude-worker`, and exactly one visible tab per target-bound endpoint.
 
+### Claude worker reported an unscoped tab count
+
+- Repro: in the current-head mixed Codex + Claude Code Chrome smoke on relay port `20006`, the Claude worker successfully filled and submitted its target-bound tab but reported `tabCount: 2` after using non-contract raw/relay-level inspection instead of `browse tab list`.
+- Fix: tightened the worker contract to forbid raw WebSocket scripts, `curl` relay endpoints, and `/swarm/*` admin endpoint probes from worker agents. Worker `tabCount` must come from `browse tab list` on the assigned target-bound endpoint and should be `1`.
+- Evidence: the top-level harness independently connected to both target-bound endpoints and verified each returned exactly one visible target. It also verified distinct DOM state for Codex (`current-head-codex-worker-87267b6`) and Claude Code (`current-head-claude-worker-87267b6`) on identical same-page tabs.
+
+### Long browse session names can block worker startup
+
+- Repro: after tightening the Claude Code worker prompt to use only browse CLI commands, a first-command `browse fill` with session names like `browser-swarm-current-claude-strict-90398373` hung until the CLI returned `Driver daemon socket was not ready after 30000ms`.
+- Fix: shortened the recommended session naming pattern to `bs-<label>-<short-id>` and documented a preference for session names under 32 characters.
+- Evidence: rerunning the same target-bound endpoint with short session `bs-claude-9039` succeeded: `browse get title`, `fill "#box"`, `click "#submit"`, `tab list`, `get text "#result"`, `get value "#box"`, and `screenshot --path` all returned. `tab list` showed exactly one target and the final value/result were both `current-head-claude-short-87267b6`.
+
 ### Duplicate root closeTarget detach events
 
 - Repro: follow-up review found that root `Target.closeTarget` could broadcast `Target.detachedFromTarget` after a successful close while the extension's `chrome.tabs.onRemoved` path could also send `targetDetached`, producing duplicate detach events for the same target.
@@ -89,6 +101,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Mixed Codex + Claude Code current-head workflow: PASS on relay port `20001` at commit `5297512`; one real Codex `worker` subagent and one `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json` worker ran concurrently in a disposable Chrome profile against identical `http://127.0.0.1:18088/same` tabs. Workers reported structured JSON back to the main harness, screenshots were written to `/tmp/browser-swarm-current-codex.png` and `/tmp/browser-swarm-current-claude.png`, and the main harness independently verified:
   - `latest-head-codex` / `1EA89C9D06A7B348181A52C63DE6D245`: title `latest-head-mixed-worker latest-head-codex-worker`, `#result` and `#box` both `latest-head-codex-worker`, and exactly one visible tab.
   - `latest-head-claude` / `B8D878CE8DC8287AF1D2D737A4B019E0`: title `latest-head-mixed-worker latest-head-claude-worker`, `#result` and `#box` both `latest-head-claude-worker`, and exactly one visible tab.
+- Mixed Codex + Claude Code current-head workflow after root lifecycle fix: PASS on relay port `20006` at commit `87267b6`; one real Codex worker and one Claude Code worker ran concurrently against identical `http://127.0.0.1:18089/same` tabs. Codex reported `current-head-codex-worker-87267b6`; Claude Code reported `current-head-claude-worker-87267b6`; the main harness independently verified each target-bound endpoint returned exactly one visible target and distinct title/text/value state. A follow-up strict browse-only probe on the Claude endpoint passed with short session `bs-claude-9039`.
 - Arc no-group read/write workflow: PASS for DOM-level writes; target isolation, `fill`, `get`, and DOM `eval` submission worked without tab-group calls or Arc crash.
 - Arc mixed Codex + Claude Code DOM-write workflow: PASS on relay port `19989` with Arc's currently loaded extension version `0.1.0`; two Codex workers and one Claude Code worker operated concurrently against `http://127.0.0.1:18086/same`, all reported success, and the main harness verified distinct final states:
   - `arc-alpha` / `BF917D95D6A0ACE58CA44CDC4D1C2233`: `arc-dom-same-page arc-alpha-codex-dom-worker`, `#result` and `#box` both `arc-alpha-codex-dom-worker`.

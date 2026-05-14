@@ -202,8 +202,10 @@ node scripts/swarm-relay.mjs ensure \
 Session naming pattern:
 
 ```text
-browser-swarm-<label>-<short-id>
+bs-<label>-<short-id>
 ```
+
+Keep session names short, preferably under 32 characters. Very long session names can make the browse CLI fail while waiting for its driver-daemon socket.
 
 ## Worker Contract
 
@@ -211,11 +213,14 @@ Every worker must:
 
 - Use only its assigned `wsUrl` by passing `--cdp "<wsUrl>"` on every `browse` command.
 - Use only its assigned session by passing `--session "<session>"` on every `browse` command.
+- Keep the assigned session name short, preferably under 32 characters.
 - Never use `browse tab new`, `browse tab close`, or `browse tab switch`.
 - Only use commands documented in the `/browser` skill.
+- Do not call the relay's raw WebSocket endpoint, `/swarm/*` HTTP endpoints, `curl`, or ad hoc Node/WebSocket scripts from a worker. Raw CDP and relay-admin probes belong to the top-level harness only.
 - Do not probe for commands during the run. If a command shape is needed, use the examples below or the bundled `/browser` reference before spawning the worker.
 - Quote CSS selectors that contain shell-special characters, such as `"#box"` and `"#submit"`, whenever invoking `browse` through a shell.
 - Return concrete evidence: final URL, title, useful extracted facts, and screenshot path when relevant.
+- Report `tabCount` only from `browse tab list` using the assigned `--session` and target-bound `--cdp`; it should be `1` for a correctly scoped worker endpoint.
 - Avoid irreversible actions such as purchases, reservations, or form submission without explicit user confirmation.
 
 The top-level harness should launch independent workers in parallel and require a structured final report from each worker. The minimum report is:
@@ -244,11 +249,15 @@ For every browse command, include both flags exactly:
 --session "<session>"
 --cdp "<wsUrl>"
 
+Use a short session name, for example "bs-<label>-<id>".
+
 <Include the Commands section from ~/.agents/skills/browser/SKILL.md here>
 
 Do not create, close, or switch tabs. Do not use any other browser target.
+Do not use raw WebSocket scripts, curl relay endpoints, or /swarm/* admin endpoints. Only use browse commands.
 Do not invent browse flags or commands. Use "tab list", not "pages". Use "screenshot --path <path>", not "screenshot <path>".
 When running through a shell, quote CSS selectors such as "#box" and "#submit".
+Set tabCount from "browse tab list" on your assigned endpoint. It should be 1.
 Find options, collect evidence, and report concise structured results.
 ```
 
