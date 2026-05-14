@@ -192,6 +192,7 @@ export async function runArcClickE2E({
       console.log(JSON.stringify({
         status: "BLOCKED_STALE_EXTENSION",
         message: "Arc is connected to a stale Browser Swarm service worker. Reload Browser Swarm Bridge or restart Arc, then rerun this command.",
+        diagnosticCommand: "npm run diagnose:arc-worker -- --json",
         relayStarted: relay.started,
         expectedExtensionVersion: manifest.version,
         connectedExtensionVersion: connectedVersion,
