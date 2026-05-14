@@ -29,17 +29,22 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Fix: The extension now activates the owning tab and serializes forwarded `Input.*` commands before sending them through `chrome.debugger.sendCommand`.
 - Evidence: The Chrome e2e now passes with three same-page worker tabs, parallel `fill`, parallel `click #submit`, distinct title/text/value results, and one visible target per worker.
 
+### Worker prompts allowed invalid browse command probes
+
+- Repro: In one live Codex worker stress, beta/gamma successfully mutated their assigned tabs but tried invalid commands while collecting evidence (`screenshot <path>` and `pages`) before retrying with valid commands.
+- Fix: Tightened the worker contract with explicit command-shape guidance: do not probe commands during the run, use `tab list`, and use `screenshot --path <path>`.
+- Evidence: Strict rerun on Chrome relay port `19993` spawned three real Codex workers in parallel. All returned `status: success`, used one target each, reported no errors, and the main harness verified distinct DOM state for all three same-URL tabs.
+
 ## Current Evidence
 
 - Chrome disposable grouped e2e: PASS on relay port `19990`.
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.
-- Codex subagents, same-page live stress: PASS on relay port `19992`; three real Codex workers operated concurrently against `http://127.0.0.1:18084/same` and the main harness verified distinct final states:
-  - `alpha` / `E2AC5EDA9D1D45B81446ADACC928BA77`: `live-same-page alpha-real-codex-worker`, `#result` and `#box` both `alpha-real-codex-worker`.
-  - `beta` / `4094AE97657F06583CF43CC393CD9375`: `live-same-page beta-real-codex-worker`, `#result` and `#box` both `beta-real-codex-worker`.
-  - `gamma` / `3C65F7735D292CBC14A1B1C325400E96`: `live-same-page gamma-real-codex-worker`, `#result` and `#box` both `gamma-real-codex-worker`.
-  - Worker command hygiene issue: beta/gamma tried invalid browse commands before retrying (`screenshot <path>` instead of `screenshot --path`, and `pages`), but the browser mutations, final readback, screenshots, and one-target tab isolation all succeeded.
+- Codex subagents, same-page live stress: PASS on relay port `19993`; three real Codex workers operated concurrently against `http://127.0.0.1:18085/same`, all returned `status: success`, and the main harness verified distinct final states:
+  - `alpha` / `DCF37DE487790F11CF7BA258D9EDF0CE`: `strict-same-page alpha-strict-success-worker`, `#result` and `#box` both `alpha-strict-success-worker`.
+  - `beta` / `47BD8E6FB1ABFFD555DB4088DE5F1D46`: `strict-same-page beta-strict-success-worker`, `#result` and `#box` both `beta-strict-success-worker`.
+  - `gamma` / `E84CA16552C06E2CCAAD63B5B9BB1ECD`: `strict-same-page gamma-strict-success-worker`, `#result` and `#box` both `gamma-strict-success-worker`.
 - Claude Code CLI agent smoke: PASS with `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json`.
 - Mixed Codex + Claude Code live workflow: PASS; one Codex worker and one Claude Code agent operated concurrently in the same disposable Chrome profile against identical same-page tabs, each reported distinct title/text/value/url/tab evidence, and the main harness independently verified one visible target per worker.
 - Arc no-group read/write workflow: PARTIAL PASS; target isolation, `fill`, `get`, and DOM `eval` submission worked on two identical Arc tabs without tab-group calls or Arc crash.
@@ -52,6 +57,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Workaround verified: `browse eval 'document.getElementById("form").requestSubmit(); document.title'` on the second target submitted the correct value and preserved target isolation.
 - Likely cause: Arc was still running the previously loaded unpacked extension service worker. The installed skill has been synced with the input-command queue fix, but Computer Use cannot reload Arc here (`Apple event error -1743`), so the latest extension worker could not be confirmed in Arc.
 - Confirmation: after adding extension metadata to `/health`, Arc reported Browser Swarm Bridge version `0.1.0` even though the repo and installed skill are at manifest version `0.1.1`.
+- Additional reload attempts: restarting the relay, pressing Arc's top-level `Update` button, and toggling the extension control through Arc's Details page did not change `/health`; it continued to report version `0.1.0`.
 - Follow-up: manually reload Browser Swarm Bridge in `arc://extensions`, confirm version `0.1.1`, and rerun the Arc pointer-click write test.
 
 ## Open Checks

@@ -213,6 +213,7 @@ Every worker must:
 - Use only its assigned session by passing `--session "<session>"` on every `browse` command.
 - Never use `browse tab new`, `browse tab close`, or `browse tab switch`.
 - Only use commands documented in the `/browser` skill.
+- Do not probe for commands during the run. If a command shape is needed, use the examples below or the bundled `/browser` reference before spawning the worker.
 - Return concrete evidence: final URL, title, useful extracted facts, and screenshot path when relevant.
 - Avoid irreversible actions such as purchases, reservations, or form submission without explicit user confirmation.
 
@@ -245,7 +246,7 @@ For every browse command, include both flags exactly:
 <Include the Commands section from ~/.agents/skills/browser/SKILL.md here>
 
 Do not create, close, or switch tabs. Do not use any other browser target.
-Do not invent browse flags or commands. Only use commands from the reference above.
+Do not invent browse flags or commands. Use "tab list", not "pages". Use "screenshot --path <path>", not "screenshot <path>".
 Find options, collect evidence, and report concise structured results.
 ```
 
@@ -253,7 +254,11 @@ Example worker commands:
 
 ```bash
 browse get title --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
+browse get url --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
 browse snapshot --compact --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
+browse fill "#box" "worker-value" --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
+browse click "#submit" --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
+browse tab list --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
 browse screenshot --path /tmp/browser-swarm/flights.png --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
 ```
 
