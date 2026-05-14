@@ -145,6 +145,12 @@ Arc Spaces caveat: Arc is Chromium-based, but Arc Spaces are not Chrome tab grou
 
 After changing the extension files, manually reload Browser Swarm Bridge in `arc://extensions` before judging Arc behavior. If pointer or keyboard submission is inconsistent in Arc background tabs, prefer DOM-level writes such as `browse fill` followed by a target-bound `browse eval 'document.querySelector("form").requestSubmit()'`, or serialize the irreversible action through the top-level harness.
 
+To smoke-test Arc-safe writes without restarting Arc, use the serialized-click e2e. It requires the Arc extension to be connected on the default relay port and refuses to reuse existing swarm targets unless `BROWSER_SWARM_ALLOW_EXISTING_TARGETS=1` is set:
+
+```bash
+BROWSER_SWARM_BROWSE_BIN=<browse-cli> npm run e2e:arc-serialized-click
+```
+
 ### Disposable Test Browser Mode
 
 Use this mode only for e2e tests, demos, and throwaway profiles. It launches a separate browser profile:

@@ -7,7 +7,8 @@
     "serve": "node scripts/swarm-relay.mjs serve",
     "setup": "node scripts/setup-real-browser.mjs",
     "launch": "node scripts/launch-chrome.mjs",
-    "e2e": "node scripts/e2e-poc.mjs"
+    "e2e": "node scripts/e2e-poc.mjs",
+    "e2e:arc-serialized-click": "node scripts/e2e-arc-serialized-click.mjs"
   },
   "dependencies": {
     "open": "^10.2.0",
