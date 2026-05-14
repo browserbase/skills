@@ -140,7 +140,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 ## Open Checks
 
 - Manually reload the Arc extension and rerun the Arc parallel pointer-click write test against active worker `0.1.1`.
-- Cursor Bugbot is still `in_progress` for PR head `7e87cf2a918600508381d46111616bc6501e37c7` with no annotations or conclusion. This is a PR readiness blocker, not a browser-swarm runtime failure.
+- Cursor Bugbot has repeatedly stayed `in_progress` on latest pushed PR heads with no annotations or conclusion. This is a PR readiness blocker, not a browser-swarm runtime failure.
 
 ## Completion Audit
 
