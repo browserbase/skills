@@ -91,7 +91,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Current Evidence
 
-- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, `20005`, `20007`, `20009`, and `20010`; the latest current-head runtime run includes extension version `0.1.1`, lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output (`1513245` bytes), and three same-page parallel `fill` + `click #submit` write tasks.
+- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, `20005`, `20007`, `20009`, `20010`, and `20011`; the latest current-head runtime run includes extension version `0.1.1`, lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output (`1512972` bytes), and three same-page parallel `fill` + `click #submit` write tasks.
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.
@@ -146,7 +146,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Completion Audit
 
-- Chrome e2e across read/write, same-page tabs, lifecycle isolation, screenshots, and root/worker scoping: covered by the latest current-head disposable Chrome run on relay port `20010` with extension `0.1.1`.
+- Chrome e2e across read/write, same-page tabs, lifecycle isolation, screenshots, and root/worker scoping: covered by the latest current-head disposable Chrome run on relay port `20011` with extension `0.1.1`.
 - Arc read/write workflows: covered for no-group DOM writes and top-level serialized pointer-click submission on live Arc. The live Arc service worker is still `0.1.0`, so this proves the supported Arc workaround path but does not prove the new extension-level `Input.*` serialization path in Arc.
 - Real Codex workers: covered by prior live Codex worker runs, including three concurrent same-page workers and mixed Codex/Claude Chrome runs.
 - Real Claude Code workers: covered by `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json` runs in both Chrome and Arc DOM-write workflows.
