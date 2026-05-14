@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -43,9 +43,16 @@ function chromePath() {
   ].filter(Boolean);
   for (const candidate of candidates) {
     if (candidate.includes("/") && existsSync(candidate)) return candidate;
-    if (!candidate.includes("/")) return candidate;
+    if (!candidate.includes("/") && commandExists(candidate)) return candidate;
   }
   throw new Error("Could not find Chrome. Set CHROME_PATH.");
+}
+
+function commandExists(command) {
+  const result = spawnSync("sh", ["-lc", "command -v \"$1\"", "sh", command], {
+    stdio: "ignore"
+  });
+  return result.status === 0;
 }
 
 function findPlaywrightChromium() {

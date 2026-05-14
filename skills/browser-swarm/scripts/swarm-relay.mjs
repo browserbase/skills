@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import http from "node:http";
 import { randomUUID } from "node:crypto";
+import { writeFileSync } from "node:fs";
 import { WebSocketServer } from "ws";
 
 const DEFAULT_PORT = 19989;
@@ -263,6 +264,7 @@ class Relay {
         version: message.version || "unknown",
         connectedAt: new Date().toISOString()
       };
+      this.targets.clear();
       this.mergeTargets(message.targets || []);
       return;
     }
@@ -382,7 +384,16 @@ class Relay {
       if (id !== undefined) {
         this.sendCdp(client, { id, sessionId, result: result || {} });
       }
-      this.emitSyntheticEvents(client, method, params, sessionId, result);
+      try {
+        this.emitSyntheticEvents(client, method, params, sessionId, result);
+      } catch (error) {
+        console.warn(JSON.stringify({
+          source: "browser-swarm-relay",
+          type: "synthetic-event-warning",
+          method,
+          message: error instanceof Error ? error.message : String(error)
+        }));
+      }
     } catch (error) {
       if (id !== undefined) {
         this.sendCdp(client, {
@@ -399,6 +410,14 @@ class Relay {
   async handleCdpCommand(client, method, params, sessionId) {
     const targets = this.targetsForClient(client);
     const firstTarget = targets[0];
+
+    if (client.targetId && method === "Target.createTarget") {
+      throw new Error("Target.createTarget is disabled on browser-swarm worker endpoints; allocate tabs through the browser-swarm harness.");
+    }
+
+    if (client.targetId && method === "Target.closeTarget") {
+      throw new Error("Target.closeTarget is disabled on browser-swarm worker endpoints; release tabs through the browser-swarm harness.");
+    }
 
     if (!sessionId) {
       switch (method) {
@@ -438,9 +457,6 @@ class Relay {
           return { sessionId: target.sessionId };
         }
         case "Target.createTarget": {
-          if (client.targetId) {
-            throw new Error("Target.createTarget is disabled on browser-swarm worker endpoints; allocate tabs through the browser-swarm harness.");
-          }
           const result = await this.sendToExtension("createTarget", {
             url: params.url || "about:blank",
             groupDisabled: this.groupDisabled,
@@ -451,9 +467,6 @@ class Relay {
           return { targetId: result.targetId };
         }
         case "Target.closeTarget": {
-          if (client.targetId) {
-            throw new Error("Target.closeTarget is disabled on browser-swarm worker endpoints; release tabs through the browser-swarm harness.");
-          }
           const target = this.findTarget(params.targetId, client);
           return this.sendToExtension("closeTarget", { targetId: target.targetId });
         }
@@ -530,7 +543,7 @@ class Relay {
     if (!sessionId) return this.findTarget(null, client);
     const target = targets.find((candidate) => candidate.sessionId === sessionId);
     if (target) return target;
-    return this.findTarget(null, client);
+    throw new Error(`No target available for session ${sessionId}`);
   }
 
   async forwardToTarget(targetId, method, params) {
@@ -645,6 +658,13 @@ async function runCli(opts) {
   if (opts.command === "screenshot") {
     if (!opts.targetId) throw new Error("screenshot requires --target-id");
     const result = await post("/swarm/screenshot", { targetId: opts.targetId }, port, host);
+    if (opts.path) {
+      if (!result?.data) throw new Error("Screenshot response did not include image data");
+      const bytes = Buffer.from(result.data, "base64");
+      writeFileSync(opts.path, bytes);
+      print(opts.json ? { path: opts.path, bytes: bytes.length } : opts.path, opts.json);
+      return;
+    }
     print(result, opts.json);
     return;
   }

@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -129,9 +129,9 @@ async function cdpProbe(wsUrl, commands) {
   });
 
   let nextId = 1;
-  async function send(method, params = {}) {
+  async function send(method, params = {}, sessionId = null) {
     const id = nextId++;
-    ws.send(JSON.stringify({ id, method, params }));
+    ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     return new Promise((resolve, reject) => {
       const onMessage = (raw) => {
         const message = JSON.parse(raw.toString());
@@ -150,7 +150,10 @@ async function cdpProbe(wsUrl, commands) {
   try {
     const results = {};
     for (const command of commands) {
-      results[command.name] = await send(command.method, command.params || {});
+      const sessionId = command.sessionIdFrom
+        ? results[command.sessionIdFrom]?.result?.sessionId
+        : command.sessionId;
+      results[command.name] = await send(command.method, command.params || {}, sessionId);
     }
     return results;
   } finally {
@@ -239,7 +242,10 @@ try {
     { name: "attachOther", method: "Target.attachToTarget", params: { targetId: secondTarget.targetId, flatten: true } },
     { name: "infoOther", method: "Target.getTargetInfo", params: { targetId: secondTarget.targetId } },
     { name: "createTarget", method: "Target.createTarget", params: { url: "https://example.net/#worker-created" } },
-    { name: "closeOwn", method: "Target.closeTarget", params: { targetId: firstTarget.targetId } }
+    { name: "closeOwn", method: "Target.closeTarget", params: { targetId: firstTarget.targetId } },
+    { name: "createWithSession", method: "Target.createTarget", sessionIdFrom: "attachOwn", params: { url: "https://example.net/#session-worker-created" } },
+    { name: "closeWithSession", method: "Target.closeTarget", sessionIdFrom: "attachOwn", params: { targetId: firstTarget.targetId } },
+    { name: "unknownSessionEval", method: "Runtime.evaluate", sessionId: "browser-swarm-stale-session", params: { expression: "location.href", returnByValue: true } }
   ]);
   const visibleTargets = isolation.visible.result?.targetInfos || [];
   assert(visibleTargets.length === 1, `Expected raw CDP probe to see one target, saw ${visibleTargets.length}`);
@@ -249,6 +255,25 @@ try {
   assert(isolation.infoOther.error, "Expected reading sibling target info to fail");
   assert(isolation.createTarget.error, "Expected worker Target.createTarget to be blocked");
   assert(isolation.closeOwn.error, "Expected worker Target.closeTarget to be blocked");
+  assert(isolation.createWithSession.error, "Expected worker Target.createTarget with sessionId to be blocked");
+  assert(isolation.closeWithSession.error, "Expected worker Target.closeTarget with sessionId to be blocked");
+  assert(isolation.unknownSessionEval.error, "Expected unknown sessionId to fail instead of falling back to the worker target");
+
+  const relayScreenshotPath = resolve(artifactsDir, "relay-screenshot.png");
+  const relayScreenshot = await run("node", [
+    "scripts/swarm-relay.mjs",
+    "screenshot",
+    "--port",
+    String(port),
+    "--target-id",
+    firstTarget.targetId,
+    "--path",
+    relayScreenshotPath,
+    "--json"
+  ]);
+  const relayScreenshotResult = parseJson(relayScreenshot.stdout);
+  const relayScreenshotBytes = statSync(relayScreenshotPath).size;
+  assert(relayScreenshotBytes > 0, "Expected relay screenshot CLI to write a non-empty image");
 
   const samePageUrl = await startSamePageServer();
   const writeTargets = swarm.targets.slice(0, 3);
@@ -334,7 +359,15 @@ try {
       attachOther: isolation.attachOther,
       infoOther: isolation.infoOther,
       createTarget: isolation.createTarget,
-      closeOwn: isolation.closeOwn
+      closeOwn: isolation.closeOwn,
+      createWithSession: isolation.createWithSession,
+      closeWithSession: isolation.closeWithSession,
+      unknownSessionEval: isolation.unknownSessionEval
+    },
+    relayScreenshot: {
+      path: relayScreenshotPath,
+      result: relayScreenshotResult,
+      bytes: relayScreenshotBytes
     },
     samePageWrite: {
       url: samePageUrl,

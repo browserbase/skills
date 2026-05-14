@@ -41,9 +41,15 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Fix: `setup-real-browser.mjs` now reads the unpacked manifest, prints the expected extension version/worker, and exits `3` with `versionMatches: false` when the connected worker version is stale.
 - Evidence: `node scripts/setup-real-browser.mjs --browser arc --no-open --no-start-relay --timeout 2 --json` against the stale Arc worker exited `3` and reported `versionMatches: false`; the same helper against disposable Chrome on relay port `19995` exited `0` with `versionMatches: true`.
 
+### Review-reported relay/setup hardening issues
+
+- Repro: targeted review found several real edge cases: worker endpoints could forward `Target.createTarget` / `Target.closeTarget` if a `sessionId` was present, unknown `sessionId` messages fell back to the first visible worker target, extension reconnects could leave stale relay targets, the relay `screenshot --path` CLI ignored `--path`, synthetic event failures could send an error after a successful response, `setup-real-browser` leaked the parent log file descriptor and accepted unknown browsers after spreading `undefined`, and `launch-chrome` accepted missing bare executable names before reaching the "Chrome not found" error.
+- Fix: blocked worker lifecycle commands before the session forwarding path, made unknown sessions fail closed, clear targets on extension `hello`, write relay CLI screenshots to `--path`, warn instead of failing on synthetic event emission, close the parent relay log fd after spawn, validate browser names before spreading config, and only accept bare Chrome candidates when they exist on `PATH`.
+- Evidence: `BROWSER_SWARM_PORT=19997 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed with extra probes for `Target.createTarget` / `Target.closeTarget` with an attached session, unknown session fallback, relay CLI screenshot writing (`1509844` bytes), one-target visibility, public read tasks, and three same-page parallel `fill` + `click #submit` write tasks. `node scripts/setup-real-browser.mjs --browser not-a-browser --no-open --no-start-relay --no-wait` now exits `1` with the supported browser list.
+
 ## Current Evidence
 
-- Chrome disposable grouped e2e: PASS on relay port `19990`.
+- Chrome disposable grouped e2e: PASS on relay ports `19990` and `19997`; the latest run includes lifecycle/session isolation regression probes and relay CLI screenshot output.
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.

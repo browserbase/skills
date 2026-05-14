@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
+import { closeSync, existsSync, mkdirSync, openSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import open, { apps } from "open";
@@ -115,11 +115,16 @@ function startRelay({ host, port }) {
   mkdirSync(logDir, { recursive: true });
   const logPath = `${logDir}/relay-${port}.log`;
   const logFd = openSync(logPath, "a");
-  const child = spawn("node", ["scripts/swarm-relay.mjs", "serve", "--host", host, "--port", String(port)], {
-    cwd: skillDir,
-    detached: true,
-    stdio: ["ignore", logFd, logFd],
-  });
+  let child;
+  try {
+    child = spawn("node", ["scripts/swarm-relay.mjs", "serve", "--host", host, "--port", String(port)], {
+      cwd: skillDir,
+      detached: true,
+      stdio: ["ignore", logFd, logFd],
+    });
+  } finally {
+    closeSync(logFd);
+  }
   child.unref();
   return { pid: child.pid, logPath };
 }
@@ -209,10 +214,11 @@ async function main() {
   }
   const expectedExtension = readExpectedExtension();
   const browserKey = opts.browser.toLowerCase();
-  const browser = { ...BROWSERS[browserKey] };
-  if (!browser) {
+  const browserTemplate = BROWSERS[browserKey];
+  if (!browserTemplate) {
     throw new Error(`Unknown browser: ${opts.browser}. Supported: ${Object.keys(BROWSERS).join(", ")}`);
   }
+  const browser = { ...browserTemplate };
   if (opts.extensionsUrl) browser.extensionsUrl = opts.extensionsUrl;
 
   let initialHealth = await tryHealth(opts.host, opts.port);
