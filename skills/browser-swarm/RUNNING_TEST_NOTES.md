@@ -71,6 +71,12 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Fix: shortened the recommended session naming pattern to `bs-<label>-<short-id>` and documented a preference for session names under 32 characters.
 - Evidence: rerunning the same target-bound endpoint with short session `bs-claude-9039` succeeded: `browse get title`, `fill "#box"`, `click "#submit"`, `tab list`, `get text "#result"`, `get value "#box"`, and `screenshot --path` all returned. `tab list` showed exactly one target and the final value/result were both `current-head-claude-short-87267b6`.
 
+### Installed skill copy had stale worker instructions
+
+- Repro: `~/.agents/skills/browser-swarm/SKILL.md` differed from the PR checkout in the worker-critical sections for extension version checks, short session names, selector quoting, raw relay probes, `tab list`, and `screenshot --path`.
+- Fix: the local untracked real directory at `~/.agents/skills/browser-swarm` was moved to a timestamped backup and replaced with a symlink to this PR checkout's `skills/browser-swarm` directory. Existing `~/.codex/skills/browser-swarm` and `~/.claude/skills/browser-swarm` already point through `~/.agents/skills/browser-swarm`, so both CLIs now resolve the current worker contract.
+- Evidence: `cmp -s ~/.agents/skills/browser-swarm/SKILL.md /Users/shrey/Developer/skills-browser-swarm-extension/skills/browser-swarm/SKILL.md` now passes and prints `skill-md-in-sync`.
+
 ### Duplicate root closeTarget detach events
 
 - Repro: follow-up review found that root `Target.closeTarget` could broadcast `Target.detachedFromTarget` after a successful close while the extension's `chrome.tabs.onRemoved` path could also send `targetDetached`, producing duplicate detach events for the same target.
