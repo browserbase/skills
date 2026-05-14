@@ -156,10 +156,16 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Completion Audit
 
-- Chrome e2e across read/write, same-page tabs, lifecycle isolation, screenshots, and root/worker scoping: covered by the latest current-head disposable Chrome run on relay port `20013` with extension `0.1.1`.
-- Arc read/write workflows: covered for no-group DOM writes and top-level serialized pointer-click submission on live Arc. The live Arc service worker is still `0.1.0`, so this proves the supported Arc workaround path but does not prove the new extension-level `Input.*` serialization path in Arc.
-- Real Codex workers: covered by prior live Codex worker runs, including three concurrent same-page workers and mixed Codex/Claude Chrome runs.
-- Real Claude Code workers: covered by `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json` runs in both Chrome and Arc DOM-write workflows.
-- Worker reporting to the main harness: covered by structured JSON reports plus main-harness independent verification of title/url/text/value/tab count/screenshot artifacts.
-- Running issue log: this file records each reproduced issue, fix/workaround, and evidence.
-- Remaining unverified requirement: Arc parallel pointer-click against the current `0.1.1` extension worker. This requires a real Arc extension service-worker refresh or Arc restart; non-destructive reload/update attempts have not replaced the stale worker. The reusable gate for that final check is `npm run e2e:arc-parallel-click`.
+| Requirement | Evidence | Status |
+| --- | --- | --- |
+| Chrome e2e works across real browser tabs | `BROWSER_SWARM_PORT=20013 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed with extension `0.1.1`, target isolation, root lifecycle `3 -> 4 -> 3`, one detach event, relay screenshot `1514865` bytes, and same-page parallel `fill` + `click #submit` writes. | Covered |
+| Arc e2e works for read/write tasks | Arc no-group DOM-write flows passed, and `BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e:arc-serialized-click` passed on live Arc after the shared harness and versioned worker changes. | Covered for DOM writes and serialized pointer submission |
+| Arc extension-level parallel pointer clicks work | `BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e:arc-parallel-click` is the dedicated acceptance gate. On current Arc it exits `3` with `BLOCKED_STALE_EXTENSION`, expected `0.1.1`, connected `0.1.0`. | Blocked by stale Arc MV3 worker |
+| Same-page multi-tab workflows isolate by target, not URL/title | Chrome e2e same-page write evidence verifies `alpha-worker`, `beta-worker`, and `gamma-worker` on identical URL/title tabs, each with exactly one visible target. Arc DOM and serialized-click flows verify the same target-bound model in no-group mode. | Covered |
+| Real Codex workers can run successfully | Three-Codex live stress and latest mixed-worker smoke used real Codex `worker` subagents against target-bound endpoints. Latest mixed run verified `codex-latest-a726f6c` on target `18C0A93B639E91B2727F4DE3E6E353C3`. | Covered |
+| Real Claude Code workers can run successfully | `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json` runs passed in Chrome and Arc DOM-write flows. Latest mixed run verified `claude-latest-a726f6c` on target `E2E5EEDE81ABCFC2557BC3C564EBD47C`. | Covered |
+| Codex and Claude workers run in parallel and report to main harness | Latest mixed run on relay port `20014` ran Codex and Claude concurrently in one disposable Chrome profile, both returned structured JSON, screenshots, and target IDs. Main harness independently verified title/text/value/tabCount. | Covered |
+| Issues are noted and fixed/worked around as discovered | This file records each reproduced issue, its fix or workaround, and concrete evidence. | Covered |
+| PR is reviewable | PR is mergeable with no unresolved review threads. Cursor Bugbot has repeatedly remained `in_progress` with no annotations on latest heads. | Reviewable, with Bugbot external check stuck |
+
+Remaining unverified requirement: Arc parallel pointer-click against the current `0.1.1` extension worker. This requires a real Arc extension service-worker refresh or Arc restart; non-destructive reload/update attempts have not replaced the stale worker. The reusable gate for that final check is `npm run e2e:arc-parallel-click`.
