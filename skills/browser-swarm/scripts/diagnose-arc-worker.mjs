@@ -45,6 +45,7 @@ function usage() {
 Read-only diagnostic for Arc's Browser Swarm MV3 worker state. It compares:
 - the unpacked extension manifest,
 - the connected relay /health extension version,
+- Arc's Secure Preferences extension registration metadata,
 - Arc's service-worker registration database strings.
 
 It never edits the Arc profile.`);
@@ -138,14 +139,64 @@ function scanServiceWorkerDatabase(profile, expectedWorker, extensionId) {
   };
 }
 
-function summarize({ manifest, health, scan, extensionId }) {
+function readSecurePreferencesRegistration(profile, extensionId) {
+  const securePreferencesPath = resolve(profile, "Secure Preferences");
+  if (!existsSync(securePreferencesPath)) {
+    return {
+      path: securePreferencesPath,
+      exists: false,
+      found: false,
+    };
+  }
+
+  try {
+    const preferences = JSON.parse(readFileSync(securePreferencesPath, "utf8"));
+    const settings = preferences.extensions?.settings?.[extensionId];
+    if (!settings) {
+      return {
+        path: securePreferencesPath,
+        exists: true,
+        found: false,
+      };
+    }
+
+    return {
+      path: securePreferencesPath,
+      exists: true,
+      found: true,
+      extensionPath: settings.path || null,
+      location: settings.location ?? null,
+      hasStartedServiceWorker: settings.has_started_service_worker ?? null,
+      serviceWorkerRegistrationVersion: settings.service_worker_registration_info?.version || null,
+      manifestVersion: settings.manifest?.version || null,
+      manifestServiceWorker: settings.manifest?.background?.service_worker || null,
+      lastUpdateTime: settings.last_update_time || null,
+    };
+  } catch (error) {
+    return {
+      path: securePreferencesPath,
+      exists: true,
+      found: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+}
+
+function summarize({ manifest, health, scan, securePreferences, extensionId }) {
   const connectedVersion = health?.extension?.version || null;
   const versionMatches = connectedVersion === manifest.version;
+  const preferenceRegistrationVersion = securePreferences?.serviceWorkerRegistrationVersion || null;
+  const preferenceRegistrationStale = Boolean(
+    preferenceRegistrationVersion &&
+    preferenceRegistrationVersion !== manifest.version
+  );
   const oldWorkerHits = scan.matches.reduce((sum, match) => sum + match.oldWorkerHits, 0);
   const expectedWorkerHits = scan.matches.reduce((sum, match) => sum + match.expectedWorkerHits, 0);
   const staleRegistrationLikely = manifest.serviceWorker !== "service-worker.js"
-    && oldWorkerHits > 0
-    && expectedWorkerHits === 0;
+    && (
+      (oldWorkerHits > 0 && expectedWorkerHits === 0) ||
+      preferenceRegistrationStale
+    );
 
   let status = "OK";
   if (health?.error) status = "RELAY_UNAVAILABLE";
@@ -159,6 +210,8 @@ function summarize({ manifest, health, scan, extensionId }) {
     expectedVersion: manifest.version,
     extensionId,
     versionMatches,
+    preferenceRegistrationVersion,
+    preferenceRegistrationStale,
     expectedWorker: manifest.serviceWorker,
     oldWorkerHits,
     expectedWorkerHits,
@@ -175,6 +228,7 @@ Connected version:  ${result.summary.connectedVersion || "none"}
 Expected version:   ${result.summary.expectedVersion}
 Expected worker:    ${result.summary.expectedWorker}
 Arc profile:        ${result.arcProfile}
+Prefs registration: ${result.summary.preferenceRegistrationVersion || "none"}
 SW database:        ${result.scan.databaseDir}
 Files scanned:      ${result.scan.filesScanned}
 Old worker hits:    ${result.summary.oldWorkerHits}
@@ -191,14 +245,16 @@ async function main() {
   const manifest = readManifest();
   const health = await tryHealth(opts.host, opts.port);
   const extensionId = opts.extensionId || health?.extension?.id || fallbackExtensionId;
+  const securePreferences = readSecurePreferencesRegistration(opts.profile, extensionId);
   const scan = scanServiceWorkerDatabase(opts.profile, manifest.serviceWorker, extensionId);
   const result = {
     manifest,
     health,
     extensionId,
     arcProfile: opts.profile,
+    securePreferences,
     scan,
-    summary: summarize({ manifest, health, scan, extensionId }),
+    summary: summarize({ manifest, health, scan, securePreferences, extensionId }),
   };
 
   if (opts.json) {
