@@ -3,11 +3,14 @@ import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import WebSocket from "ws";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const skillDir = resolve(__dirname, "..");
 const artifactsDir = "/tmp/browser-swarm-e2e";
 const port = Number(process.env.BROWSER_SWARM_PORT || 19989);
+const browseBin = process.env.BROWSER_SWARM_BROWSE_BIN || "browse";
+const workerSessions = [];
 
 mkdirSync(artifactsDir, { recursive: true });
 spawnSync("pkill", ["-f", "/tmp/browser-swarm-e2e-profile"], { stdio: "ignore" });
@@ -31,6 +34,30 @@ function run(command, args, options = {}) {
   });
 }
 
+function parseJson(stdout) {
+  return JSON.parse(stdout.trim());
+}
+
+function parseJsonOrText(stdout) {
+  const text = stdout.trim();
+  if (!text) return {};
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+function previewOutput(value) {
+  if (typeof value === "string") return value.slice(0, 500);
+  if (typeof value?.tree === "string") return value.tree.slice(0, 500);
+  return JSON.stringify(value).slice(0, 500);
+}
+
+function assert(condition, message) {
+  if (!condition) throw new Error(message);
+}
+
 async function waitForHealth(timeoutMs = 30000) {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
@@ -42,6 +69,43 @@ async function waitForHealth(timeoutMs = 30000) {
     await new Promise((resolve) => setTimeout(resolve, 500));
   }
   throw new Error("Timed out waiting for relay and extension connection");
+}
+
+async function cdpProbe(wsUrl, commands) {
+  const ws = new WebSocket(wsUrl);
+  await new Promise((resolve, reject) => {
+    ws.once("open", resolve);
+    ws.once("error", reject);
+  });
+
+  let nextId = 1;
+  async function send(method, params = {}) {
+    const id = nextId++;
+    ws.send(JSON.stringify({ id, method, params }));
+    return new Promise((resolve, reject) => {
+      const onMessage = (raw) => {
+        const message = JSON.parse(raw.toString());
+        if (message.id !== id) return;
+        ws.off("message", onMessage);
+        resolve(message);
+      };
+      ws.on("message", onMessage);
+      setTimeout(() => {
+        ws.off("message", onMessage);
+        reject(new Error(`Timed out waiting for ${method}`));
+      }, 5000).unref();
+    });
+  }
+
+  try {
+    const results = {};
+    for (const command of commands) {
+      results[command.name] = await send(command.method, command.params || {});
+    }
+    return results;
+  } finally {
+    ws.close();
+  }
 }
 
 const relay = spawn("node", ["scripts/swarm-relay.mjs", "serve", "--port", String(port)], {
@@ -87,25 +151,56 @@ try {
 
   const swarm = JSON.parse(ensure.stdout);
   const browseResults = [];
-  for (const target of swarm.targets.slice(0, 3)) {
-    const title = await run("browse", ["--ws", target.wsUrl, "get", "title", "--json"]);
-    const url = await run("browse", ["--ws", target.wsUrl, "get", "url", "--json"]);
-    const snapshot = await run("browse", ["--ws", target.wsUrl, "snapshot", "--compact", "--json"]);
+  for (const [index, target] of swarm.targets.slice(0, 3).entries()) {
+    const session = `browser-swarm-e2e-${target.label || `worker-${index + 1}`}-${target.targetId.slice(0, 8)}`;
+    workerSessions.push(session);
+
+    const title = await run(browseBin, ["get", "title", "--session", session, "--cdp", target.wsUrl]);
+    const url = await run(browseBin, ["get", "url", "--session", session, "--cdp", target.wsUrl]);
+    const snapshot = await run(browseBin, ["snapshot", "--compact", "--session", session, "--cdp", target.wsUrl]);
+    const tabList = await run(browseBin, ["tab", "list", "--session", session, "--cdp", target.wsUrl]);
     const screenshotPath = resolve(artifactsDir, `${target.label || target.targetId}.png`);
-    const screenshot = await run("browse", ["--ws", target.wsUrl, "screenshot", screenshotPath, "--json"]);
+    const screenshot = await run(browseBin, ["screenshot", "--path", screenshotPath, "--session", session, "--cdp", target.wsUrl]);
+
+    const parsedTabs = parseJson(tabList.stdout).tabs;
+    const parsedSnapshot = parseJsonOrText(snapshot.stdout);
+    assert(parsedTabs.length === 1, `Expected ${session} to see exactly one tab, saw ${parsedTabs.length}`);
+    assert(parsedTabs[0].targetId === target.targetId, `Expected ${session} tab list to expose only ${target.targetId}`);
+
     browseResults.push({
       label: target.label,
       targetId: target.targetId,
+      session,
       wsUrl: target.wsUrl,
-      title: JSON.parse(title.stdout),
-      url: JSON.parse(url.stdout),
-      snapshotPreview: JSON.parse(snapshot.stdout).tree.slice(0, 500),
-      screenshot: JSON.parse(screenshot.stdout)
+      title: parseJson(title.stdout),
+      url: parseJson(url.stdout),
+      tabList: parseJson(tabList.stdout),
+      snapshotPreview: previewOutput(parsedSnapshot),
+      screenshot: parseJsonOrText(screenshot.stdout)
     });
   }
 
+  const [firstTarget, secondTarget] = swarm.targets;
+  const isolation = await cdpProbe(firstTarget.wsUrl, [
+    { name: "visible", method: "Target.getTargets" },
+    { name: "attachOwn", method: "Target.attachToTarget", params: { targetId: firstTarget.targetId, flatten: true } },
+    { name: "attachOther", method: "Target.attachToTarget", params: { targetId: secondTarget.targetId, flatten: true } },
+    { name: "infoOther", method: "Target.getTargetInfo", params: { targetId: secondTarget.targetId } },
+    { name: "createTarget", method: "Target.createTarget", params: { url: "https://example.net/#worker-created" } },
+    { name: "closeOwn", method: "Target.closeTarget", params: { targetId: firstTarget.targetId } }
+  ]);
+  const visibleTargets = isolation.visible.result?.targetInfos || [];
+  assert(visibleTargets.length === 1, `Expected raw CDP probe to see one target, saw ${visibleTargets.length}`);
+  assert(visibleTargets[0].targetId === firstTarget.targetId, "Raw CDP probe saw the wrong target");
+  assert(!isolation.attachOwn.error, `Expected attaching own target to succeed: ${JSON.stringify(isolation.attachOwn)}`);
+  assert(isolation.attachOther.error, "Expected attaching sibling target to fail");
+  assert(isolation.infoOther.error, "Expected reading sibling target info to fail");
+  assert(isolation.createTarget.error, "Expected worker Target.createTarget to be blocked");
+  assert(isolation.closeOwn.error, "Expected worker Target.closeTarget to be blocked");
+
   const report = {
     prompt: "plan an offsite to san diego next week - we need flights booked, surfing rentals and dinner near downtown",
+    browseBin,
     launch: JSON.parse(launch.stdout),
     health,
     targets: swarm.targets.map((target) => ({
@@ -115,7 +210,19 @@ try {
       url: target.targetInfo.url,
       title: target.targetInfo.title
     })),
-    browseResults
+    browseResults,
+    isolation: {
+      visibleTargets: visibleTargets.map((target) => ({
+        targetId: target.targetId,
+        url: target.url,
+        title: target.title
+      })),
+      attachOwn: isolation.attachOwn,
+      attachOther: isolation.attachOther,
+      infoOther: isolation.infoOther,
+      createTarget: isolation.createTarget,
+      closeOwn: isolation.closeOwn
+    }
   };
   const reportPath = resolve(artifactsDir, "report.json");
   writeFileSync(reportPath, JSON.stringify(report, null, 2));
@@ -131,6 +238,9 @@ try {
   console.error(JSON.stringify({ status: "FAIL", reportPath, error: error.message }, null, 2));
   process.exitCode = 1;
 } finally {
+  for (const session of workerSessions) {
+    spawnSync(browseBin, ["stop", "--session", session], { stdio: "ignore" });
+  }
   relay.kill("SIGTERM");
   spawnSync("pkill", ["-f", "/tmp/browser-swarm-e2e-profile"], { stdio: "ignore" });
 }

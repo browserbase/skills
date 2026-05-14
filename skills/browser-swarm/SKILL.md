@@ -1,7 +1,7 @@
 ---
 name: browser-swarm
 description: Coordinate multiple browser agents in one real Chromium-family profile through a Chrome extension bridge, a colored tab group, and target-bound browse CLI endpoints.
-compatibility: "Requires Node.js 20+, a Chromium-family browser with extension support, the browse CLI (`npm install -g @browserbasehq/browse-cli`), a locally loaded browser-swarm Chrome extension, and the `/browser` skill for CLI command reference."
+compatibility: "Requires Node.js 20+, a Chromium-family browser with extension support, the browse CLI with --cdp and --session support, a locally loaded browser-swarm Chrome extension, and the /browser skill for CLI command reference."
 license: MIT
 allowed-tools: Bash
 ---
@@ -10,13 +10,33 @@ allowed-tools: Bash
 
 Use this skill when one task benefits from several independent browser workstreams that should share the user's real browser profile, cookies, and extensions.
 
+The top-level agent owns the user intent, decomposition, business logic, synthesis, and approval gates. Worker agents own one bounded browser workstream each. The browser-swarm adapter owns the worker-to-tab mapping and gives each worker a scoped browser capability.
+
+This is tab capability isolation, not full browser identity isolation. All workers share the same real browser profile, cookies, local storage, extensions, and logged-in user state. The isolation promise is that each worker's browse endpoint exposes only its assigned tab.
+
+## Architecture
+
 The swarm has three parts:
 
-1. A local relay script in `scripts/swarm-relay.mjs`.
-2. A bare Manifest V3 Chrome extension in `extension/`.
-3. One `browse --ws <target-bound-url>` context per worker.
+1. A local adapter script in `scripts/swarm-relay.mjs`.
+2. A Manifest V3 Chrome extension in `extension/`.
+3. One unique `browse --session <worker-session> --cdp <target-bound-url>` context per worker.
 
-The extension is transport and scope. The `browse` CLI is still the agent-facing browser API. Each worker gets a target-bound CDP URL that exposes only its assigned tab, so `browse` can keep using its active-page model without cross-agent tab races.
+Flow:
+
+```text
+top-level agent
+  -> starts/checks browser-swarm adapter
+  -> ensures N labeled tabs
+  -> spawns worker agents with one command contract each
+  <- receives evidence and synthesizes final answer
+
+worker agent
+  -> browse ... --session <worker-session> --cdp <target-bound-url>
+  -> sees only its assigned tab
+```
+
+The extension is browser transport and tab control. The `browse` CLI remains the worker-facing browser API. The adapter exposes one target-bound CDP URL per tab so each worker keeps a stable active-page model without cross-agent tab races.
 
 ## Setup
 
@@ -66,6 +86,8 @@ Proceed only when `extensionConnected` is `true`. If it is false, ask the user t
 
 Do not try to install an unpacked extension into an already-running personal browser profile without the user's approval. The only automated install path in this POC is launching a separate browser process with `--load-extension`, which creates a separate test browser rather than using the user's active browser.
 
+The default supported relay port is `19989`. The current extension connects to that port by default; non-default ports are only supported after the extension has been explicitly configured to use that port.
+
 ### Disposable Test Browser Mode
 
 Use this mode only for e2e tests, demos, and throwaway profiles. It launches a separate browser profile:
@@ -88,7 +110,7 @@ npx skills add browserbase/skills --skill browser -a '*' -g -y
 cat ~/.agents/skills/browser/SKILL.md
 ```
 
-Use only commands from that reference. Do not invent flags or subcommands.
+Use only commands from that reference and the worker contract below. Do not invent flags or subcommands.
 
 ## Create A Swarm
 
@@ -106,33 +128,47 @@ node scripts/swarm-relay.mjs ensure \
   --json
 ```
 
-The response contains a `wsUrl` per target. Hand exactly one `wsUrl` to each worker.
+The response contains a `wsUrl` per target. The top-level agent must create one unique browse session name per worker and hand exactly one `wsUrl` plus one session name to each worker.
+
+Session naming pattern:
+
+```text
+browser-swarm-<label>-<short-id>
+```
 
 ## Worker Contract
 
 Every worker must:
 
-- Use only its assigned `wsUrl` by passing `--ws "<wsUrl>"` on every `browse` command.
-- Never use `tab_switch`.
+- Use only its assigned `wsUrl` by passing `--cdp "<wsUrl>"` on every `browse` command.
+- Use only its assigned session by passing `--session "<session>"` on every `browse` command.
+- Never use `browse tab new`, `browse tab close`, or `browse tab switch`.
 - Only use commands documented in the `/browser` skill.
 - Return concrete evidence: final URL, title, useful extracted facts, and screenshot path when relevant.
 - Avoid irreversible actions such as purchases, reservations, or form submission without explicit user confirmation.
-
-When writing worker prompts, read the `/browser` skill's SKILL.md and include its Commands section in each worker prompt so the worker agent knows exact syntax. Workers are subagents with no prior context.
 
 Worker prompt shape:
 
 ```text
 You own the "<label>" browser-swarm tab.
-Use browse with this exact target-bound CDP endpoint:
-<wsUrl>
+
+For every browse command, include both flags exactly:
+--session "<session>"
+--cdp "<wsUrl>"
 
 <Include the Commands section from ~/.agents/skills/browser/SKILL.md here>
 
-All browse commands must include: --ws "<wsUrl>"
-Do not switch tabs. Do not use any other browser target.
+Do not create, close, or switch tabs. Do not use any other browser target.
 Do not invent browse flags or commands. Only use commands from the reference above.
 Find options, collect evidence, and report concise results.
+```
+
+Example worker commands:
+
+```bash
+browse get title --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
+browse snapshot --compact --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
+browse screenshot --path /tmp/browser-swarm/flights.png --session "browser-swarm-flights-a1b2c3d4" --cdp "ws://127.0.0.1:19989/devtools/browser/<targetId>"
 ```
 
 ## Offsite Pattern
@@ -146,12 +182,23 @@ For a task like "plan an offsite to San Diego next week - we need flights booked
 5. Assign `dinner` to restaurants near downtown San Diego.
 6. Aggregate worker evidence into one plan and list any actions requiring approval before booking.
 
-## Why This POC Does Not Require `browse --target`
+## Adapter Isolation Contract
 
-First-class target-scoped browse commands are still the long-term API. This POC derisks the bridge without waiting for that patch by making the relay expose a separate virtual browser endpoint per tab:
+The adapter must preserve the worker-owned-tab model:
 
-```bash
-browse --ws "ws://127.0.0.1:19989/devtools/browser/<targetId>"
+- `Target.getTargets` on a target-bound endpoint returns only the assigned tab.
+- `Target.getTargetInfo` and `Target.attachToTarget` reject sibling target IDs.
+- Worker endpoints reject tab creation and closing. Tab lifecycle belongs to the top-level browser-swarm harness.
+- Events are forwarded only to clients that own the event target.
+
+This contract is what keeps subagents from racing over Chrome's active tab state. If a worker is handed a raw, unscoped ModCDP or browser CDP endpoint, this isolation contract no longer holds.
+
+## Future ModCDP Substrate
+
+ModCDP is a promising replacement for the hand-rolled extension transport and CDP forwarding code. Do not make workers connect directly to a generic ModCDP proxy as the final browser-swarm interface. The final shape should remain:
+
+```text
+browse CLI -> browser-swarm adapter -> ModCDP or extension transport -> real browser tab
 ```
 
-That endpoint advertises only one target to Playwright/Stagehand, so the existing `browse` active-page commands resolve to the owned tab. This is the next-best solution until `browse --target <targetId>` lands.
+ModCDP should become the lower-level substrate only after an adapter spike proves it can preserve the target-bound worker isolation behavior above.

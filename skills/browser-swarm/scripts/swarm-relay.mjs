@@ -419,6 +419,9 @@ class Relay {
           return { sessionId: target.sessionId };
         }
         case "Target.createTarget": {
+          if (client.targetId) {
+            throw new Error("Target.createTarget is disabled on browser-swarm worker endpoints; allocate tabs through the browser-swarm harness.");
+          }
           const result = await this.sendToExtension("createTarget", {
             url: params.url || "about:blank",
             groupTitle: DEFAULT_GROUP_TITLE,
@@ -428,6 +431,9 @@ class Relay {
           return { targetId: result.targetId };
         }
         case "Target.closeTarget": {
+          if (client.targetId) {
+            throw new Error("Target.closeTarget is disabled on browser-swarm worker endpoints; release tabs through the browser-swarm harness.");
+          }
           const target = this.findTarget(params.targetId, client);
           return this.sendToExtension("closeTarget", { targetId: target.targetId });
         }
