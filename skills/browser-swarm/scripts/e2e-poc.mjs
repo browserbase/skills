@@ -176,9 +176,9 @@ async function cdpRootLifecycle(wsUrl, createUrl) {
   };
   ws.on("message", onAnyMessage);
 
-  async function send(method, params = {}) {
+  async function send(method, params = {}, sessionId = null) {
     const id = nextId++;
-    ws.send(JSON.stringify({ id, method, params }));
+    ws.send(JSON.stringify({ id, method, params, ...(sessionId ? { sessionId } : {}) }));
     return new Promise((resolve, reject) => {
       const onMessage = (raw) => {
         const message = JSON.parse(raw.toString());
@@ -196,18 +196,24 @@ async function cdpRootLifecycle(wsUrl, createUrl) {
 
   try {
     const before = await send("Target.getTargets");
-    const created = await send("Target.createTarget", { url: createUrl });
+    const attachTargetId = before.result?.targetInfos?.[0]?.targetId;
+    const attach = attachTargetId
+      ? await send("Target.attachToTarget", { targetId: attachTargetId, flatten: true })
+      : null;
+    const sessionId = attach?.result?.sessionId;
+    assert(sessionId, `Expected root attachToTarget to return a sessionId: ${JSON.stringify(attach)}`);
+    const created = await send("Target.createTarget", { url: createUrl }, sessionId);
     const createdTargetId = created.result?.targetId;
     assert(createdTargetId, `Expected root createTarget to return a targetId: ${JSON.stringify(created)}`);
     const afterCreate = await send("Target.getTargets");
-    const closed = await send("Target.closeTarget", { targetId: createdTargetId });
+    const closed = await send("Target.closeTarget", { targetId: createdTargetId }, sessionId);
     const afterClose = await send("Target.getTargets");
     await new Promise((resolve) => setTimeout(resolve, 250));
     const detachEvents = events.filter((event) =>
       event.method === "Target.detachedFromTarget" &&
       event.params?.targetId === createdTargetId
     );
-    return { before, created, afterCreate, closed, afterClose, createdTargetId, detachEvents };
+    return { before, attach, created, afterCreate, closed, afterClose, createdTargetId, detachEvents };
   } finally {
     ws.off("message", onAnyMessage);
     ws.close();
@@ -441,6 +447,7 @@ try {
     },
     rootLifecycle: {
       createdTargetId: rootLifecycle.createdTargetId,
+      sessionId: rootLifecycle.attach.result?.sessionId,
       beforeCount: rootLifecycle.before.result?.targetInfos?.length,
       afterCreateCount: afterCreateTargets.length,
       afterCloseCount: afterCloseTargets.length,

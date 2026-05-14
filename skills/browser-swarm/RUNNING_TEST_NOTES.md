@@ -63,11 +63,17 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 - Repro: follow-up review found that root `Target.closeTarget` could broadcast `Target.detachedFromTarget` after a successful close while the extension's `chrome.tabs.onRemoved` path could also send `targetDetached`, producing duplicate detach events for the same target.
 - Fix: relay target detaches are now idempotent. Both the extension `targetDetached` handler and the root `Target.closeTarget` cleanup only broadcast when the relay target map actually contained the target.
-- Evidence: `BROWSER_SWARM_PORT=20004 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed on the latest rerun. The run verified root create increased target count `3 -> 4`, root close reduced it `4 -> 3`, and exactly one root detach event was observed for the closed target. The same run also reverified session-scoped isolation, relay screenshot output (`1510977` bytes), and three same-page parallel write tasks.
+- Evidence: `BROWSER_SWARM_PORT=20005 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed on the latest rerun. The run verified root create increased target count `3 -> 4`, root close reduced it `4 -> 3`, and exactly one root detach event was observed for the closed target. The same run also reverified session-scoped isolation, relay screenshot output (`1510792` bytes), and three same-page parallel write tasks.
+
+### Root lifecycle commands with sessionId bypassed relay state
+
+- Repro: follow-up review found that root-client `Target.createTarget` and `Target.closeTarget` with a `sessionId` fell through to raw CDP forwarding instead of the relay's target-map update and detach-broadcast paths.
+- Fix: root lifecycle commands now run through the relay's create/close handlers before session forwarding, regardless of whether the root client included a `sessionId`.
+- Evidence: `BROWSER_SWARM_PORT=20005 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed. The root lifecycle probe now attaches to an existing target, sends both root `Target.createTarget` and `Target.closeTarget` with that `sessionId`, verifies target count `3 -> 4 -> 3`, and observes exactly one detach event.
 
 ## Current Evidence
 
-- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, and `20004`; the latest run includes lifecycle/session isolation regression probes, root create/close cleanup, single detach-event assertion, relay CLI screenshot output, and three same-page parallel write tasks.
+- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, and `20005`; the latest run includes lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output, and three same-page parallel write tasks.
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.

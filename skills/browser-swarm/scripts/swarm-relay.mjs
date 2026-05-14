@@ -444,6 +444,35 @@ class Relay {
       }
     }
 
+    if (!client.targetId && method === "Target.createTarget") {
+      const result = await this.sendToExtension("createTarget", {
+        url: params.url || "about:blank",
+        groupDisabled: this.groupDisabled,
+        groupTitle: this.groupDisabled ? null : DEFAULT_GROUP_TITLE,
+        groupColor: DEFAULT_GROUP_COLOR
+      });
+      this.mergeTargets([result.target]);
+      return { targetId: result.targetId };
+    }
+
+    if (!client.targetId && method === "Target.closeTarget") {
+      const target = this.findTarget(params.targetId, client);
+      const result = await this.sendToExtension("closeTarget", { targetId: target.targetId });
+      if (result?.success !== false) {
+        const hadTarget = this.targets.delete(target.targetId);
+        if (hadTarget) {
+          this.broadcast({
+            method: "Target.detachedFromTarget",
+            params: {
+              sessionId: target.sessionId,
+              targetId: target.targetId
+            }
+          }, target.targetId);
+        }
+      }
+      return result;
+    }
+
     if (!sessionId) {
       switch (method) {
         case "Browser.getVersion":
@@ -466,33 +495,6 @@ class Relay {
             targetId: firstTarget?.targetId
           }).catch(() => {});
           return {};
-        case "Target.createTarget": {
-          const result = await this.sendToExtension("createTarget", {
-            url: params.url || "about:blank",
-            groupDisabled: this.groupDisabled,
-            groupTitle: this.groupDisabled ? null : DEFAULT_GROUP_TITLE,
-            groupColor: DEFAULT_GROUP_COLOR
-          });
-          this.mergeTargets([result.target]);
-          return { targetId: result.targetId };
-        }
-        case "Target.closeTarget": {
-          const target = this.findTarget(params.targetId, client);
-          const result = await this.sendToExtension("closeTarget", { targetId: target.targetId });
-          if (result?.success !== false) {
-            const hadTarget = this.targets.delete(target.targetId);
-            if (hadTarget) {
-              this.broadcast({
-                method: "Target.detachedFromTarget",
-                params: {
-                  sessionId: target.sessionId,
-                  targetId: target.targetId
-                }
-              }, target.targetId);
-            }
-          }
-          return result;
-        }
       }
     }
 
