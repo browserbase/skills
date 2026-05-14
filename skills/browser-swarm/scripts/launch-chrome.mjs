@@ -76,7 +76,9 @@ function extensionDirForPort(port) {
   rmSync(patchedDir, { recursive: true, force: true });
   cpSync(extensionDir, patchedDir, { recursive: true });
 
-  const workerPath = resolve(patchedDir, "service-worker.js");
+  const manifestPath = resolve(patchedDir, "manifest.json");
+  const manifest = JSON.parse(readFileSync(manifestPath, "utf8"));
+  const workerPath = resolve(patchedDir, manifest.background.service_worker);
   const worker = readFileSync(workerPath, "utf8");
   writeFileSync(
     workerPath,

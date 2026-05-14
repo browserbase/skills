@@ -41,6 +41,12 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Fix: `setup-real-browser.mjs` now reads the unpacked manifest, prints the expected extension version/worker, and exits `3` with `versionMatches: false` when the connected worker version is stale.
 - Evidence: `node scripts/setup-real-browser.mjs --browser arc --no-open --no-start-relay --timeout 2 --json` against the stale Arc worker exited `3` and reported `versionMatches: false`; the same helper against disposable Chrome on relay port `19995` exited `0` with `versionMatches: true`.
 
+### Arc MV3 service worker script URL stayed cache-stale
+
+- Repro: Arc continued to reconnect with active worker version `0.1.0` even after the unpacked manifest and installed skill reported `0.1.1`.
+- Fix: Versioned the background service-worker filename to `service-worker-v0-1-1.js` in `manifest.json` while leaving `service-worker.js` as a tiny compatibility wrapper.
+- Evidence: `BROWSER_SWARM_PORT=20013 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed in disposable Chrome with extension version `0.1.1`, proving the launcher now patches the manifest-declared worker file for non-default relay ports. Opening a temporary extension page that called `chrome.runtime.reload()` still made Arc reconnect with active worker `0.1.0`, so Arc still requires a browser-level service-worker refresh or restart.
+
 ### Review-reported relay/setup hardening issues
 
 - Repro: targeted review found several real edge cases: worker endpoints could forward `Target.createTarget` / `Target.closeTarget` if a `sessionId` was present, unknown `sessionId` messages fell back to the first visible worker target, extension reconnects could leave stale relay targets, the relay `screenshot --path` CLI ignored `--path`, synthetic event failures could send an error after a successful response, `setup-real-browser` leaked the parent log file descriptor and accepted unknown browsers after spreading `undefined`, and `launch-chrome` accepted missing bare executable names before reaching the "Chrome not found" error.
@@ -91,7 +97,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Current Evidence
 
-- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, `20005`, `20007`, `20009`, `20010`, and `20011`; the latest current-head runtime run includes extension version `0.1.1`, lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output (`1512972` bytes), and three same-page parallel `fill` + `click #submit` write tasks.
+- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, `20005`, `20007`, `20009`, `20010`, `20011`, and `20013`; the latest current-head runtime run includes extension version `0.1.1`, lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output (`1514865` bytes), and three same-page parallel `fill` + `click #submit` write tasks.
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.
@@ -146,7 +152,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Completion Audit
 
-- Chrome e2e across read/write, same-page tabs, lifecycle isolation, screenshots, and root/worker scoping: covered by the latest current-head disposable Chrome run on relay port `20011` with extension `0.1.1`.
+- Chrome e2e across read/write, same-page tabs, lifecycle isolation, screenshots, and root/worker scoping: covered by the latest current-head disposable Chrome run on relay port `20013` with extension `0.1.1`.
 - Arc read/write workflows: covered for no-group DOM writes and top-level serialized pointer-click submission on live Arc. The live Arc service worker is still `0.1.0`, so this proves the supported Arc workaround path but does not prove the new extension-level `Input.*` serialization path in Arc.
 - Real Codex workers: covered by prior live Codex worker runs, including three concurrent same-page workers and mixed Codex/Claude Chrome runs.
 - Real Claude Code workers: covered by `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json` runs in both Chrome and Arc DOM-write workflows.
