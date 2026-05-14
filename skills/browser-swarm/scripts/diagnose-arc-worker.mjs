@@ -10,12 +10,14 @@ const defaultArcProfile = resolve(
   process.env.HOME || "",
   "Library/Application Support/Arc/User Data/Default"
 );
+const fallbackExtensionId = "fnkkfpnldmkoglemodoamghhienkeodp";
 
 function parseArgs(argv) {
   const opts = {
     host: process.env.BROWSER_SWARM_HOST || "127.0.0.1",
     port: Number(process.env.BROWSER_SWARM_PORT || 19989),
     profile: process.env.BROWSER_SWARM_ARC_PROFILE || defaultArcProfile,
+    extensionId: process.env.BROWSER_SWARM_EXTENSION_ID,
     json: false,
   };
 
@@ -24,6 +26,7 @@ function parseArgs(argv) {
     if (arg === "--host") opts.host = argv[++i];
     else if (arg === "--port") opts.port = Number(argv[++i]);
     else if (arg === "--profile") opts.profile = argv[++i];
+    else if (arg === "--extension-id") opts.extensionId = argv[++i];
     else if (arg === "--json") opts.json = true;
     else if (arg === "--help" || arg === "-h") {
       usage();
@@ -37,7 +40,7 @@ function parseArgs(argv) {
 }
 
 function usage() {
-  console.log(`Usage: node scripts/diagnose-arc-worker.mjs [--host <host>] [--port <port>] [--profile <arc-profile>] [--json]
+  console.log(`Usage: node scripts/diagnose-arc-worker.mjs [--host <host>] [--port <port>] [--profile <arc-profile>] [--extension-id <id>] [--json]
 
 Read-only diagnostic for Arc's Browser Swarm MV3 worker state. It compares:
 - the unpacked extension manifest,
@@ -96,10 +99,9 @@ function countBuffer(buffer, needle) {
   return count;
 }
 
-function scanServiceWorkerDatabase(profile, expectedWorker) {
+function scanServiceWorkerDatabase(profile, expectedWorker, extensionId) {
   const databaseDir = resolve(profile, "Service Worker", "Database");
   const oldWorker = "service-worker.js";
-  const extensionId = "fnkkfpnldmkoglemodoamghhienkeodp";
   const extensionOrigin = `chrome-extension://${extensionId}/`;
   const oldWorkerUrl = `${extensionOrigin}${oldWorker}`;
   const expectedWorkerUrl = expectedWorker ? `${extensionOrigin}${expectedWorker}` : null;
@@ -136,7 +138,7 @@ function scanServiceWorkerDatabase(profile, expectedWorker) {
   };
 }
 
-function summarize({ manifest, health, scan }) {
+function summarize({ manifest, health, scan, extensionId }) {
   const connectedVersion = health?.extension?.version || null;
   const versionMatches = connectedVersion === manifest.version;
   const oldWorkerHits = scan.matches.reduce((sum, match) => sum + match.oldWorkerHits, 0);
@@ -155,6 +157,7 @@ function summarize({ manifest, health, scan }) {
     status,
     connectedVersion,
     expectedVersion: manifest.version,
+    extensionId,
     versionMatches,
     expectedWorker: manifest.serviceWorker,
     oldWorkerHits,
@@ -187,13 +190,15 @@ async function main() {
   const opts = parseArgs(process.argv.slice(2));
   const manifest = readManifest();
   const health = await tryHealth(opts.host, opts.port);
-  const scan = scanServiceWorkerDatabase(opts.profile, manifest.serviceWorker);
+  const extensionId = opts.extensionId || health?.extension?.id || fallbackExtensionId;
+  const scan = scanServiceWorkerDatabase(opts.profile, manifest.serviceWorker, extensionId);
   const result = {
     manifest,
     health,
+    extensionId,
     arcProfile: opts.profile,
     scan,
-    summary: summarize({ manifest, health, scan }),
+    summary: summarize({ manifest, health, scan, extensionId }),
   };
 
   if (opts.json) {

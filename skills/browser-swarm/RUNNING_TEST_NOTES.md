@@ -97,7 +97,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Current Evidence
 
-- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, `20005`, `20007`, `20009`, `20010`, `20011`, and `20013`; the latest current-head runtime run includes extension version `0.1.1`, lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output (`1514865` bytes), and three same-page parallel `fill` + `click #submit` write tasks.
+- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, `20005`, `20007`, `20009`, `20010`, `20011`, `20013`, `20016`, `20017`, and `20018`; the latest current-head runtime run includes extension id `bljijffbkipealmmglkacdmfjjpdjphm`, extension version `0.1.1`, service worker `service-worker-v0-1-1.js`, lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output (`1515911` bytes), and three same-page parallel `fill` + `click #submit` write tasks.
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.
@@ -161,7 +161,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 | Requirement | Evidence | Status |
 | --- | --- | --- |
-| Chrome e2e works across real browser tabs | `BROWSER_SWARM_PORT=20013 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed with extension `0.1.1`, target isolation, root lifecycle `3 -> 4 -> 3`, one detach event, relay screenshot `1514865` bytes, and same-page parallel `fill` + `click #submit` writes. | Covered |
+| Chrome e2e works across real browser tabs | `BROWSER_SWARM_PORT=20018 BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e` passed with extension id `bljijffbkipealmmglkacdmfjjpdjphm`, extension `0.1.1`, service worker `service-worker-v0-1-1.js`, target isolation, root lifecycle `3 -> 4 -> 3`, one detach event, relay screenshot `1515911` bytes, and same-page parallel `fill` + `click #submit` writes. | Covered |
 | Arc e2e works for read/write tasks | Arc no-group DOM-write flows passed, and `BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e:arc-serialized-click` passed on live Arc after the shared harness and versioned worker changes. | Covered for DOM writes and serialized pointer submission |
 | Arc extension-level parallel pointer clicks work | `BROWSER_SWARM_BROWSE_BIN=<browse cli> npm run e2e:arc-parallel-click` is the dedicated acceptance gate. On current Arc it exits `3` with `BLOCKED_STALE_EXTENSION`, expected `0.1.1`, connected `0.1.0`. | Blocked by stale Arc MV3 worker |
 | Arc stale-worker diagnostics are reproducible | `npm run diagnose:arc-worker -- --json` exits `3` with `STALE_ARC_SERVICE_WORKER_REGISTRATION`, exact old worker URL hits `18`, and exact expected worker URL hits `0`. | Covered as a blocker diagnostic |

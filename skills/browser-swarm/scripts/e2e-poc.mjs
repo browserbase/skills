@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
-import { mkdirSync, statSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, statSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +11,7 @@ const skillDir = resolve(__dirname, "..");
 const artifactsDir = "/tmp/browser-swarm-e2e";
 const port = Number(process.env.BROWSER_SWARM_PORT || 19989);
 const browseBin = process.env.BROWSER_SWARM_BROWSE_BIN || "browse";
+const expectedExtension = JSON.parse(readFileSync(resolve(skillDir, "extension", "manifest.json"), "utf8"));
 const workerSessions = [];
 let samePageServer;
 
@@ -241,6 +242,12 @@ try {
   ]);
 
   const health = await waitForHealth();
+  assert(health.extension?.version === expectedExtension.version, `Expected extension version ${expectedExtension.version}, got ${health.extension?.version}`);
+  assert(health.extension?.id, "Expected extension /health metadata to include runtime id");
+  assert(
+    health.extension?.serviceWorker === expectedExtension.background?.service_worker,
+    `Expected extension worker ${expectedExtension.background?.service_worker}, got ${health.extension?.serviceWorker}`
+  );
   const ensure = await run("node", [
     "scripts/swarm-relay.mjs",
     "ensure",

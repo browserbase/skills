@@ -261,7 +261,9 @@ class Relay {
     if (message.type === "hello") {
       this.extensionInfo = {
         name: message.extension || "unknown",
+        id: message.id || null,
         version: message.version || "unknown",
+        serviceWorker: message.serviceWorker || null,
         connectedAt: new Date().toISOString()
       };
       this.targets.clear();

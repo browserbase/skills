@@ -63,7 +63,9 @@ async function connect() {
     send({
       type: "hello",
       extension: "browser-swarm",
+      id: chrome.runtime.id,
       version: chrome.runtime.getManifest().version,
+      serviceWorker: chrome.runtime.getManifest().background?.service_worker || null,
       targets: await listAttachedTargets()
     });
   };
