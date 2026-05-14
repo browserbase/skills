@@ -23,7 +23,7 @@ const SKILL_DIR = path.resolve(__dirname, "..");
 // ── Config ─────────────────────────────────────────────────────────
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
-const MAX_TURNS = 30;
+const DEFAULT_MAX_TURNS = 30;
 const MAX_TOKENS = 4096;
 const EXEC_TIMEOUT_MS = 30_000;
 
@@ -161,6 +161,50 @@ function getNextRunNumber(tracesDir) {
 
 const ALLOWED_COMMAND = "browse";
 
+// ── Managed Browserbase session (BROWSERBASE_CONTEXT_ID passthrough) ──
+//
+// When BROWSERBASE_CONTEXT_ID is set and --env remote, autobrowse creates
+// one persistent BB session before the agent loop and rewrites every
+// browse command from the agent to attach to it. This lets the agent
+// inherit a pre-authed state (cookies/storage) without having to log in
+// during every training iteration. Set via env var (not a CLI flag) so
+// callers can run autobrowse for the same task with or without the
+// context attached.
+let MANAGED_SESSION_ID = null;
+
+function preCreateBrowserbaseSession(ctxId) {
+  console.error(`[autobrowse] BROWSERBASE_CONTEXT_ID detected — creating BB session bound to context ${ctxId.slice(0, 8)}…`);
+  try {
+    const stdout = execFileSync(
+      "bb",
+      ["sessions", "create", "--context-id", ctxId, "--persist", "--advanced-stealth", "--solve-captchas"],
+      { encoding: "utf-8" },
+    );
+    const session = JSON.parse(stdout);
+    if (!session.id) throw new Error(`bb output missing id: ${stdout.slice(0, 200)}`);
+    console.error(`[autobrowse] Created managed session ${session.id} (context ${ctxId.slice(0, 8)}…)`);
+    return session.id;
+  } catch (err) {
+    console.error(`[autobrowse] FATAL: could not create BB session — ${err.message || err}`);
+    process.exit(1);
+  }
+}
+
+function releaseManagedSession() {
+  if (!MANAGED_SESSION_ID) return;
+  const sid = MANAGED_SESSION_ID;
+  MANAGED_SESSION_ID = null; // guard against re-entry from signal handlers
+  try {
+    execFileSync("bb", ["sessions", "update", sid, "--status", "REQUEST_RELEASE"], { stdio: "ignore" });
+    console.error(`[autobrowse] Released managed session ${sid}`);
+  } catch (err) {
+    console.error(`[autobrowse] Warning: failed to release session ${sid}: ${err.message || err}`);
+  }
+}
+process.on("exit", releaseManagedSession);
+process.on("SIGINT", () => { releaseManagedSession(); process.exit(130); });
+process.on("SIGTERM", () => { releaseManagedSession(); process.exit(143); });
+
 function parseCommand(command) {
   const args = [];
   let current = "";
@@ -243,6 +287,23 @@ function parseCommand(command) {
 }
 
 function executeCommand(command) {
+  // If a managed BB session is active, rewrite browse commands to attach to
+  // it. Session-lifecycle commands become no-ops so the agent's prompt-baked
+  // `browse env remote` / `browse stop` muscle memory doesn't fight us.
+  if (MANAGED_SESSION_ID) {
+    const trimmed = command.trim();
+    if (/^browse\s+(env|stop|status|start)(\s|$)/.test(trimmed)) {
+      return {
+        output: `[managed] no-op — session ${MANAGED_SESSION_ID.slice(0, 8)}… is pre-attached`,
+        error: false,
+        duration_ms: 0,
+      };
+    }
+    if (/^browse\s+/.test(trimmed) && !trimmed.includes("--connect")) {
+      command = trimmed.replace(/^browse\s+/, `browse --connect ${MANAGED_SESSION_ID} `);
+    }
+  }
+
   // Security: only allow the browse CLI and execute it without a shell so
   // metacharacters are treated as literal arguments instead of extra commands.
   const parsed = parseCommand(command);
@@ -272,15 +333,17 @@ function executeCommand(command) {
   }
 }
 
-function buildSystemPrompt(strategy, traceDir, browseEnv) {
-  const envDesc = browseEnv === "remote"
-    ? `Use **remote mode** (Browserbase) — anti-bot stealth, CAPTCHA solving, residential proxies:
+function buildSystemPrompt(strategy, traceDir, browseEnv, managedSessionId) {
+  const envDesc = managedSessionId
+    ? `The browser is **pre-attached** to a managed Browserbase session (id starting ${managedSessionId.slice(0, 8)}…) with a persistent context — cookies/storage from prior sessions are loaded. **Skip session lifecycle commands** (\`browse env\`, \`browse stop\`, \`browse status\`) — they are silently no-ops. Begin with \`browse open <url>\`.`
+    : browseEnv === "remote"
+      ? `Use **remote mode** (Browserbase) — anti-bot stealth, CAPTCHA solving, residential proxies:
 \`\`\`
 browse stop
 browse env remote
 \`\`\`
 Always run \`browse stop\` first to kill any existing local session before switching to remote.`
-    : `Use **local mode** — runs on local Chrome:
+      : `Use **local mode** — runs on local Chrome:
 \`\`\`
 browse env local
 \`\`\``;
@@ -391,6 +454,19 @@ async function main() {
   }
 
   const browseEnv = getArg("env", "local");
+  const maxTurnsArg = getArg("max-turns");
+  const MAX_TURNS = maxTurnsArg ? parseInt(maxTurnsArg, 10) : DEFAULT_MAX_TURNS;
+  if (!Number.isFinite(MAX_TURNS) || MAX_TURNS < 1) {
+    console.error(`ERROR: --max-turns must be a positive integer; got "${maxTurnsArg}".`);
+    process.exit(1);
+  }
+
+  // Pre-create a managed Browserbase session if BROWSERBASE_CONTEXT_ID is set.
+  // Falls back to the agent driving session setup itself when unset.
+  if (process.env.BROWSERBASE_CONTEXT_ID && browseEnv === "remote") {
+    MANAGED_SESSION_ID = preCreateBrowserbaseSession(process.env.BROWSERBASE_CONTEXT_ID);
+  }
+
   const client = new Anthropic();
   const runNumber = getNextRunNumber(tracesDir);
   const runId = `run-${String(runNumber).padStart(3, "0")}`;
@@ -400,7 +476,7 @@ async function main() {
 
   const strategy = fs.readFileSync(strategyFile, "utf-8");
   const task = fs.readFileSync(taskFile, "utf-8");
-  const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv);
+  const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv, MANAGED_SESSION_ID);
 
   console.error(`\n${"=".repeat(60)}`);
   console.error(`  AUTOBROWSE — ${taskName} — Run ${runNumber}`);
