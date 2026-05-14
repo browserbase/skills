@@ -169,6 +169,13 @@ async function cdpRootLifecycle(wsUrl, createUrl) {
   });
 
   let nextId = 1;
+  const events = [];
+  const onAnyMessage = (raw) => {
+    const message = JSON.parse(raw.toString());
+    if (message.method) events.push(message);
+  };
+  ws.on("message", onAnyMessage);
+
   async function send(method, params = {}) {
     const id = nextId++;
     ws.send(JSON.stringify({ id, method, params }));
@@ -195,8 +202,14 @@ async function cdpRootLifecycle(wsUrl, createUrl) {
     const afterCreate = await send("Target.getTargets");
     const closed = await send("Target.closeTarget", { targetId: createdTargetId });
     const afterClose = await send("Target.getTargets");
-    return { before, created, afterCreate, closed, afterClose, createdTargetId };
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    const detachEvents = events.filter((event) =>
+      event.method === "Target.detachedFromTarget" &&
+      event.params?.targetId === createdTargetId
+    );
+    return { before, created, afterCreate, closed, afterClose, createdTargetId, detachEvents };
   } finally {
+    ws.off("message", onAnyMessage);
     ws.close();
   }
 }
@@ -313,6 +326,7 @@ try {
   const afterCloseTargets = rootLifecycle.afterClose.result?.targetInfos || [];
   assert(afterCreateTargets.some((target) => target.targetId === rootLifecycle.createdTargetId), "Expected root-created target to appear after createTarget");
   assert(!afterCloseTargets.some((target) => target.targetId === rootLifecycle.createdTargetId), "Expected root-created target to be absent after closeTarget");
+  assert(rootLifecycle.detachEvents.length === 1, `Expected exactly one root detach event, saw ${rootLifecycle.detachEvents.length}`);
 
   const relayScreenshotPath = resolve(artifactsDir, "relay-screenshot.png");
   const relayScreenshot = await run("node", [
@@ -430,6 +444,7 @@ try {
       beforeCount: rootLifecycle.before.result?.targetInfos?.length,
       afterCreateCount: afterCreateTargets.length,
       afterCloseCount: afterCloseTargets.length,
+      detachEventCount: rootLifecycle.detachEvents.length,
       closed: rootLifecycle.closed
     },
     relayScreenshot: {

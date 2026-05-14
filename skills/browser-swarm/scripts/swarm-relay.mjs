@@ -290,7 +290,8 @@ class Relay {
     }
 
     if (message.type === "targetDetached") {
-      this.targets.delete(message.targetId);
+      const hadTarget = this.targets.delete(message.targetId);
+      if (!hadTarget) return;
       this.broadcast({
         method: "Target.detachedFromTarget",
         params: {
@@ -479,14 +480,16 @@ class Relay {
           const target = this.findTarget(params.targetId, client);
           const result = await this.sendToExtension("closeTarget", { targetId: target.targetId });
           if (result?.success !== false) {
-            this.targets.delete(target.targetId);
-            this.broadcast({
-              method: "Target.detachedFromTarget",
-              params: {
-                sessionId: target.sessionId,
-                targetId: target.targetId
-              }
-            }, target.targetId);
+            const hadTarget = this.targets.delete(target.targetId);
+            if (hadTarget) {
+              this.broadcast({
+                method: "Target.detachedFromTarget",
+                params: {
+                  sessionId: target.sessionId,
+                  targetId: target.targetId
+                }
+              }, target.targetId);
+            }
           }
           return result;
         }
