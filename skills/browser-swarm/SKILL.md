@@ -124,6 +124,18 @@ curl -s http://127.0.0.1:19989/health
 ```
 
 Proceed only when `extensionConnected` is `true`. If it is false, ask the user to confirm the extension is installed and enabled in the chosen browser/profile.
+When validating a recently changed extension, also check `/health` for the extension version:
+
+```json
+{
+  "extension": {
+    "name": "browser-swarm",
+    "version": "0.1.1"
+  }
+}
+```
+
+If the version is stale, reload Browser Swarm Bridge in the browser's extension manager before testing behavior.
 
 Do not try to install an unpacked extension into an already-running personal browser profile without the user's approval. The only automated install path in this POC is launching a separate browser process with `--load-extension`, which creates a separate test browser rather than using the user's active browser.
 
