@@ -137,6 +137,14 @@ When validating a recently changed extension, also check `/health` for the exten
 
 If the version is stale, reload Browser Swarm Bridge in the browser's extension manager before testing behavior. If `/health` still reports the old version after reload or the browser's extension Update button, restart the browser to force the MV3 service worker registration to refresh before judging the changed extension.
 
+For Arc stale-worker diagnostics, use the read-only profile scanner:
+
+```bash
+npm run diagnose:arc-worker -- --json
+```
+
+`STALE_ARC_SERVICE_WORKER_REGISTRATION` means Arc's profile still has the old Browser Swarm service-worker registration even though the unpacked manifest has changed. Restart Arc, confirm `/health` reports the expected extension version, then rerun the relevant Arc e2e gate.
+
 Do not try to install an unpacked extension into an already-running personal browser profile without the user's approval. The only automated install path in this POC is launching a separate browser process with `--load-extension`, which creates a separate test browser rather than using the user's active browser.
 
 The default supported relay port is `19989`. The current extension connects to that port by default; non-default ports are only supported after the extension has been explicitly configured to use that port.

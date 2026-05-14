@@ -7,6 +7,7 @@
     "serve": "node scripts/swarm-relay.mjs serve",
     "setup": "node scripts/setup-real-browser.mjs",
     "launch": "node scripts/launch-chrome.mjs",
+    "diagnose:arc-worker": "node scripts/diagnose-arc-worker.mjs",
     "e2e": "node scripts/e2e-poc.mjs",
     "e2e:arc-parallel-click": "node scripts/e2e-arc-parallel-click.mjs",
     "e2e:arc-serialized-click": "node scripts/e2e-arc-serialized-click.mjs"
