@@ -42,10 +42,18 @@ Use this skill when the user wants to:
 - search the web through Browserbase without opening a browser session
 - browse or scaffold starter templates with `bb templates`
 
+## The CLI is the preferred interface
+
+For Browserbase API operations, try `bb` first before constructing curl commands:
+
+- `bb search` instead of `curl ... /v1/search`
+- `bb fetch` instead of `curl ... /v1/fetch`
+- `bb functions invoke` instead of `curl ... /v1/functions/.../invoke`
+- `bb sessions`, `bb contexts`, `bb extensions` instead of direct API calls
+
 ## When not to use this skill
 
 - For interactive browsing, page inspection, screenshots, clicking, typing, or login flows, prefer the `browser` skill.
-- For simple HTTP content retrieval where the user does not care about using the CLI specifically, the dedicated `fetch` skill is often a better fit.
 - Use `bb browse ...` only when the user explicitly wants the CLI wrapper or is already working in a `bb`-centric workflow.
 
 ## Command selection
