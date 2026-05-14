@@ -85,7 +85,7 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Current Evidence
 
-- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, and `20005`; the latest run includes lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output, and three same-page parallel write tasks.
+- Chrome disposable grouped e2e: PASS on relay ports `19990`, `19997`, `20000`, `20003`, `20004`, `20005`, and `20007`; the latest current-head run includes extension version `0.1.1`, lifecycle/session isolation regression probes, root create/close cleanup with a root `sessionId`, single detach-event assertion, relay CLI screenshot output (`1509933` bytes), and three same-page parallel `fill` + `click #submit` write tasks.
 - Chrome raw CDP isolation: PASS; worker endpoint sees only its target and rejects sibling/lifecycle commands.
 - Chrome same-page read/write workflow: PASS; three workers write distinct values to identical pages in parallel.
 - Codex subagents: PASS in prior live stress; three real Codex `worker` agents each operated through a distinct target-bound endpoint and reported title/url/tab evidence plus screenshots.
