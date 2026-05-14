@@ -32,6 +32,15 @@ function isRadioSelector(s) {
     /\[type=radio\]/i.test(s);
 }
 
+// A selector is "clearly unique" if it's an id-style or has a unique-attribute hint.
+// For everything else, codegen emits .first() to avoid Playwright strict-mode violations.
+function isUniqueSelector(s) {
+  if (!s) return false;
+  // #id, [id=...], [data-testid=...], [name=...]
+  return /^#[\w-]+$/.test(s.trim()) ||
+    /\[(id|data-testid|data-test|data-cy|name)\s*=/i.test(s);
+}
+
 function emitOp(op, snapshots) {
   const lines = [];
   const cached = null;
@@ -66,8 +75,12 @@ function emitOp(op, snapshots) {
       // (styled labels commonly intercept actionability checks).
       if (isRadioSelector(op.selector)) {
         lines.push(`  await forceClickRadio(page.locator(${jsStr(op.selector)}));`);
-      } else {
+      } else if (isUniqueSelector(op.selector)) {
         lines.push(`  await page.locator(${jsStr(op.selector)}).click();`);
+      } else {
+        // .first() guards against strict-mode violations when the agent emitted
+        // an ambiguous CSS selector like `button[type=button]` (matches Help / Save Draft / Next Step).
+        lines.push(`  await page.locator(${jsStr(op.selector)}).first().click();`);
       }
       stats.cached++;
       return { lines, cached: { kind: "click", code: `page.locator(${jsStr(op.selector)}).click()`, selector: op.selector, op }, stats };
@@ -144,6 +157,10 @@ function emitOp(op, snapshots) {
         lines.push(`  await forceCheck(${best.code});`);
       } else if (op.kind === "fill_ref" && role === "checkbox") {
         lines.push(`  await forceCheck(${best.code});`);
+      } else if (op.kind === "click_ref" && role === "link") {
+        // SPA links with onClick handlers (tour overlays, route-only handlers)
+        // often don't navigate via .click(). Falls back to page.goto(href).
+        lines.push(`  await clickLinkWithFallback(page, ${best.code});`);
       } else {
         lines.push(`  await ${best.code}.${method}${args};`);
       }
@@ -473,6 +490,26 @@ async function reactFill(page: Page, labelPattern: RegExp | string, value: strin
     el.dispatchEvent(new Event("input", { bubbles: true }));
     el.dispatchEvent(new Event("change", { bubbles: true }));
   }, value);
+}
+
+/** Click a link with auto-fallback to direct navigation. SPA links on state-agency
+ *  portals frequently have onClick handlers that preventDefault and route via
+ *  client-state (often gated behind tour/onboarding overlays). When the link
+ *  exposes an absolute http(s) href, prefer page.goto over .click — same destination,
+ *  no overlay-intercept risk. Falls back to a plain click only for non-routable
+ *  hrefs (e.g. fragment anchors or JS-only handlers). */
+async function clickLinkWithFallback(page: Page, loc: Locator): Promise<void> {
+  // Use the resolved .href property (absolute URL), not getAttribute("href")
+  // which returns the raw attribute value (often relative like "/forms/business").
+  const href = await loc.first().evaluate((el) => (el as HTMLAnchorElement).href).catch(() => null);
+  if (href && /^https?:\\/\\//i.test(href)) {
+    await page.goto(href);
+  } else {
+    await loc.first().click({ timeout: 10000 });
+  }
+  // SPAs often finish loading client content well after the load event fires; wait
+  // for the network to actually settle before returning.
+  await page.waitForLoadState("networkidle").catch(() => {});
 }
 
 /** Click "Next Step" (or other named button) via find-by-text in page context;

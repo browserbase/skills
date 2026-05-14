@@ -154,6 +154,21 @@ function findNearbyLabel(node, tree) {
   return null;
 }
 
+// Mapping for non-ARIA role names that show up in the browse snapshot tree
+// to their ARIA equivalents. Most importantly: <select> reports as "select"
+// in browse snapshots but Playwright's role is "combobox".
+const SNAPSHOT_TO_ARIA_ROLE = {
+  select: "combobox",
+  // Add additional mappings here as we encounter them in production traces.
+};
+
+// Roles where the accessible name is an exact label/placeholder and getByRole
+// with substring matching causes collisions (e.g. "Company Name" matching
+// "Confirm Company Name"). We emit `exact: true` for these.
+const EXACT_NAME_ROLES = new Set([
+  "textbox", "searchbox", "combobox", "spinbutton", "listbox",
+]);
+
 // Build ranked Playwright locator candidates for a node. Each candidate has
 // { method, args, confidence (0..1), code }. The first is the "best" — the
 // self-healer (P1) can fall back to lower-ranked candidates when selectors
@@ -164,18 +179,39 @@ export function nodeToLocators(node, tree) {
 
   const pwName = (n) => n; // Playwright accepts strings for `name`; quotes happen at emit.
 
-  // 1. getByRole({ name }) — best when both are present and role is ARIA.
-  if (node.role && ARIA_ROLES.has(node.role.toLowerCase()) && node.name) {
+  // Normalize the role: map browse-snapshot quirks (e.g., "select") to ARIA roles.
+  const rawRole = (node.role || "").toLowerCase();
+  const role = SNAPSHOT_TO_ARIA_ROLE[rawRole] || rawRole;
+  const buildRoleArgs = (r, name) => {
+    const opts = { name: pwName(name) };
+    if (EXACT_NAME_ROLES.has(r)) opts.exact = true;
+    return [r, opts];
+  };
+
+  const isFormInput = role && /^(textbox|combobox|checkbox|searchbox|spinbutton|slider|switch|radio|listbox)$/i.test(role);
+  const isSelectLike = role === "combobox" || role === "listbox";
+
+  // For form selects, prefer getByLabel over getByRole — label-based locators
+  // tend to be more reliable when forms have repeated/similar select widgets.
+  if (isSelectLike && node.name) {
     candidates.push({
-      method: "getByRole",
-      args: [node.role.toLowerCase(), { name: pwName(node.name) }],
-      confidence: 0.92,
+      method: "getByLabel",
+      args: [node.name],
+      confidence: 0.93,
     });
   }
 
-  // 2. getByLabel — for form inputs sitting next to a label.
-  const isFormInput = node.role && /^(textbox|combobox|checkbox|searchbox|spinbutton|slider|switch|radio)$/i.test(node.role);
-  if (isFormInput) {
+  // 1. getByRole({ name }) — best when both are present and role is ARIA.
+  if (role && ARIA_ROLES.has(role) && node.name) {
+    candidates.push({
+      method: "getByRole",
+      args: buildRoleArgs(role, node.name),
+      confidence: isSelectLike ? 0.88 : 0.92,
+    });
+  }
+
+  // 2. getByLabel — for form inputs sitting next to a label (non-select).
+  if (isFormInput && !isSelectLike) {
     const label = node.name || findNearbyLabel(node, tree);
     if (label) {
       candidates.push({
@@ -197,10 +233,10 @@ export function nodeToLocators(node, tree) {
 
   // 3. getByRole({ name }) — also worth trying with role even if not in
   // ARIA_ROLES, since Playwright tolerates many role strings.
-  if (node.role && !ARIA_ROLES.has(node.role.toLowerCase()) && node.name) {
+  if (role && !ARIA_ROLES.has(role) && node.name) {
     candidates.push({
       method: "getByRole",
-      args: [node.role.toLowerCase(), { name: pwName(node.name) }],
+      args: buildRoleArgs(role, node.name),
       confidence: 0.6,
     });
   }
@@ -218,10 +254,10 @@ export function nodeToLocators(node, tree) {
 
   // 5. getByRole without a name — last resort, only safe when there's
   // really only one of this role in the relevant scope. Low confidence.
-  if (node.role && ARIA_ROLES.has(node.role.toLowerCase()) && !node.name) {
+  if (role && ARIA_ROLES.has(role) && !node.name) {
     candidates.push({
       method: "getByRole",
-      args: [node.role.toLowerCase()],
+      args: [role],
       confidence: 0.25,
     });
   }
