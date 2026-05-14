@@ -124,10 +124,10 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Remaining Issues
 
-### Arc no-group pointer click did not submit the second background tab
+### Arc no-group parallel pointer click did not submit the second background tab on stale worker
 
 - Repro: Two Arc no-group worker tabs on `http://127.0.0.1:18082/same` filled distinct values in parallel. `click #submit` submitted the first tab, but the second stayed at title `arc-swarm-write-page` with `#result` as `empty` even though `#box` held `arc-beta-worker`.
-- Workaround verified: `browse eval 'document.getElementById("form").requestSubmit(); document.title'` on the second target submitted the correct value and preserved target isolation.
+- Workarounds verified: `browse eval 'document.getElementById("form").requestSubmit(); document.title'` on the second target submitted the correct value and preserved target isolation. A later `npm run e2e:arc-serialized-click` run proved top-level harness serialization also makes pointer-click submission reliable on stale Arc worker `0.1.0`.
 - Likely cause: Arc was still running the previously loaded unpacked extension service worker. The installed skill has been synced with the input-command queue fix, but Computer Use cannot reload Arc here (`Apple event error -1743`), so the latest extension worker could not be confirmed in Arc.
 - Confirmation: after adding extension metadata to `/health`, Arc reported Browser Swarm Bridge version `0.1.0` even though the repo and installed skill are at manifest version `0.1.1`.
 - Additional reload attempts: restarting the relay, stopping the relay before pressing Reload, pressing Arc's top-level `Update` button, pressing the Browser Swarm card's `Reload` button, and toggling the extension control through Arc's Details page did not change `/health`; it continued to report version `0.1.0`.
@@ -141,4 +141,4 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 
 ## Open Checks
 
-- Manually reload the Arc extension and rerun the Arc pointer-click write test.
+- Manually reload the Arc extension and rerun the Arc parallel pointer-click write test against active worker `0.1.1`.
