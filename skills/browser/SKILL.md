@@ -42,6 +42,7 @@ The CLI supports explicit per-session environment overrides. If you do nothing, 
 - `browse env remote` switches the current session to Browserbase
 - Without a local override, Browserbase is also the default when `BROWSERBASE_API_KEY` is set
 - Provides: anti-bot stealth, automatic CAPTCHA solving, residential proxies, session persistence
+- Use remote session flags when needed: `--proxies`, `--advanced-stealth`, `--solve-captchas`, `--no-solve-captchas`, `--block-ads`, `--region <region>`, `--keep-alive`, `--session-timeout <seconds>`
 - **Use remote mode when:** the target site has bot detection, CAPTCHAs, IP rate limiting, Cloudflare protection, or requires geo-specific access
 - Get credentials at https://browserbase.com/settings
 
@@ -73,6 +74,7 @@ browse screenshot [path]                 # Take visual screenshot (slow, uses vi
 browse get url                           # Get current URL
 browse get title                         # Get page title
 browse get text <selector>               # Get text content (use "body" for all text)
+browse get markdown [selector]           # Convert page or element HTML to markdown
 browse get html <selector>               # Get HTML content of element
 browse get value <selector>              # Get form field value
 ```
@@ -85,6 +87,7 @@ browse click <ref>                       # Click element by ref from snapshot (e
 browse type <text>                       # Type text into focused element
 browse fill <selector> <value>           # Fill input and press Enter
 browse select <selector> <values...>     # Select dropdown option(s)
+browse upload <selector> <files...>      # Upload file(s) to file inputs
 browse press <key>                       # Press key (Enter, Tab, Escape, Cmd+A, etc.)
 browse drag <fromX> <fromY> <toX> <toY>  # Drag from one point to another
 browse scroll <x> <y> <deltaX> <deltaY> # Scroll at coordinates
@@ -106,6 +109,24 @@ browse env remote                        # Switch to Browserbase (requires API k
 browse pages                             # List all open tabs
 browse tab_switch <index>                # Switch to tab by index
 browse tab_close [index]                 # Close tab
+```
+
+### Remote session options
+Add these global flags before the command when using remote mode. They apply to the Browserbase session and restart the daemon if the active session was created with different params.
+
+```bash
+browse env remote
+browse --proxies --advanced-stealth --solve-captchas open https://example.com
+browse --block-ads --region us-west-2 --session-timeout 300 open https://example.com
+```
+
+### CDP event streaming
+Use `browse cdp` when you need low-level Chrome DevTools Protocol events from a CDP target.
+
+```bash
+browse cdp 9222                          # Stream default domains as NDJSON
+browse cdp 9222 --domain Network Page    # Enable selected domains
+browse cdp 9222 --pretty                 # Human-readable event stream
 ```
 
 ### Typical workflow
@@ -148,13 +169,15 @@ browse stop
 3. **Use `browse snapshot`** to check page state — it's fast and gives you element refs
 4. **Only screenshot when visual context is needed** (layout checks, images, debugging)
 5. **Use refs from snapshot** to click/interact — e.g., `browse click @0-5`
-6. **`browse stop`** when done to clean up the browser session and clear the env override
+6. **Use remote flags intentionally**: add `--proxies`, `--advanced-stealth`, `--solve-captchas`, `--region`, or related flags before the command when protected sites need Browserbase session configuration
+7. **`browse stop`** when done to clean up the browser session and clear the env override
 
 ## Troubleshooting
 
 - **"No active page"**: Run `browse stop`, then check `browse status`. If it still says running, kill the zombie daemon with `pkill -f "browse.*daemon"`, then retry `browse open`
 - **Chrome not found**: Install Chrome, use `browse env local --auto-connect` if you already have a debuggable Chrome running, or switch to `browse env remote`
 - **Action fails**: Run `browse snapshot` to see available elements and their refs
+- **Session flags fail**: Remote session flags only work in remote mode. Run `browse env remote` first, then put flags before the command, such as `browse --proxies open https://example.com`
 - **Browserbase fails**: Verify API key is set
 
 ## Switching to Remote Mode
@@ -167,6 +190,7 @@ Don't switch for simple sites (docs, wikis, public APIs, localhost).
 browse env local             # clean isolated local browser
 browse env local --auto-connect  # reuse existing Chrome state
 browse env remote            # switch to Browserbase
+browse --proxies --advanced-stealth --solve-captchas open https://example.com
 ```
 
 Overrides are scoped per session and stay in effect until you switch again or run `browse stop`. After `browse stop`, the next start falls back to env-var-based auto detection. Use `browse status` to inspect the resolved local strategy while the daemon is running.
