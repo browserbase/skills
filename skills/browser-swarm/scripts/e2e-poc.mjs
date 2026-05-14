@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import { spawn, spawnSync } from "node:child_process";
 import { mkdirSync, writeFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import WebSocket from "ws";
@@ -11,6 +12,7 @@ const artifactsDir = "/tmp/browser-swarm-e2e";
 const port = Number(process.env.BROWSER_SWARM_PORT || 19989);
 const browseBin = process.env.BROWSER_SWARM_BROWSE_BIN || "browse";
 const workerSessions = [];
+let samePageServer;
 
 mkdirSync(artifactsDir, { recursive: true });
 spawnSync("pkill", ["-f", "/tmp/browser-swarm-e2e-profile"], { stdio: "ignore" });
@@ -54,8 +56,56 @@ function previewOutput(value) {
   return JSON.stringify(value).slice(0, 500);
 }
 
+function parseGetField(stdout, field) {
+  const parsed = parseJson(stdout);
+  if (typeof parsed === "string") return parsed;
+  if (parsed && typeof parsed === "object" && field in parsed) return parsed[field];
+  if (parsed && typeof parsed === "object" && "value" in parsed) return parsed.value;
+  return parsed;
+}
+
 function assert(condition, message) {
   if (!condition) throw new Error(message);
+}
+
+function startSamePageServer() {
+  const html = `<!doctype html>
+<html>
+  <head><title>same-page-action-test</title></head>
+  <body>
+    <form id="form">
+      <label for="box">Worker value</label>
+      <input id="box" name="box" autocomplete="off" autofocus />
+      <button id="submit" type="submit">Submit</button>
+    </form>
+    <output id="result">empty</output>
+    <script>
+      document.getElementById("form").addEventListener("submit", (event) => {
+        event.preventDefault();
+        const value = document.getElementById("box").value;
+        document.body.dataset.workerValue = value;
+        document.getElementById("result").textContent = value;
+        document.title = "same-page-action-test " + value;
+      });
+    </script>
+  </body>
+</html>`;
+
+  samePageServer = createServer((req, res) => {
+    res.writeHead(200, {
+      "content-type": "text/html; charset=utf-8",
+      "cache-control": "no-store"
+    });
+    res.end(html);
+  });
+
+  return new Promise((resolve, reject) => {
+    samePageServer.once("error", reject);
+    samePageServer.listen(0, "127.0.0.1", () => {
+      const address = samePageServer.address();
+      resolve(`http://127.0.0.1:${address.port}/same`);
+    });
+  });
 }
 
 async function waitForHealth(timeoutMs = 30000) {
@@ -200,6 +250,67 @@ try {
   assert(isolation.createTarget.error, "Expected worker Target.createTarget to be blocked");
   assert(isolation.closeOwn.error, "Expected worker Target.closeTarget to be blocked");
 
+  const samePageUrl = await startSamePageServer();
+  const writeTargets = swarm.targets.slice(0, 3);
+  await Promise.all(writeTargets.map((target) => run("node", [
+    "scripts/swarm-relay.mjs",
+    "navigate",
+    "--port",
+    String(port),
+    "--target-id",
+    target.targetId,
+    samePageUrl
+  ])));
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const writeValues = ["alpha-worker", "beta-worker", "gamma-worker"];
+  const fillResults = await Promise.all(writeTargets.map((target, index) => run(browseBin, [
+    "fill",
+    "#box",
+    writeValues[index],
+    "--session",
+    browseResults[index].session,
+    "--cdp",
+    target.wsUrl
+  ])));
+  const submitResults = await Promise.all(writeTargets.map((target, index) => run(browseBin, [
+    "click",
+    "#submit",
+    "--session",
+    browseResults[index].session,
+    "--cdp",
+    target.wsUrl
+  ])));
+  const writeEvidence = await Promise.all(writeTargets.map(async (target, index) => {
+    const session = browseResults[index].session;
+    const title = await run(browseBin, ["get", "title", "--session", session, "--cdp", target.wsUrl]);
+    const resultText = await run(browseBin, ["get", "text", "#result", "--session", session, "--cdp", target.wsUrl]);
+    const inputValue = await run(browseBin, ["get", "value", "#box", "--session", session, "--cdp", target.wsUrl]);
+    const tabList = await run(browseBin, ["tab", "list", "--session", session, "--cdp", target.wsUrl]);
+    const parsedTabs = parseJson(tabList.stdout).tabs;
+    assert(parsedTabs.length === 1, `Expected same-page ${session} to see exactly one tab, saw ${parsedTabs.length}`);
+    assert(parsedTabs[0].targetId === target.targetId, `Expected same-page ${session} tab list to expose only ${target.targetId}`);
+
+    const expected = writeValues[index];
+    const parsedTitle = parseGetField(title.stdout, "title");
+    const parsedText = parseGetField(resultText.stdout, "text");
+    const parsedValue = parseGetField(inputValue.stdout, "value");
+    assert(parsedTitle === `same-page-action-test ${expected}`, `Expected title for ${session} to include ${expected}, got ${parsedTitle}`);
+    assert(parsedText === expected, `Expected #result for ${session} to be ${expected}, got ${parsedText}`);
+    assert(parsedValue === expected, `Expected #box for ${session} to be ${expected}, got ${parsedValue}`);
+
+    return {
+      label: target.label,
+      targetId: target.targetId,
+      session,
+      value: expected,
+      title: parsedTitle,
+      resultText: parsedText,
+      inputValue: parsedValue,
+      tabList: parseJson(tabList.stdout)
+    };
+  }));
+
   const report = {
     prompt: "plan an offsite to san diego next week - we need flights booked, surfing rentals and dinner near downtown",
     browseBin,
@@ -224,6 +335,12 @@ try {
       infoOther: isolation.infoOther,
       createTarget: isolation.createTarget,
       closeOwn: isolation.closeOwn
+    },
+    samePageWrite: {
+      url: samePageUrl,
+      fillResults: fillResults.map((result) => parseJsonOrText(result.stdout)),
+      submitResults: submitResults.map((result) => parseJsonOrText(result.stdout)),
+      evidence: writeEvidence
     }
   };
   const reportPath = resolve(artifactsDir, "report.json");
@@ -243,6 +360,7 @@ try {
   for (const session of workerSessions) {
     spawnSync(browseBin, ["stop", "--session", session], { stdio: "ignore" });
   }
+  if (samePageServer) samePageServer.close();
   relay.kill("SIGTERM");
   spawnSync("pkill", ["-f", "/tmp/browser-swarm-e2e-profile"], { stdio: "ignore" });
 }

@@ -8,6 +8,7 @@ let ws = null;
 let connectTimer = null;
 let autoAttachParams = null;
 let nextSyntheticSession = 1;
+let inputCommandQueue = Promise.resolve();
 const targetsByTab = new Map();
 const childSessions = new Map();
 
@@ -379,10 +380,33 @@ async function forwardCDPCommand(params) {
     ).catch(() => {});
   }
 
-  return withTimeout(
-    chrome.debugger.sendCommand(debuggerSession, params.method, params.params || {}),
-    `chrome.debugger.sendCommand(${params.method})`
-  );
+  return sendDebuggerCommand(target, debuggerSession, params.method, params.params || {});
+}
+
+function enqueueInputCommand(fn) {
+  const queued = inputCommandQueue.catch(() => {}).then(fn);
+  inputCommandQueue = queued.catch(() => {});
+  return queued;
+}
+
+async function sendDebuggerCommand(target, debuggerSession, method, params) {
+  const sendCommand = async () => {
+    if (method.startsWith("Input.")) {
+      await withTimeout(
+        chrome.tabs.update(target.tabId, { active: true }),
+        "chrome.tabs.update(active input target)"
+      ).catch(() => {});
+    }
+    return withTimeout(
+      chrome.debugger.sendCommand(debuggerSession, method, params),
+      `chrome.debugger.sendCommand(${method})`
+    );
+  };
+
+  if (method.startsWith("Input.")) {
+    return enqueueInputCommand(sendCommand);
+  }
+  return sendCommand();
 }
 
 chrome.debugger.onEvent.addListener((source, method, params) => {

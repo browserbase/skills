@@ -131,6 +131,8 @@ The default supported relay port is `19989`. The current extension connects to t
 
 Arc Spaces caveat: Arc is Chromium-based, but Arc Spaces are not Chrome tab groups. In Arc real-browser mode, create swarms with `--no-group` so the extension never calls `chrome.tabGroups.*` or `chrome.tabs.group`. Worker isolation still comes from target-bound endpoints, not from Arc's visual grouping.
 
+After changing the extension files, manually reload Browser Swarm Bridge in `arc://extensions` before judging Arc behavior. If pointer or keyboard submission is inconsistent in Arc background tabs, prefer DOM-level writes such as `browse fill` followed by a target-bound `browse eval 'document.querySelector("form").requestSubmit()'`, or serialize the irreversible action through the top-level harness.
+
 ### Disposable Test Browser Mode
 
 Use this mode only for e2e tests, demos, and throwaway profiles. It launches a separate browser profile:
@@ -202,6 +204,23 @@ Every worker must:
 - Return concrete evidence: final URL, title, useful extracted facts, and screenshot path when relevant.
 - Avoid irreversible actions such as purchases, reservations, or form submission without explicit user confirmation.
 
+The top-level harness should launch independent workers in parallel and require a structured final report from each worker. The minimum report is:
+
+```json
+{
+  "status": "ok",
+  "label": "<worker-label>",
+  "currentAction": "<what the worker just did>",
+  "title": "<final page title>",
+  "url": "<final page URL>",
+  "tabCount": 1,
+  "targetId": "<assigned target id>",
+  "evidence": ["<facts, paths, or extracted values>"]
+}
+```
+
+The harness should verify important worker claims through the same target-bound endpoint before synthesizing the final answer.
+
 Worker prompt shape:
 
 ```text
@@ -215,7 +234,7 @@ For every browse command, include both flags exactly:
 
 Do not create, close, or switch tabs. Do not use any other browser target.
 Do not invent browse flags or commands. Only use commands from the reference above.
-Find options, collect evidence, and report concise results.
+Find options, collect evidence, and report concise structured results.
 ```
 
 Example worker commands:
