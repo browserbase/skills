@@ -47,7 +47,11 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
   - `gamma` / `E84CA16552C06E2CCAAD63B5B9BB1ECD`: `strict-same-page gamma-strict-success-worker`, `#result` and `#box` both `gamma-strict-success-worker`.
 - Claude Code CLI agent smoke: PASS with `claude -p --permission-mode bypassPermissions --allowedTools Bash --output-format json`.
 - Mixed Codex + Claude Code live workflow: PASS; one Codex worker and one Claude Code agent operated concurrently in the same disposable Chrome profile against identical same-page tabs, each reported distinct title/text/value/url/tab evidence, and the main harness independently verified one visible target per worker.
-- Arc no-group read/write workflow: PARTIAL PASS; target isolation, `fill`, `get`, and DOM `eval` submission worked on two identical Arc tabs without tab-group calls or Arc crash.
+- Arc no-group read/write workflow: PASS for DOM-level writes; target isolation, `fill`, `get`, and DOM `eval` submission worked without tab-group calls or Arc crash.
+- Arc mixed Codex + Claude Code DOM-write workflow: PASS on relay port `19989` with Arc's currently loaded extension version `0.1.0`; two Codex workers and one Claude Code worker operated concurrently against `http://127.0.0.1:18086/same`, all reported success, and the main harness verified distinct final states:
+  - `arc-alpha` / `BF917D95D6A0ACE58CA44CDC4D1C2233`: `arc-dom-same-page arc-alpha-codex-dom-worker`, `#result` and `#box` both `arc-alpha-codex-dom-worker`.
+  - `arc-beta` / `03022778C08DA83029B6B9C80962B2FF`: `arc-dom-same-page arc-beta-codex-dom-worker`, `#result` and `#box` both `arc-beta-codex-dom-worker`.
+  - `arc-gamma` / `A52E444ED6ADF2F84DB4C1FC813BDA36`: `arc-dom-same-page arc-gamma-claude-dom-worker`, `#result` and `#box` both `arc-gamma-claude-dom-worker`.
 
 ## Remaining Issues
 
@@ -58,7 +62,8 @@ This file tracks issues found while stress-testing browser-swarm and the evidenc
 - Likely cause: Arc was still running the previously loaded unpacked extension service worker. The installed skill has been synced with the input-command queue fix, but Computer Use cannot reload Arc here (`Apple event error -1743`), so the latest extension worker could not be confirmed in Arc.
 - Confirmation: after adding extension metadata to `/health`, Arc reported Browser Swarm Bridge version `0.1.0` even though the repo and installed skill are at manifest version `0.1.1`.
 - Additional reload attempts: restarting the relay, pressing Arc's top-level `Update` button, and toggling the extension control through Arc's Details page did not change `/health`; it continued to report version `0.1.0`.
-- Follow-up: manually reload Browser Swarm Bridge in `arc://extensions`, confirm version `0.1.1`, and rerun the Arc pointer-click write test.
+- Current status: Arc real-browser workflows are usable for read/write work when irreversible write actions use DOM-level commands (`browse eval`) instead of pointer clicks. The pointer-click path still needs a real Arc extension refresh to `0.1.1` before it can be judged against the input-command queue fix.
+- Follow-up: restart Arc or otherwise force Browser Swarm Bridge to reload, confirm `/health` reports version `0.1.1`, and rerun the Arc pointer-click write test.
 
 ## Open Checks
 
