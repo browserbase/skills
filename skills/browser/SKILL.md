@@ -61,6 +61,7 @@ All commands work identically in both modes. The daemon auto-starts on first com
 browse open <url>                        # Go to URL (aliases: goto)
 browse open <url> --context-id <id>      # Load Browserbase context (remote only)
 browse open <url> --context-id <id> --persist  # Load context + save changes back
+browse --connect <session-id> open <url> # Attach to existing Browserbase session (remote only)
 browse reload                            # Reload current page
 browse back                              # Go back in history
 browse forward                           # Go forward in history

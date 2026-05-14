@@ -417,6 +417,18 @@ Load a Browserbase context to persist browser state (cookies, localStorage, sess
 
 Save browser state changes back to the Browserbase context when the session ends. Must be used with `--context-id`.
 
+#### `--connect <session-id>`
+
+Attach to an existing Browserbase session by ID instead of creating a new one. **Remote mode only** — errors in local mode. The session stays alive after `browse stop` (uses `keepAlive: true`), so you can reconnect later or hand it off to another tool.
+
+```bash
+browse --connect bb_sess_abc123 open https://example.com
+```
+
+- Mutually exclusive with `--context-id` (the session already exists and has its own state).
+- If the daemon is running with a different session ID, it automatically restarts.
+- `browse stop` disconnects the CLI but does **not** terminate the Browserbase session.
+
 ### Environment Variables
 
 | Variable | Required | Description |
