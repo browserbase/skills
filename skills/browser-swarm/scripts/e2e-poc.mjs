@@ -123,7 +123,9 @@ try {
     "scripts/launch-chrome.mjs",
     "--fresh",
     "--profile",
-    "/tmp/browser-swarm-e2e-profile"
+    "/tmp/browser-swarm-e2e-profile",
+    "--relay-port",
+    String(port)
   ]);
 
   const health = await waitForHealth();

@@ -137,9 +137,10 @@ Use this mode only for e2e tests, demos, and throwaway profiles. It launches a s
 
 ```bash
 node scripts/launch-chrome.mjs
+node scripts/launch-chrome.mjs --relay-port 19990
 ```
 
-The relay listens only on `127.0.0.1`.
+The relay listens only on `127.0.0.1`. Use `--relay-port` when another installed Browser Swarm extension, for example Arc, is already connected to the default port; the launcher creates a temporary extension copy pointed at the requested port.
 
 ## Prerequisites
 
