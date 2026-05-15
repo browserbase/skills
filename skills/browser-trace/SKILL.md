@@ -1,7 +1,7 @@
 ---
 name: browser-trace
 description: Capture a full DevTools-protocol trace of any browser automation — CDP firehose, screenshots, and DOM dumps — then bisect the stream into per-page searchable buckets. Use when the user wants to debug a failed run, audit network/console/DOM activity, attach a trace to an in-progress session, or feed structured per-page summaries back into an agent loop so its next iteration learns from the last one.
-compatibility: "Requires Node 18+, the browse CLI (`npm install -g @browserbasehq/browse-cli@alpha` or 0.5.1+ once released — `browse cdp` is alpha-tagged), and optionally `jq` for ad-hoc querying of the bisected JSONL files. For remote Browserbase sessions, also requires the `bb` CLI (`npm install -g @browserbasehq/cli`) and `BROWSERBASE_API_KEY`. The skill scripts themselves use only the Node standard library — no `npm install` step."
+compatibility: "Requires Node 18+, the browse CLI (`npm install -g browse` — `browse cdp` is alpha-tagged), and optionally `jq` for ad-hoc querying of the bisected JSONL files. For remote Browserbase sessions, also requires `BROWSERBASE_API_KEY` (the same `browse` binary handles `browse cloud sessions ...` API calls). The skill scripts themselves use only the Node standard library — no `npm install` step."
 license: MIT
 allowed-tools: Bash, Read, Grep
 ---
@@ -10,7 +10,7 @@ allowed-tools: Bash, Read, Grep
 
 Attach a **second, read-only CDP client** to a browser session that is already being driven by your main automation. The trace records the full DevTools firehose to NDJSON, polls for screenshots and DOM dumps in parallel, and slices everything into a directory tree that bash tools can search.
 
-This skill does **not** drive pages — it only listens. Pair it with the `browser` skill, `bb`, Stagehand, Playwright, or anything else that speaks CDP.
+This skill does **not** drive pages — it only listens. Pair it with the `browser` skill, `browse`, Stagehand, Playwright, or anything else that speaks CDP.
 
 ## When to use
 
@@ -25,8 +25,7 @@ If the user just wants to **drive** the browser, use the `browser` skill instead
 
 ```bash
 node --version                                  # require Node 18+
-which browse || npm install -g @browserbasehq/browse-cli@alpha
-which bb     || npm install -g @browserbasehq/cli   # only needed for Browserbase remote
+which browse || npm install -g browse              # provides both `browse` and `browse cloud ...` API commands
 which jq     || true                                # optional — used only for ad-hoc querying
 ```
 
@@ -61,8 +60,7 @@ The tracer has three pieces:
 node scripts/start-capture.mjs 9222 my-run
 
 # 3. Run your main automation against port 9222.
-browse env local 9222
-browse open https://example.com
+browse open https://example.com --cdp 9222
 # ...whatever the run does...
 
 # 4. Stop and bisect.
@@ -86,8 +84,8 @@ node scripts/bb-capture.mjs --new my-run
 
 # 2. Drive automation. bb-capture stamped the session id into the manifest.
 SID=$(jq -r .browserbase.session_id .o11y/my-run/manifest.json)
-browse --connect "$SID" open https://example.com
-browse --connect "$SID" open https://news.ycombinator.com
+browse open https://example.com --remote --session "$SID"
+browse open https://news.ycombinator.com --remote --session "$SID"
 
 # 3. Stop the tracer, bisect, then pull platform artifacts and release.
 node scripts/stop-capture.mjs my-run
@@ -98,8 +96,8 @@ node scripts/bb-finalize.mjs my-run --release
 Attaching to a session that's *already running* (e.g. one your production worker created) — `bb-capture.mjs` accepts a session id instead of `--new`:
 
 ```bash
-# Pick a running session (filter client-side; bb sessions list has no --status flag)
-bb sessions list | jq -r '.[] | select(.status == "RUNNING") | .id'
+# Pick a running session (filter client-side; browse cloud sessions list has no --status flag)
+browse cloud sessions list | jq -r '.[] | select(.status == "RUNNING") | .id'
 
 node scripts/bb-capture.mjs <session-id> mid-flight-debug
 # ...tracer runs alongside the existing automation client; no disruption...
@@ -112,11 +110,11 @@ node scripts/bb-finalize.mjs mid-flight-debug   # without --release: leave the s
 
 `bb-capture.mjs` adds a `browserbase` block to `manifest.json` (session id, project, region, started_at, expires_at, debugger URL). `bb-finalize.mjs` writes:
 
-- `<run>/browserbase/session.json` — final `bb sessions get` snapshot (proxyBytes, status, ended_at, viewport, …)
-- `<run>/browserbase/logs.json` — `bb sessions logs` output. **Often empty.** The CDP firehose in `cdp/raw.ndjson` is the source of truth; this is a side channel.
+- `<run>/browserbase/session.json` — final `browse cloud sessions get` snapshot (proxyBytes, status, ended_at, viewport, …)
+- `<run>/browserbase/logs.json` — `browse cloud sessions logs` output. **Often empty.** The CDP firehose in `cdp/raw.ndjson` is the source of truth; this is a side channel.
 - `<run>/browserbase/downloads.zip` — files the session downloaded, if any (the script discards the empty 22-byte zip you get when there are none)
 
-`bb sessions recording` (rrweb session replay) is **deprecated** and isn't fetched. Use the screenshots + DOM dumps in `screenshots/` and `dom/` for visual ground truth.
+`browse cloud sessions recording` (rrweb session replay) is **deprecated** and isn't fetched. Use the screenshots + DOM dumps in `screenshots/` and `dom/` for visual ground truth.
 
 The live `debugger_url` in the manifest opens an interactive Chrome DevTools view served by Browserbase — handy for *watching* a long-running automation while the tracer captures the firehose to disk.
 
@@ -145,9 +143,9 @@ The live `debugger_url` in the manifest opens an interactive Chrome DevTools vie
   screenshots/<iso-ts>.png      one PNG per sample interval
   dom/<iso-ts>.html             one HTML dump per sample interval
   browserbase/                  added by bb-finalize.mjs (Browserbase runs only)
-    session.json                final `bb sessions get` snapshot (proxyBytes, status, ended_at, …)
-    logs.json                   `bb sessions logs` output (often [])
-    downloads.zip               `bb sessions downloads get` output (only if the session downloaded files)
+    session.json                final `browse cloud sessions get` snapshot (proxyBytes, status, ended_at, …)
+    logs.json                   `browse cloud sessions logs` output (often [])
+    downloads.zip               `browse cloud sessions downloads get` output (only if the session downloaded files)
 ```
 
 When a run was started via `bb-capture.mjs`, `manifest.json` also carries a top-level `browserbase` block: `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, `debugger_url`.
@@ -233,19 +231,19 @@ See **REFERENCE.md** for the full jq recipe library and a method-by-method bisec
 3. **Order matters for remote**: on Browserbase, attach the main automation client before (or together with) the tracer, and create the session with `--keep-alive`. Otherwise the session ends as soon as the tracer's WS closes.
 4. **Don't poll faster than ~1s**: each sample opens a one-shot CDP connection and screenshots Chrome. 2s is a good default.
 5. **Pick domains deliberately**: defaults (`Network Console Runtime Log Page`) cover most debugging. Add `DOM` for DOM-tree mutations (very noisy) via `O11Y_DOMAINS="$O11Y_DOMAINS DOM"`.
-6. **Use `--connect <session-id>` for the automation client on remote**, not a fresh `browse env remote` (which would create a new session each time).
+6. **Reuse one Browserbase session for the automation client on remote** by passing `--remote --session <session-id>`, not a fresh `browse open --remote` without `--session` (which would create a new session each time).
 7. **Always run `stop-capture.mjs`**, even after a crash, so background processes don't linger and the manifest gets `stopped_at`.
 8. **Bisect once per run**: `bisect-cdp.mjs` is idempotent — it overwrites the per-bucket files from `raw.ndjson` each time.
 
 ## Troubleshooting
 
-- **`browse cdp exited immediately`**: usually means the target is unreachable (wrong port) or the Browserbase session has already ended. For remote, verify with `bb sessions get <id>` — if `status` is `COMPLETED`, recreate with `--keep-alive` and attach automation first.
+- **`browse cdp exited immediately`**: usually means the target is unreachable (wrong port) or the Browserbase session has already ended. For remote, verify with `browse cloud sessions get <id>` — if `status` is `COMPLETED`, recreate with `--keep-alive` and attach automation first.
 - **Empty `raw.ndjson` even though processes are running**: confirm a CDP client is actually driving the page. The tracer only emits events that the browser generates, so an idle browser produces ~5 lines of attach/discover messages and nothing else.
 - **Screenshots all look identical**: check `index.jsonl` — if `url` doesn't change, the page hasn't navigated yet. The polling loop runs independently of the main automation's pace.
 - **Browserbase session ends mid-run**: it likely hit `--timeout`. Recreate with a higher timeout (`BB_SESSION_TIMEOUT=1800 node scripts/bb-capture.mjs --new ...`) or remove the timeout flag.
-- **`bb-capture.mjs <id>` says "not RUNNING"**: the session you tried to attach to ended. List candidates with `bb sessions list | jq '.[] | select(.status == "RUNNING")'` and try again.
-- **`browserbase/logs.json` is empty `[]`**: expected — `bb sessions logs` is sparse in practice. The CDP firehose in `cdp/raw.ndjson` is the source of truth.
-- **Where's the session recording (rrweb)?**: `bb sessions recording` is deprecated; this skill doesn't fetch it. Use the screenshot stream in `screenshots/` and DOM dumps in `dom/`.
+- **`bb-capture.mjs <id>` says "not RUNNING"**: the session you tried to attach to ended. List candidates with `browse cloud sessions list | jq '.[] | select(.status == "RUNNING")'` and try again.
+- **`browserbase/logs.json` is empty `[]`**: expected — `browse cloud sessions logs` is sparse in practice. The CDP firehose in `cdp/raw.ndjson` is the source of truth.
+- **Where's the session recording (rrweb)?**: `browse cloud sessions recording` is deprecated; this skill doesn't fetch it. Use the screenshot stream in `screenshots/` and DOM dumps in `dom/`.
 
 For full reference, see [REFERENCE.md](REFERENCE.md).
 For example debug runs, see [EXAMPLES.md](EXAMPLES.md).

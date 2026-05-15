@@ -40,7 +40,7 @@ npx skills add browserbase/ui-test
 ## Browser Execution
 
 ```bash
-which browse || npm install -g @browserbasehq/browse-cli
+which browse || npm install -g browse
 ```
 
 - **Localhost** → `browse env local` (no API key needed)
@@ -77,6 +77,6 @@ No YAML files, no generated test suites, no artifacts. The agent reads the diff 
 
 ## Requirements
 
-- `browse` CLI (`npm install -g @browserbasehq/browse-cli`)
+- `browse` CLI (`npm install -g browse`)
 - For remote testing: `BROWSERBASE_API_KEY` environment variable
 - A running web app (localhost or deployed URL)

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 // Extract structured page content for company research.
-// Fetches via `bb fetch` (raw HTML to a temp file), pulls title + meta tags
-// + visible body text, and auto-falls back to `bb browse` when content is thin.
+// Fetches via `browse cloud fetch` (raw HTML to a temp file), pulls title + meta tags
+// + visible body text, and auto-falls back to `browse get markdown` when content is thin.
 //
 // Usage: node extract_page.mjs <url> [--max-chars N]
 // Output (stdout): structured block consumable by a research subagent.
@@ -27,24 +27,24 @@ function parseArgs(argv) {
   return args;
 }
 
-function bbFetch(url, outFile) {
-  execFileSync("bb", ["fetch", "--allow-redirects", url, "--output", outFile], {
+function browseFetch(url, outFile) {
+  execFileSync("browse", ["cloud", "fetch", "--allow-redirects", url, "--output", outFile], {
     stdio: ["ignore", "ignore", "ignore"],
   });
 }
 
-function bbBrowseMarkdown(url) {
+function browseGetMarkdown(url) {
   try {
-    execFileSync("bb", ["browse", "--headless", "open", url], {
+    execFileSync("browse", ["open", url, "--local", "--headless"], {
       stdio: ["ignore", "ignore", "ignore"],
       timeout: 90000,
     });
-    const out = execFileSync("bb", ["browse", "--headless", "get", "markdown"], {
+    const out = execFileSync("browse", ["get", "markdown", "--local", "--headless"], {
       encoding: "utf8",
       timeout: 90000,
       maxBuffer: 50 * 1024 * 1024,
     });
-    // bb browse prints banners (e.g. "Update available...") before the JSON blob.
+    // browse prints banners (e.g. "Update available...") before the JSON blob.
     // Find the first '{' and try to JSON.parse from there.
     const start = out.indexOf("{");
     if (start < 0) return "";
@@ -122,11 +122,11 @@ function main() {
   let html = "";
   let fetchOk = false;
   try {
-    bbFetch(url, htmlFile);
+    browseFetch(url, htmlFile);
     html = readFileSync(htmlFile, "utf8");
     fetchOk = true;
   } catch (err) {
-    console.error(`[extract_page] bb fetch failed: ${err.message}`);
+    console.error(`[extract_page] browse cloud fetch failed: ${err.message}`);
   }
 
   const title = extractTitle(html);
@@ -136,10 +136,10 @@ function main() {
   const headings = extractHeadings(html);
   let body = extractVisibleText(html, maxChars);
 
-  // Thin content → JS-rendered SPA → fall back to bb browse.
+  // Thin content → JS-rendered SPA → fall back to browse get markdown.
   let fallbackUsed = false;
   if (body.length < THIN_CONTENT_THRESHOLD) {
-    const md = bbBrowseMarkdown(url);
+    const md = browseGetMarkdown(url);
     if (md && md.length > body.length) {
       body = md.replace(/\s+/g, " ").slice(0, maxChars);
       fallbackUsed = true;

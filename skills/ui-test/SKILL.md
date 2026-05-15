@@ -6,7 +6,7 @@ metadata:
   author: browserbase
   version: "0.4.0"
 allowed-tools: Bash Read Glob Grep Agent
-compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). For remote testing: BROWSERBASE_API_KEY and cookie-sync skill."
+compatibility: "Requires the browse CLI (`npm install -g browse`). For remote testing: BROWSERBASE_API_KEY and cookie-sync skill."
 ---
 
 # UI Test — Agentic UI Testing Skill
@@ -175,7 +175,7 @@ browse screenshot --path .context/ui-test-screenshots/modal-open.png
 ## Setup
 
 ```bash
-which browse || npm install -g @browserbasehq/browse-cli
+which browse || npm install -g browse
 ```
 
 ### Avoid permission fatigue

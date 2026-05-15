@@ -154,7 +154,7 @@ Eventbrite emits standard `Event` JSON-LD on every public event page. Speakers a
 
 **Known gotchas**
 
-- Eventbrite event pages are heavy — `bb fetch` may return >1MB and trigger the size guard. Use `browse get markdown` instead.
+- Eventbrite event pages are heavy — `browse cloud fetch` may return >1MB and trigger the size guard. Use `browse get markdown` instead.
 - Most Eventbrite events do NOT publish a speaker list at all. This platform is low-yield for prospecting.
 
 ---

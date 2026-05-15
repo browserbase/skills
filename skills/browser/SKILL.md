@@ -1,7 +1,7 @@
 ---
 name: browser
 description: Automate web browser interactions using natural language via CLI commands. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications. Supports remote Browserbase sessions with automatic CAPTCHA solving, anti-bot stealth mode, and residential proxies — ideal for scraping protected websites, bypassing bot detection, and interacting with JavaScript-heavy pages.
-compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). Remote Browserbase sessions need `BROWSERBASE_API_KEY`. Local mode uses Chrome/Chromium on your machine."
+compatibility: "Requires the browse CLI (`npm install -g browse`). Remote Browserbase sessions need `BROWSERBASE_API_KEY`. Local mode uses Chrome/Chromium on your machine."
 license: MIT
 allowed-tools: Bash
 metadata:
@@ -11,7 +11,7 @@ metadata:
         - browse
     install:
       - kind: node
-        package: "@browserbasehq/browse-cli"
+        package: "browse"
         bins: [browse]
     homepage: https://github.com/browserbase/skills
 ---
@@ -25,7 +25,7 @@ Automate browser interactions using the browse CLI with Claude.
 Before running any browser commands, verify the CLI is available:
 
 ```bash
-which browse || npm install -g @browserbasehq/browse-cli
+which browse || npm install -g browse
 ```
 
 ## Environment Selection (Local vs Remote)

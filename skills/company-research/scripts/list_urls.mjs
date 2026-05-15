@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-// Deduplicates discovery URLs from bb search JSON output files.
+// Deduplicates discovery URLs from browse cloud search JSON output files.
 // Usage: node list_urls.mjs /tmp [--prefix company]
 // Reads all {prefix}_discovery_batch_*.json files, deduplicates by domain,
 // outputs one URL per line to stdout, stats to stderr.

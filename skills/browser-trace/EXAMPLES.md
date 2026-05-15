@@ -15,11 +15,10 @@ The recipes below use raw `jq` on the bisected files so you can see exactly what
 node scripts/start-capture.mjs 9222 form-bug
 
 # Reproduce the bug.
-browse env local 9222
-browse open https://example.com/signup
-browse fill 'input[name=email]' 'user@example.com'
-browse fill 'input[name=password]' 'hunter2'
-browse click @0-7   # Submit button ref from `browse snapshot`
+browse open https://example.com/signup --cdp 9222
+browse fill 'input[name=email]' 'user@example.com' --cdp 9222
+browse fill 'input[name=password]' 'hunter2' --cdp 9222
+browse click @0-7 --cdp 9222   # Submit button ref from `browse snapshot --cdp 9222`
 
 node scripts/stop-capture.mjs form-bug
 node scripts/bisect-cdp.mjs form-bug
@@ -59,8 +58,7 @@ If the POST is missing entirely, the click handler is broken — open `dom/<late
 
 ```bash
 node scripts/start-capture.mjs 9222 audit
-browse env local 9222
-browse open https://your-site.example
+browse open https://your-site.example --cdp 9222
 # ...interact with the page...
 node scripts/stop-capture.mjs audit
 node scripts/bisect-cdp.mjs audit
@@ -92,9 +90,8 @@ jq -c 'select(.params.response.status >= 400 and .params.response.status < 600)
 
 ```bash
 node scripts/start-capture.mjs 9222 hang
-browse env local 9222
-browse open https://example.com/checkout
-browse click @0-12   # Continue button
+browse open https://example.com/checkout --cdp 9222
+browse click @0-12 --cdp 9222   # Continue button
 sleep 30             # let the hang play out
 node scripts/stop-capture.mjs hang
 node scripts/bisect-cdp.mjs hang
@@ -130,22 +127,22 @@ The pending-requests query is the smoking gun: if a fetch never finishes, the pa
 ```bash
 # Use Browserbase remote so the run uses the same Chromium build / stealth as prod.
 export BROWSERBASE_API_KEY=...
-SESSION=$(bb sessions create --keep-alive --timeout 600)
+SESSION=$(browse cloud sessions create --keep-alive --timeout 600)
 SID=$(echo "$SESSION" | jq -r .id)
 URL=$(echo "$SESSION" | jq -r .connectUrl)
 
-browse --connect "$SID" open https://app.example.com/dashboard
+browse open https://app.example.com/dashboard --remote --session "$SID"
 node scripts/start-capture.mjs "$URL" prod-repro
 
 # Drive whatever flow is suspected.
-browse --connect "$SID" click @0-5
-browse --connect "$SID" type 'search query'
-browse --connect "$SID" press Enter
+browse click @0-5 --remote --session "$SID"
+browse type 'search query' --remote --session "$SID"
+browse press Enter --remote --session "$SID"
 sleep 5
 
 node scripts/stop-capture.mjs prod-repro
 node scripts/bisect-cdp.mjs prod-repro
-bb sessions update "$SID" --status REQUEST_RELEASE
+browse cloud sessions update "$SID" --status REQUEST_RELEASE
 ```
 
 Queries:
@@ -181,7 +178,7 @@ The stack frame points at the prod JS file + line; the screenshot shows what the
 export BROWSERBASE_API_KEY=...
 
 # Find running sessions (no --status flag, so filter client-side).
-bb sessions list | jq -r '.[] | select(.status == "RUNNING") | "\(.id)\t\(.region)\t\(.startedAt)"'
+browse cloud sessions list | jq -r '.[] | select(.status == "RUNNING") | "\(.id)\t\(.region)\t\(.startedAt)"'
 
 # Attach the tracer to the session you care about.
 SID=<session-id-from-above>

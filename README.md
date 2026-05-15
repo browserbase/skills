@@ -1,6 +1,6 @@
 # Browserbase Skills
 
-A set of skills for enabling **[Claude Code](https://docs.claude.com/en/docs/claude-code/overview)** to work with Browserbase through browser automation and the official `bb` CLI.
+A set of skills for enabling **[Claude Code](https://docs.claude.com/en/docs/claude-code/overview)** to work with Browserbase through browser automation and the official `browse` CLI.
 
 ## Skills
 
@@ -9,8 +9,8 @@ This plugin includes the following skills (see `skills/` for details):
 | Skill | Description |
 |-------|-------------|
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
-| [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `bb` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
-| [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
+| [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `browse` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
+| [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `browse` CLI |
 | [site-debugger](skills/site-debugger/SKILL.md) | Diagnose and fix failing browser automations — analyzes bot detection, selectors, timing, auth, and captchas, then generates a tested site playbook |
 | [browser-trace](skills/browser-trace/SKILL.md) | Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets |
 | [safe-browser](skills/safe-browser/SKILL.md) | Build local Claude Agent SDK browser agents whose only browser capability is a CDP-gated `safe_browser` tool with domain allowlist enforcement |
@@ -56,8 +56,8 @@ Once installed, you can ask Claude to browse or use the Browserbase CLI:
 - *"Go to Hacker News, get the top post comments, and summarize them "*
 - *"QA test http://localhost:3000 and fix any bugs you encounter"*
 - *"Order me a pizza, you're already signed in on Doordash"*
-- *"Use `bb` to list my Browserbase projects and show the output as JSON"*
-- *"Initialize a new Browserbase Function with `bb functions init` and explain the next commands"*
+- *"Use `browse` to list my Browserbase projects and show the output as JSON"*
+- *"Initialize a new Browserbase Function with `browse functions init` and explain the next commands"*
 - *"Use safe-browser to build a Hacker News scraper that only stays on the main site"*
 
 Claude will handle the rest.
