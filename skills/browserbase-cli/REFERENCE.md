@@ -156,9 +156,10 @@ When both `--status` and `--body` are present on `browse cloud sessions update`,
 ```bash
 browse cloud contexts create --body '{"region":"us-west-2"}'
 browse cloud contexts get <context_id>
-browse cloud contexts update <context_id>
 browse cloud contexts delete <context_id>
 ```
+
+`browse cloud contexts update <context_id>` refreshes context upload URLs, but context uploads through this API are deprecated and may return a deprecation error. Avoid it unless Browserbase support has asked you to use that path.
 
 ### Extensions
 
