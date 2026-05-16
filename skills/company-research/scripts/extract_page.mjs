@@ -39,7 +39,7 @@ function browseGetMarkdown(url) {
       stdio: ["ignore", "ignore", "ignore"],
       timeout: 90000,
     });
-    const out = execFileSync("browse", ["get", "markdown", "--local", "--headless"], {
+    const out = execFileSync("browse", ["get", "markdown"], {
       encoding: "utf8",
       timeout: 90000,
       maxBuffer: 50 * 1024 * 1024,
