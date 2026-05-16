@@ -85,7 +85,7 @@ node scripts/bb-capture.mjs --new my-run
 # 2. Drive automation. bb-capture stamped the session id into the manifest.
 SID=$(jq -r .browserbase.session_id .o11y/my-run/manifest.json)
 browse open https://example.com --remote --session "$SID"
-browse open https://news.ycombinator.com --remote --session "$SID"
+browse open https://news.ycombinator.com --session "$SID"
 
 # 3. Stop the tracer, bisect, then pull platform artifacts and release.
 node scripts/stop-capture.mjs my-run

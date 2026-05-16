@@ -16,9 +16,9 @@ node scripts/start-capture.mjs 9222 form-bug
 
 # Reproduce the bug.
 browse open https://example.com/signup --cdp 9222
-browse fill 'input[name=email]' 'user@example.com' --cdp 9222
-browse fill 'input[name=password]' 'hunter2' --cdp 9222
-browse click @0-7 --cdp 9222   # Submit button ref from `browse snapshot --cdp 9222`
+browse fill 'input[name=email]' 'user@example.com'
+browse fill 'input[name=password]' 'hunter2'
+browse click @0-7   # Submit button ref from `browse snapshot`
 
 node scripts/stop-capture.mjs form-bug
 node scripts/bisect-cdp.mjs form-bug
@@ -134,10 +134,11 @@ URL=$(echo "$SESSION" | jq -r .connectUrl)
 browse open https://app.example.com/dashboard --remote --session "$SID"
 node scripts/start-capture.mjs "$URL" prod-repro
 
-# Drive whatever flow is suspected.
-browse click @0-5 --remote --session "$SID"
-browse type 'search query' --remote --session "$SID"
-browse press Enter --remote --session "$SID"
+# Drive whatever flow is suspected. The daemon caches the remote target,
+# so subsequent commands only need --session to pick the right daemon.
+browse click @0-5 --session "$SID"
+browse type 'search query' --session "$SID"
+browse press Enter --session "$SID"
 sleep 5
 
 node scripts/stop-capture.mjs prod-repro
