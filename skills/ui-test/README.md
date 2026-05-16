@@ -43,13 +43,13 @@ npx skills add browserbase/ui-test
 which browse || npm install -g browse
 ```
 
-- **Localhost** → `browse env local` (no API key needed)
-- **Need existing local login/cookies/state on localhost** → `browse env local --auto-connect` (auto-discover local Chrome, fallback to isolated)
-- **Need explicit local CDP attach** → `browse env local <port|url>`
-- **Deployed sites** → `browse env remote` (uses Browserbase cloud browsers)
+- **Localhost** → `browse open <url> --local` (no API key needed)
+- **Need existing local login/cookies/state on localhost** → `browse open <url> --auto-connect` (auto-discover local Chrome, fallback to isolated)
+- **Need explicit local CDP attach** → `browse open <url> --cdp <port|url>`
+- **Deployed sites** → `browse open <url> --remote` (uses Browserbase cloud browsers)
 - **Parallel** → `BROWSE_SESSION=<name>` for independent concurrent sessions
 
-For default localhost QA, start with `browse env local` for clean, reproducible runs.
+For default localhost QA, pass `--local` on the first `browse open` for clean, reproducible runs.
 
 ## Project Structure
 

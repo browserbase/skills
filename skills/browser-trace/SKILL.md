@@ -42,7 +42,7 @@ Every Chrome DevTools target accepts **multiple concurrent CDP clients**. Your m
 The tracer has three pieces:
 
 1. **Firehose**: `browse cdp <target>` streams every CDP event as one JSON object per line to `cdp/raw.ndjson`.
-2. **Sampler**: a polling loop calls `browse --ws <target> screenshot` and `browse --ws <target> get html body` on an interval (default 2s). `--ws` is one-shot and bypasses the daemon, so it doesn't fight the main automation.
+2. **Sampler**: a polling loop calls `browse screenshot --cdp <target> --path <file>` and `browse get html body --cdp <target>` on an interval (default 2s). The per-command `--cdp` flag is one-shot and bypasses the daemon, so it doesn't fight the main automation.
 3. **Bisector**: after the run, `bisect-cdp.mjs` walks `raw.ndjson` once, slices it into per-bucket JSONL files keyed by CDP method, and additionally bisects per page using top-level `Page.frameNavigated` events as boundaries.
 
 ## Quickstart
@@ -114,7 +114,7 @@ node scripts/bb-finalize.mjs mid-flight-debug   # without --release: leave the s
 - `<run>/browserbase/logs.json` — `browse cloud sessions logs` output. **Often empty.** The CDP firehose in `cdp/raw.ndjson` is the source of truth; this is a side channel.
 - `<run>/browserbase/downloads.zip` — files the session downloaded, if any (the script discards the empty 22-byte zip you get when there are none)
 
-`browse cloud sessions recording` (rrweb session replay) is **deprecated** and isn't fetched. Use the screenshots + DOM dumps in `screenshots/` and `dom/` for visual ground truth.
+Session replay artifact fetching is **deprecated** and isn't fetched. Use the screenshots + DOM dumps in `screenshots/` and `dom/` for visual ground truth.
 
 The live `debugger_url` in the manifest opens an interactive Chrome DevTools view served by Browserbase — handy for *watching* a long-running automation while the tracer captures the firehose to disk.
 
@@ -243,7 +243,7 @@ See **REFERENCE.md** for the full jq recipe library and a method-by-method bisec
 - **Browserbase session ends mid-run**: it likely hit `--timeout`. Recreate with a higher timeout (`BB_SESSION_TIMEOUT=1800 node scripts/bb-capture.mjs --new ...`) or remove the timeout flag.
 - **`bb-capture.mjs <id>` says "not RUNNING"**: the session you tried to attach to ended. List candidates with `browse cloud sessions list | jq '.[] | select(.status == "RUNNING")'` and try again.
 - **`browserbase/logs.json` is empty `[]`**: expected — `browse cloud sessions logs` is sparse in practice. The CDP firehose in `cdp/raw.ndjson` is the source of truth.
-- **Where's the session recording (rrweb)?**: `browse cloud sessions recording` is deprecated; this skill doesn't fetch it. Use the screenshot stream in `screenshots/` and DOM dumps in `dom/`.
+- **Where's the session recording (rrweb)?**: session replay artifact fetching is deprecated; this skill doesn't fetch it. Use the screenshot stream in `screenshots/` and DOM dumps in `dom/`.
 
 For full reference, see [REFERENCE.md](REFERENCE.md).
 For example debug runs, see [EXAMPLES.md](EXAMPLES.md).

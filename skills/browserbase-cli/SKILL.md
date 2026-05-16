@@ -78,7 +78,7 @@ Use `browse functions invoke --check-status <invocation_id>` to poll an existing
 
 ```bash
 browse cloud projects list
-browse cloud sessions create --proxies --advanced-stealth --region us-east-1
+browse cloud sessions create --proxies --verified --region us-east-1
 browse cloud sessions create --solve-captchas --context-id ctx_abc --persist
 browse cloud sessions get <session_id>
 browse cloud sessions downloads get <session_id> --output session-artifacts.zip
@@ -105,7 +105,7 @@ browse cloud search "AI agents" --output results.json
 
 ```bash
 browse templates list
-browse templates list --language python
+browse templates list --tag Python --source Browserbase
 browse templates clone form-filling --language typescript
 browse templates clone amazon-product-scraping --language python ./my-scraper
 ```
@@ -117,13 +117,13 @@ browse templates clone amazon-product-scraping --language python ./my-scraper
 3. Use `--output <file>` on `browse cloud fetch` and `browse cloud search` to save results to a file.
 4. Use environment variables for auth unless the user explicitly wants one-off overrides.
 5. Pass structured request bodies with JSON strings in `--body` or `--params`.
-6. Remember that `browse functions ...` uses `--api-url`, while `browse cloud ...` commands use `--base-url`.
+6. Remember that both `browse functions ...` and `browse cloud ...` use `--base-url` for API base URL overrides.
 7. The driver and cloud commands ship in the same `browse` binary — no separate install required.
 
 ## Troubleshooting
 
 - Missing API key: set `BROWSERBASE_API_KEY` or pass `--api-key`
-- Missing project ID on `browse functions dev` or `browse functions publish`: set `BROWSERBASE_PROJECT_ID` or pass `--project-id`
+- Missing project ID on `browse functions dev` or `browse functions publish`: set `BROWSERBASE_PROJECT_ID`
 - Unknown flag: rerun the relevant command with `--help` and use the exact dash-case form
 - Command not found: re-run `npm install -g browse` and verify with `which browse`
 

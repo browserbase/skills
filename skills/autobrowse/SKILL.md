@@ -175,9 +175,9 @@ description: <1-2 sentences describing what this skill does and when to use it. 
 ## Browse CLI Reference
 The inner agent uses the `browse` CLI. Key commands for this task:
 - `browse stop` — kill existing session (always run before switching to remote)
-- `browse env remote` — start a fresh Browserbase cloud session
-- `browse newpage <url>` — open URL in a new tab (required in remote mode — `browse open` fails with "no page available")
-- `browse open <url>` — navigate existing tab (local mode only)
+- `browse open <url> --remote` — start a fresh Browserbase cloud session and navigate
+- `browse open <url> --local` — start a clean local browser and navigate
+- `browse tab new <url>` — open URL in a new tab
 - `browse wait load` — wait for page to finish loading
 - `browse wait timeout <ms>` — wait a fixed amount of time for spinners or animations
 - `browse wait selector "<selector>"` — wait for an element to become visible

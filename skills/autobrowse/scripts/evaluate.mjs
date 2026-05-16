@@ -35,19 +35,18 @@ const TOOLS = [
     description:
       "Execute a browse CLI command for browser automation.\n\n" +
       "Browse commands:\n" +
-      "  browse env local|remote    — Switch browser environment\n" +
-      "  browse open <url>          — Navigate to URL\n" +
+      "  browse open <url> --local|--remote — Navigate and choose browser mode\n" +
       "  browse snapshot            — Get accessibility tree; refs look like [0-5] (primary perception)\n" +
-      "  browse screenshot <path>   — Save screenshot to file\n" +
+      "  browse screenshot --path <path> — Save screenshot to file\n" +
       "  browse click <ref>         — Click element by [X-Y] ref from snapshot\n" +
       "  browse type <text>         — Type into focused element\n" +
       "  browse fill <sel> <value>  — Fill input (clears first — preferred over type)\n" +
       "  browse press <key>         — Keyboard: Enter, Tab, Escape, ArrowRight, ArrowLeft...\n" +
-      "  browse scroll <x> <y> <dx> <dy> — Scroll at coords (positive dy scrolls down)\n" +
+      "  browse mouse scroll <x> <y> <dx> <dy> — Scroll at coords (positive dy scrolls down)\n" +
       "  browse select <sel> <val>  — Select dropdown option\n" +
       "  browse wait load|selector|timeout — Wait for page load, a selector, or a timeout\n" +
       "  browse get url/title/text  — Get page info\n" +
-      "  browse drag <x1> <y1> <x2> <y2> — Drag (for sliders)\n" +
+      "  browse mouse drag <x1> <y1> <x2> <y2> — Drag (for sliders)\n" +
       "  browse back/reload/stop    — Navigation/session control\n\n" +
       "Critical: Always `browse snapshot` after every action — refs invalidate on DOM changes.",
     input_schema: {
@@ -273,16 +272,17 @@ function executeCommand(command) {
 }
 
 function buildSystemPrompt(strategy, traceDir, browseEnv) {
+  const openFlag = browseEnv === "remote" ? "--remote" : "--local";
   const envDesc = browseEnv === "remote"
     ? `Use **remote mode** (Browserbase) — anti-bot stealth, CAPTCHA solving, residential proxies:
 \`\`\`
 browse stop
-browse env remote
+browse open <url> --remote
 \`\`\`
-Always run \`browse stop\` first to kill any existing local session before switching to remote.`
+Always run \`browse stop\` first to kill any existing local session before opening the target with \`--remote\`.`
     : `Use **local mode** — runs on local Chrome:
 \`\`\`
-browse env local
+browse open <url> --local
 \`\`\``;
 
   return `You are a browser automation agent. You navigate websites using the browse CLI via the execute tool.
@@ -298,13 +298,13 @@ ${envDesc}
 ## Commands
 
 ### Navigation
-- \`browse open <url>\` — Go to URL
+- \`browse open <url> ${openFlag}\` — Go to URL
 - \`browse reload\` — Reload page
 - \`browse back\` / \`browse forward\` — History navigation
 
 ### Page State (prefer snapshot over screenshot)
 - \`browse snapshot\` — Get accessibility tree. Each element has a ref in \`[X-Y]\` format (e.g. \`[0-5]\`, \`[2-147]\`). This is your PRIMARY perception tool.
-- \`browse screenshot ${traceDir}/screenshots/step-NN.png\` — Save visual screenshot (for debugging only)
+- \`browse screenshot --path ${traceDir}/screenshots/step-NN.png\` — Save visual screenshot (for debugging only)
 - \`browse get url\` / \`browse get title\` — Page info
 - \`browse get text <selector>\` — Get text content ("body" for all)
 - \`browse get value <selector>\` — Get form field value
@@ -312,11 +312,12 @@ ${envDesc}
 ### Interaction
 - \`browse click [X-Y]\` — Click element by ref from the latest snapshot. Pass the ref EXACTLY as it appears in the tree, including brackets (e.g. \`browse click [2-147]\`).
 - \`browse type <text>\` — Type text into focused element
-- \`browse fill <selector> <value>\` — Fill input AND press Enter (clears existing text — PREFERRED over type)
+- \`browse fill <selector> <value>\` — Fill input without pressing Enter (clears existing text — PREFERRED over type)
+- \`browse fill <selector> <value> --press-enter\` — Fill input and press Enter
 - \`browse select <selector> <values...>\` — Select dropdown option(s)
 - \`browse press <key>\` — Press key: Enter, Tab, Escape, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Cmd+A
-- \`browse drag <fromX> <fromY> <toX> <toY>\` — Drag (useful for sliders)
-- \`browse scroll <x> <y> <deltaX> <deltaY>\` — Scroll at coords (positive dy scrolls down)
+- \`browse mouse drag <fromX> <fromY> <toX> <toY>\` — Drag (useful for sliders)
+- \`browse mouse scroll <x> <y> <deltaX> <deltaY>\` — Scroll at coords (positive dy scrolls down)
 - \`browse wait load\` — Wait for page to finish loading
 - \`browse wait timeout <ms>\` — Wait a fixed amount of time for spinners or animations
 - \`browse wait selector "<selector>"\` — Wait for an element to become visible (or use \`--state\`)
@@ -324,12 +325,12 @@ ${envDesc}
 ### Session
 - \`browse stop\` — Close browser
 - \`browse status\` — Check daemon status
-- \`browse pages\` — List open tabs
-- \`browse tab_switch <index>\` — Switch tabs
+- \`browse tab list\` — List open tabs
+- \`browse tab switch <index-or-target-id>\` — Switch tabs
 
 ## Workflow Pattern
-1. \`browse env ${browseEnv}\` — set browser environment
-2. \`browse open <url>\` — navigate to page
+1. \`browse stop\` — clean up any previous run
+2. \`browse open <url> ${openFlag}\` — navigate to page in ${browseEnv} mode
 3. \`browse snapshot\` — read accessibility tree; refs appear as \`[X-Y]\`
 4. \`browse click [X-Y]\` / \`browse fill <sel> <val>\` / \`browse press <key>\` — interact using refs
 5. \`browse snapshot\` — confirm action worked (refs invalidate after DOM changes!)
@@ -337,12 +338,12 @@ ${envDesc}
 7. \`browse stop\` — clean up
 
 ## Critical Rules
-1. **Always start with \`browse env ${browseEnv}\` then \`browse open <url>\`**
+1. **Always start with \`browse stop\` then \`browse open <url> ${openFlag}\`**
 2. **ALWAYS snapshot after every action** — refs like \`[0-5]\` invalidate when the DOM changes
 3. **Use fill, not type, for input fields** — fill clears existing text first
 4. **Use refs from the LATEST snapshot only** — old refs are stale
 5. **Never invent refs.** If you haven't seen \`[X-Y]\` in the snapshot output, it doesn't exist. Snapshot first, then click.
-6. **Save screenshots at key decision points** — \`browse screenshot ${traceDir}/screenshots/step-NN.png\`
+6. **Save screenshots at key decision points** — \`browse screenshot --path ${traceDir}/screenshots/step-NN.png\`
 7. **When an action fails**, run \`browse snapshot\` to see current state and try a different approach
 8. **When done, output your final answer as a JSON code block**
 

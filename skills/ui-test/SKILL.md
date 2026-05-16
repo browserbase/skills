@@ -200,24 +200,23 @@ The first pattern covers plain `browse` commands. The second covers parallel ses
 
 | Target | Mode | Command | Auth |
 |--------|------|---------|------|
-| `localhost` / `127.0.0.1` | Local | `browse env local` | None needed (clean isolated local browser by default) |
-| Deployed/staging site | Remote | `browse env remote` | cookie-sync → `--context-id` |
+| `localhost` / `127.0.0.1` | Local | `browse open <url> --local` | None needed (clean isolated local browser by default) |
+| Deployed/staging site | Remote | `browse open <url> --remote` | Browserbase credentials; use contexts where supported |
 
-**Rule: If the target URL contains `localhost` or `127.0.0.1`, always use `browse env local`.**
+**Rule: If the target URL contains `localhost` or `127.0.0.1`, pass `--local` on the first `browse open`.**
 
 ### Local Mode (default for localhost)
 
 ```bash
-browse env local
-browse open http://localhost:3000
+browse open http://localhost:3000 --local
 ```
 
-`browse env local` uses a clean isolated local browser by default, which is best for reproducible localhost QA runs.
+`browse open ... --local` uses a clean isolated local browser by default, which is best for reproducible localhost QA runs.
 
 Use local-mode variants only when needed:
 
-- `browse env local --auto-connect` — auto-discover existing local Chrome, fallback to isolated. Use this only when the test explicitly needs existing local login/cookies/state.
-- `browse env local <port|url>` — attach to a specific CDP target (explicit local browser attach).
+- `browse open <url> --auto-connect` — auto-discover existing local Chrome, fallback to isolated. Use this only when the test explicitly needs existing local login/cookies/state.
+- `browse open <url> --cdp <port|url>` — attach to a specific CDP target (explicit local browser attach).
 
 ### Remote Mode (deployed sites via cookie-sync)
 
@@ -226,9 +225,8 @@ Use local-mode variants only when needed:
 node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains your-app.com
 # Output: Context ID: ctx_abc123
 
-# Step 2: Switch to remote mode
-browse env remote
-browse open https://staging.your-app.com --context-id ctx_abc123 --persist
+# Step 2: Open in remote mode
+browse open https://staging.your-app.com --remote
 browse snapshot
 # ... run tests ...
 browse stop
@@ -336,14 +334,14 @@ Changed: src/components/SignupForm.tsx (added email validation)
 browse stop 2>/dev/null
 mkdir -p .context/ui-test-screenshots
 # localhost/default QA → clean, reproducible local run
-browse env local
+browse open http://localhost:3000 --local
 ```
 
 For each test, follow the **before/after pattern**:
 
 ```bash
 # Navigate
-browse open http://localhost:3000/path
+browse open http://localhost:3000/path --local
 browse wait load
 
 # BEFORE snapshot
@@ -583,7 +581,7 @@ For worked examples with exact commands, read [EXAMPLES.md](EXAMPLES.md) if you 
 3. **Before/after for every interaction** — snapshot, act, snapshot, compare
 4. **Screenshot every failure** — `browse screenshot` immediately on STEP_FAIL, save to `.context/ui-test-screenshots/<step-id>.png`
 5. **Deterministic checks first** — axe-core, console errors, form labels before visual judgment
-6. **For localhost, start with clean local mode** — use `browse env local` first for reproducible runs; use `--auto-connect` only when existing local state is required
+6. **For localhost, start with clean local mode** — pass `--local` on the first `browse open` for reproducible runs; use `--auto-connect` only when existing local state is required
 7. **Always `browse stop` when done** — for parallel runs, stop every named session
 8. **Report failures with reproduction steps** — action, expected, actual, screenshot path, suggestion
 9. **Parallelize independent tests** — use Workflow C with named sessions when testing multiple pages or categories on a deployed site

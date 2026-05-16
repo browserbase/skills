@@ -63,9 +63,8 @@ Common flags:
 
 `browse functions ...` is slightly different:
 
-- uses `--api-url <apiUrl>`, not `--base-url`
-- `browse functions dev` and `browse functions publish` also support `--project-id`
-- `browse functions invoke` does not expose `--project-id`
+- uses `--base-url <baseUrl>` for API base URL overrides
+- reads the API key and project from environment variables by default
 
 ## Functions
 
@@ -116,7 +115,7 @@ browse cloud projects usage <project_id>
 browse cloud sessions list
 browse cloud sessions list --q "user_metadata['userId']:'123'"
 browse cloud sessions get <session_id>
-browse cloud sessions create --proxies --advanced-stealth
+browse cloud sessions create --proxies --verified
 browse cloud sessions create --region us-east-1 --timeout 300
 browse cloud sessions create --solve-captchas --context-id ctx_abc --persist
 browse cloud sessions create --body '{"proxies":[{"type":"browserbase","geolocation":{"country":"US"}}]}'
@@ -124,7 +123,6 @@ echo '{"proxies":true}' | browse cloud sessions create --stdin
 browse cloud sessions update <session_id> --status REQUEST_RELEASE
 browse cloud sessions debug <session_id>
 browse cloud sessions logs <session_id>
-browse cloud sessions recording <session_id>
 browse cloud sessions downloads get <session_id> --output session-artifacts.zip
 browse cloud sessions uploads create <session_id> ./file.txt
 ```
@@ -136,7 +134,7 @@ Use flags for common options instead of building `--body` JSON manually:
 | Flag | Description |
 |------|-------------|
 | `--proxies` | Enable Browserbase proxy |
-| `--advanced-stealth` | Enable advanced stealth mode |
+| `--verified` | Enable Browserbase Verified browser mode |
 | `--solve-captchas` / `--no-solve-captchas` | Toggle automatic CAPTCHA solving |
 | `--block-ads` | Enable ad blocking |
 | `--region <region>` | Session region (`us-west-2`, `us-east-1`, `eu-central-1`, `ap-southeast-1`) |
@@ -205,8 +203,8 @@ Browse and scaffold starter templates from the Browserbase templates repository.
 
 ```bash
 browse templates list
-browse templates list --language python
-browse templates list --language typescript
+browse templates list --tag Python --source Browserbase
+browse templates list --tag TypeScript --source Browserbase
 ```
 
 ### Clone a template
@@ -252,7 +250,7 @@ This runs the skill installer non-interactively via npx.
 ## Troubleshooting
 
 - Missing API key: set `BROWSERBASE_API_KEY` or pass `--api-key`
-- Missing project ID on `browse functions dev` or `browse functions publish`: set `BROWSERBASE_PROJECT_ID` or pass `--project-id`
-- Wrong base URL flag: use `--api-url` for `browse functions ...`, `--base-url` for the other API commands
+- Missing project ID on `browse functions dev` or `browse functions publish`: set `BROWSERBASE_PROJECT_ID`
+- Wrong base URL flag: use `--base-url` for both `browse functions ...` and `browse cloud ...`
 - Invalid JSON input: wrap `--body` and `--params` payloads in single quotes so the shell preserves the JSON string
 - Command not found: re-run `npm install -g browse` and verify with `which browse`
