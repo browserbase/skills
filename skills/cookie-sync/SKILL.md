@@ -79,10 +79,14 @@ node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains github.com,goo
 After syncing, use the `browse` CLI with the context ID:
 
 ```bash
-browse open https://mail.google.com --context-id <ctx-id> --persist
+SESSION_JSON="$(browse cloud sessions create --context-id <ctx-id> --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://mail.google.com --cdp "$CONNECT_URL"
 ```
 
-The `--persist` flag saves any new cookies or state changes back to the context, keeping the session fresh for next time.
+The `--persist` flag on `browse cloud sessions create` saves any new cookies or state changes back to the context when the cloud session is released, keeping the session fresh for next time.
 
 **Full workflow example:**
 
@@ -92,10 +96,15 @@ node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains x.com,twitter.
 # Output: Context ID: ctx_abc123
 
 # Step 2: Browse authenticated Twitter
-browse open https://x.com/messages --context-id ctx_abc123 --persist
+SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://x.com/messages --cdp "$CONNECT_URL"
 browse snapshot
 browse screenshot
 browse stop
+browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
 ## Reusing Contexts for Scheduled Jobs
@@ -103,7 +112,7 @@ browse stop
 Contexts persist across sessions, making them ideal for scheduled/recurring tasks:
 
 1. **Once (laptop open):** Run cookie-sync → get a context ID
-2. **Scheduled jobs:** Use `browse open <url> --context-id <ctx-id> --persist` — no local Chrome needed
+2. **Scheduled jobs:** Create a Browserbase session with `browse cloud sessions create --context-id <ctx-id> --persist --keep-alive`, then attach with `browse open <url> --cdp <connectUrl>` — no local Chrome needed
 3. **Re-sync as needed:** When cookies expire, run cookie-sync again with `--context <ctx-id>` to refresh
 
 ## Troubleshooting

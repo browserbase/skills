@@ -13,7 +13,9 @@
 //   node scripts/cookie-sync.mjs --proxy "San Francisco,CA,US"          # use residential proxy with geolocation
 //
 // After syncing, use the browse CLI to open an authenticated session:
-//   browse open https://example.com --context-id <ctx-id> --persist
+//   SESSION_JSON="$(browse cloud sessions create --context-id <ctx-id> --persist --keep-alive)"
+//   CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+//   browse open https://example.com --cdp "$CONNECT_URL"
 //
 // Env vars:
 //   BROWSERBASE_API_KEY    — required
@@ -294,7 +296,11 @@ async function main() {
   console.log(`Context ID: ${contextId}`);
   console.log('');
   console.log('Browse authenticated sites with:');
-  console.log(`  browse open <url> --context-id ${contextId} --persist`);
+  console.log(`  SESSION_JSON="$(browse cloud sessions create --context-id ${contextId} --persist --keep-alive)"`);
+  console.log('  SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"');
+  console.log('  CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"');
+  console.log('  browse open <url> --cdp "$CONNECT_URL"');
+  console.log('  # when done: browse stop && browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE');
   console.log('');
   console.log('To refresh cookies later:');
   console.log(`  node cookie-sync.mjs --context ${contextId}`);

@@ -31,12 +31,11 @@ If the user wants to **capture** traffic, send them to `browser-trace` first.
 ### 1. Capture with `browser-trace` (and optionally bodies via `browse network on`)
 
 ```bash
-# Local example (see browser-trace SKILL.md for Browserbase variant)
-browse env local
-browse open about:blank
-TARGET="$(browse status --json | jq -r .wsUrl)"
+# Local example against an existing debuggable Chrome target
+TARGET=9222
 
 node ../browser-trace/scripts/start-capture.mjs "$TARGET" my-site
+browse open about:blank --cdp "$TARGET"
 browse network on                                    # capture request/response bodies
 browse open https://example.com
 # ...drive whatever flows you want covered...
