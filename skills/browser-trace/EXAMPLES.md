@@ -88,12 +88,10 @@ jq -c 'select(.params.response.status >= 400 and .params.response.status < 600)
 
 **User says**: "The page hangs after I click Continue. It just sits there."
 
-`--cdp` is the correct flag when driving a browser that was already opened with a CDP endpoint or debug port. Pass it on each `browse` command in this flow so every action targets the same captured browser instead of the default daemon session.
-
 ```bash
 node scripts/start-capture.mjs 9222 hang
 browse open https://example.com/checkout --cdp 9222
-browse click @0-12 --cdp 9222   # Continue button
+browse click @0-12   # Continue button
 sleep 30             # let the hang play out
 node scripts/stop-capture.mjs hang
 node scripts/bisect-cdp.mjs hang
