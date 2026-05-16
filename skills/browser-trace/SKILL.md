@@ -42,7 +42,7 @@ Every Chrome DevTools target accepts **multiple concurrent CDP clients**. Your m
 The tracer has three pieces:
 
 1. **Firehose**: `browse cdp <target>` streams every CDP event as one JSON object per line to `cdp/raw.ndjson`.
-2. **Sampler**: a polling loop calls `browse screenshot --cdp <target> --path <file>` and `browse get html body --cdp <target>` on an interval (default 2s). The per-command `--cdp` flag is one-shot and bypasses the daemon, so it doesn't fight the main automation.
+2. **Sampler**: a polling loop calls `browse screenshot --cdp <target> --path <file>` and `browse get html body --cdp <target>` on an interval (default 2s). The helper passes `--cdp` when it samples so it can attach to the traced target from its own process; once a browse daemon session is attached to a CDP target, follow-up commands in that session do not need to repeat `--cdp`.
 3. **Bisector**: after the run, `bisect-cdp.mjs` walks `raw.ndjson` once, slices it into per-bucket JSONL files keyed by CDP method, and additionally bisects per page using top-level `Page.frameNavigated` events as boundaries.
 
 ## Quickstart
@@ -229,7 +229,7 @@ See **REFERENCE.md** for the full jq recipe library and a method-by-method bisec
 1. **Use `bb-capture.mjs` on Browserbase**: it enforces `--keep-alive`, fetches the connectUrl, captures the debugger URL, and stamps the manifest. Doing it manually invites mistakes.
 2. **Don't `--release` a session you don't own**: `bb-finalize.mjs --release` is for sessions *you* created with `--new`. When attaching to a production session via `bb-capture.mjs <session-id>`, run `bb-finalize.mjs` without `--release` so the original automation keeps running.
 3. **Order matters for remote**: on Browserbase, attach the main automation client before (or together with) the tracer, and create the session with `--keep-alive`. Otherwise the session ends as soon as the tracer's WS closes.
-4. **Don't poll faster than ~1s**: each sample opens a one-shot CDP connection and screenshots Chrome. 2s is a good default.
+4. **Don't poll faster than ~1s**: each sample runs browser CLI read commands and screenshots Chrome. 2s is a good default.
 5. **Pick domains deliberately**: defaults (`Network Console Runtime Log Page`) cover most debugging. Add `DOM` for DOM-tree mutations (very noisy) via `O11Y_DOMAINS="$O11Y_DOMAINS DOM"`.
 6. **Reuse one Browserbase session for the automation client on remote** by passing `--remote --session <session-id>`, not a fresh `browse open --remote` without `--session` (which would create a new session each time).
 7. **Always run `stop-capture.mjs`**, even after a crash, so background processes don't linger and the manifest gets `stopped_at`.

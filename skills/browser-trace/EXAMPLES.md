@@ -18,6 +18,7 @@ node scripts/start-capture.mjs 9222 form-bug
 browse open https://example.com/signup --cdp 9222
 browse fill 'input[name=email]' 'user@example.com'
 browse fill 'input[name=password]' 'hunter2'
+browse snapshot
 browse click @0-7   # Submit button ref from `browse snapshot`
 
 node scripts/stop-capture.mjs form-bug

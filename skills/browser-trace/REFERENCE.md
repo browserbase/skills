@@ -17,6 +17,8 @@ Technical reference for the capture pipeline, the bisect mapping, and the jq rec
 
 CDP allows multiple concurrent clients on the same target. The tracer enables only read-only domains and never sends action commands like `Input.dispatch*` or `Runtime.evaluate`, so it cannot perturb the run.
 
+Sampler commands pass `--cdp <target>` because they run from the trace helper process and need to attach to the traced target directly. Normal follow-up commands in a browse daemon session do not need to repeat `--cdp` after the first `browse open ... --cdp <target>`.
+
 ## Scripts
 
 All scripts read `O11Y_ROOT` (default `.o11y`) so runs land under `$O11Y_ROOT/<run-id>/`. They are Node ESM modules (`node` 18+) and depend only on `browse` plus the Node standard library — no `npm install` step. `jq` is referenced throughout the docs for ad-hoc querying but the scripts themselves don't need it.
@@ -324,7 +326,7 @@ The interval-second arg to `start-capture.mjs` controls only the sampler. The fi
 | `browse cdp exited immediately`                | unreachable target / completed Browserbase session             | verify port is listening (`curl http://localhost:9222/json/version`) or session is `RUNNING` (`browse cloud sessions get`) |
 | `error: unknown command 'cdp'`                 | older browse build lacks the command                          | `npm install -g browse@latest` (or the alpha tag if needed)   |
 | Browserbase session ends as soon as tracer connects | tracer was the only client; no automation attached          | create with `--keep-alive`, attach with `browse open --remote --session <id>` first   |
-| `index.jsonl` shows `"url": ""`                 | one-shot `browse get url --cdp <target>` failed (transient)   | benign; happens during navigation transitions                 |
+| `index.jsonl` shows `"url": ""`                 | sampler `browse get url` failed transiently                   | benign; happens during navigation transitions                 |
 | Screenshots empty / huge / inconsistent sizes  | viewport not set                                              | `browse viewport 1920 1080 --cdp <target>` once before capture |
 | `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" bash start-capture.mjs ...` |
 | Loop process leaks after crash                  | `stop-capture.mjs` not run                                     | `pkill -f snapshot-loop.mjs`; PID files in `<run-dir>` are stale  |

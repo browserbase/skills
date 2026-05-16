@@ -2,8 +2,9 @@
 // Periodic screenshot + DOM HTML + URL sampler. Invoked by start-capture.mjs;
 // not meant to be run directly.
 //
-// Each tick opens a one-shot CDP connection via `browse ... --cdp <target>`
-// (bypasses the `browse` daemon so it doesn't fight the main automation).
+// Each tick samples the traced CDP target through browse. Passing --cdp here
+// ensures this helper attaches to the traced target even when it runs outside
+// the user's main automation flow.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -60,7 +61,7 @@ while (!stopping) {
     try { fs.unlinkSync(tmp); } catch {}
   }
 
-  // URL via the daemon-bypassing one-shot. Returns {"url": "..."}.
+  // URL from the traced target. Returns {"url": "..."}.
   let urlValue = '';
   const u = spawnSync('browse', ['get', 'url', '--cdp', target], { encoding: 'utf8' });
   urlValue = getJsonField(u.stdout, 'url');
