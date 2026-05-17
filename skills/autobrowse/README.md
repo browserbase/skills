@@ -13,7 +13,7 @@ The output is a `skill.md` — a site-specific playbook any agent can follow. On
 - Node.js 18+
 - [Claude Code](https://claude.ai/code)
 - `browse` CLI: `npm install -g @browserbasehq/browse-cli`
-- `ANTHROPIC_API_KEY` in your environment
+- `ANTHROPIC_API_KEY` in your environment, or `AUTOBROWSE_PROVIDER=openai` with `OPENAI_API_KEY`
 - For bot-protected sites: `BROWSERBASE_API_KEY` + `BROWSERBASE_PROJECT_ID`
 
 ## Setup
@@ -23,6 +23,23 @@ git clone <this-repo>
 cd autobrowse
 npm install
 cp .env.example .env   # fill in your API keys
+```
+
+By default, the inner agent uses Anthropic. To use an OpenAI-compatible provider instead:
+
+```bash
+AUTOBROWSE_PROVIDER=openai \
+OPENAI_API_KEY=sk-... \
+node scripts/evaluate.mjs --task my-portal --model gpt-4.1
+```
+
+For OpenRouter, LiteLLM, or another Chat Completions-compatible gateway, set `OPENAI_BASE_URL`:
+
+```bash
+AUTOBROWSE_PROVIDER=openai \
+OPENAI_API_KEY=sk-or-... \
+OPENAI_BASE_URL=https://openrouter.ai/api/v1 \
+node scripts/evaluate.mjs --task my-portal --model anthropic/claude-sonnet-4.5
 ```
 
 ## Your project structure
@@ -80,7 +97,7 @@ Inspired by [Karpathy's autoresearch](https://github.com/karpathy/autoresearch) 
 outer agent (Claude Code + /autobrowse skill)
   └── reads trace → improves strategy.md → repeats
 
-inner agent (scripts/evaluate.mjs → Anthropic API)
+inner agent (scripts/evaluate.mjs → Anthropic API or OpenAI-compatible Chat Completions)
   └── browse open → snapshot → click → snapshot → ...
   └── writes traces/ with summary, full trace, screenshots
 ```

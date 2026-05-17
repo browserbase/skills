@@ -2,7 +2,7 @@
 name: autobrowse
 description: Self-improving browser automation via the auto-research loop. Iteratively runs a browsing task, reads the trace, and improves the navigation skill (strategy.md) until it reliably passes. Supports parallel runs across multiple tasks using sub-agents. Use when you want to build or improve browser automation skills for specific website tasks.
 license: See LICENSE.txt
-compatibility: "Requires Node.js 18+, browse CLI, and ANTHROPIC_API_KEY. Run from the autobrowse app directory."
+compatibility: "Requires Node.js 18+, browse CLI, and either ANTHROPIC_API_KEY or AUTOBROWSE_PROVIDER=openai with OPENAI_API_KEY. Run from the autobrowse app directory."
 allowed-tools: Bash Read Write Edit Glob Grep Agent
 metadata:
   author: browserbase
@@ -96,7 +96,8 @@ Check that `./autobrowse/tasks/<task>/task.md` exists (scaffold it from the temp
 
 ### Requirements
 
-- `ANTHROPIC_API_KEY` must be in the environment (or in a `.env` file in CWD — `evaluate.mjs` auto-loads it). If missing, the harness prints a clear error and exits; don't hunt for keys in other paths.
+- By default, `ANTHROPIC_API_KEY` must be in the environment (or in a `.env` file in CWD — `evaluate.mjs` auto-loads it). If missing, the harness prints a clear error and exits; don't hunt for keys in other paths.
+- To use OpenAI-compatible Chat Completions instead, set `AUTOBROWSE_PROVIDER=openai` or pass `--provider openai`, then set `OPENAI_API_KEY`. For OpenRouter, LiteLLM, or another compatible gateway, also set `OPENAI_BASE_URL` to that provider's `/v1` endpoint.
 
 ### Run the inner agent
 
@@ -104,6 +105,8 @@ Check that `./autobrowse/tasks/<task>/task.md` exists (scaffold it from the temp
 node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse
 # or for bot-protected sites:
 node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse --env remote
+# or with an OpenAI-compatible provider:
+AUTOBROWSE_PROVIDER=openai OPENAI_API_KEY=sk-... node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse --model gpt-4.1
 ```
 
 This runs the browser session and writes a full trace to `./autobrowse/traces/<task>/latest/`.

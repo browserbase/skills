@@ -3,11 +3,14 @@
 /**
  * evaluate.mjs — Inner agent harness.
  *
- * Runs a browsing agent using the raw Anthropic API with a single `execute`
- * tool. The agent calls browse CLI commands to navigate websites. Full trace
- * is captured incrementally and written to disk.
+ * Runs a browsing agent with a single `execute` tool. The agent calls browse CLI
+ * commands to navigate websites. Full trace is captured incrementally and
+ * written to disk.
  *
- * Usage: node scripts/evaluate.mjs --task <task-name> [--workspace <dir>] [--env local|remote] [--model <model>] [--run-number N]
+ * Supports Anthropic by default, plus OpenAI-compatible Chat Completions
+ * providers via --provider openai (OpenAI, OpenRouter, LiteLLM, etc.).
+ *
+ * Usage: node scripts/evaluate.mjs --task <task-name> [--workspace <dir>] [--env local|remote] [--provider anthropic|openai] [--model <model>] [--run-number N]
  */
 
 import "dotenv/config";
@@ -22,7 +25,9 @@ const SKILL_DIR = path.resolve(__dirname, "..");
 
 // ── Config ─────────────────────────────────────────────────────────
 
-const DEFAULT_MODEL = "claude-sonnet-4-6";
+const DEFAULT_PROVIDER = "anthropic";
+const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-6";
+const DEFAULT_OPENAI_MODEL = "gpt-4.1";
 const MAX_TURNS = 30;
 const MAX_TOKENS = 4096;
 const EXEC_TIMEOUT_MS = 30_000;
@@ -71,6 +76,15 @@ function getArg(name, fallback) {
   return fallback;
 }
 
+function getProvider() {
+  return getArg("provider", process.env.AUTOBROWSE_PROVIDER ?? DEFAULT_PROVIDER).toLowerCase();
+}
+
+function getModel(provider) {
+  const fallback = process.env.AUTOBROWSE_MODEL ?? (provider === "openai" ? DEFAULT_OPENAI_MODEL : DEFAULT_ANTHROPIC_MODEL);
+  return getArg("model", fallback);
+}
+
 function showHelp() {
   console.log(`evaluate.mjs — Inner agent harness for autobrowse skill
 
@@ -80,12 +94,20 @@ Options:
   --task <name>        Task name — matches tasks/<name>/ directory (required)
   --workspace <dir>    Workspace root holding tasks/ and traces/ (default: ./autobrowse)
   --env local|remote   Browser environment (default: local)
-  --model <model>      Claude model for the inner agent (default: ${DEFAULT_MODEL})
+  --provider <name>    Model provider: anthropic or openai (default: ${DEFAULT_PROVIDER})
+  --model <model>      Inner-agent model (default: ${DEFAULT_ANTHROPIC_MODEL} for Anthropic, ${DEFAULT_OPENAI_MODEL} for OpenAI-compatible)
   --run-number N       Force a specific run number (default: auto-increment)
   --help               Show this help message
 
 Environment variables:
-  ANTHROPIC_API_KEY          Required — Claude API key
+  AUTOBROWSE_PROVIDER        Optional — anthropic or openai
+  AUTOBROWSE_MODEL           Optional — default model when --model is omitted
+  ANTHROPIC_API_KEY          Required for Anthropic provider
+  OPENAI_API_KEY             Required for OpenAI-compatible provider
+  OPENAI_BASE_URL            Optional for OpenAI-compatible provider (default: https://api.openai.com/v1)
+  OPENAI_ORGANIZATION        Optional for OpenAI-compatible provider
+  OPENAI_SITE_URL            Optional HTTP-Referer header for gateways such as OpenRouter
+  OPENAI_APP_NAME            Optional X-Title header for gateways such as OpenRouter
   BROWSERBASE_API_KEY        Required for --env remote
   BROWSERBASE_PROJECT_ID     Required for --env remote
 
@@ -98,7 +120,9 @@ Output:
 Examples:
   node scripts/evaluate.mjs --task google-flights
   node scripts/evaluate.mjs --task my-portal --env remote
-  node scripts/evaluate.mjs --task checkout --model claude-opus-4-6`);
+  node scripts/evaluate.mjs --task checkout --model claude-opus-4-6
+  AUTOBROWSE_PROVIDER=openai OPENAI_API_KEY=sk-... node scripts/evaluate.mjs --task checkout --model gpt-4.1
+  AUTOBROWSE_PROVIDER=openai OPENAI_BASE_URL=https://openrouter.ai/api/v1 OPENAI_API_KEY=sk-or-... node scripts/evaluate.mjs --task checkout --model anthropic/claude-sonnet-4.5`);
   process.exit(0);
 }
 
@@ -132,18 +156,207 @@ function getTaskName(workspace) {
   return task;
 }
 
-function ensureApiKey() {
-  if (!process.env.ANTHROPIC_API_KEY) {
-    console.error("ERROR: ANTHROPIC_API_KEY is not set.");
-    console.error("");
-    console.error("Set it one of these ways:");
-    console.error("  1. export ANTHROPIC_API_KEY=sk-ant-...");
-    console.error("  2. Create a .env file in the current directory with:");
-    console.error("       ANTHROPIC_API_KEY=sk-ant-...");
-    console.error("");
-    console.error("Get a key at https://console.anthropic.com/settings/keys");
-    process.exit(1);
+function ensureApiKey(provider) {
+  if (provider === "anthropic") {
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.error("ERROR: ANTHROPIC_API_KEY is not set.");
+      console.error("");
+      console.error("Set it one of these ways:");
+      console.error("  1. export ANTHROPIC_API_KEY=sk-ant-...");
+      console.error("  2. Create a .env file in the current directory with:");
+      console.error("       ANTHROPIC_API_KEY=sk-ant-...");
+      console.error("");
+      console.error("Get a key at https://console.anthropic.com/settings/keys");
+      process.exit(1);
+    }
+    return;
   }
+
+  if (provider === "openai") {
+    if (!process.env.OPENAI_API_KEY) {
+      console.error("ERROR: OPENAI_API_KEY is not set.");
+      console.error("");
+      console.error("Set it one of these ways:");
+      console.error("  1. export OPENAI_API_KEY=sk-...");
+      console.error("  2. Create a .env file in the current directory with:");
+      console.error("       AUTOBROWSE_PROVIDER=openai");
+      console.error("       OPENAI_API_KEY=sk-...");
+      console.error("       # optional for OpenRouter, LiteLLM, etc.");
+      console.error("       OPENAI_BASE_URL=https://openrouter.ai/api/v1");
+      process.exit(1);
+    }
+    return;
+  }
+
+  console.error(`ERROR: unsupported provider "${provider}". Use anthropic or openai.`);
+  process.exit(1);
+}
+
+// ── Provider adapters ───────────────────────────────────────────────
+
+function createClient(provider) {
+  if (provider === "anthropic") {
+    return new Anthropic();
+  }
+  return {
+    apiKey: process.env.OPENAI_API_KEY,
+    baseUrl: (process.env.OPENAI_BASE_URL ?? "https://api.openai.com/v1").replace(/\/$/, ""),
+    organization: process.env.OPENAI_ORGANIZATION,
+  };
+}
+
+function toOpenAITools(tools) {
+  return tools.map(tool => ({
+    type: "function",
+    function: {
+      name: tool.name,
+      description: tool.description,
+      parameters: tool.input_schema,
+    },
+  }));
+}
+
+function toOpenAIMessages(systemPrompt, messages) {
+  const converted = [{ role: "system", content: systemPrompt }];
+
+  for (const message of messages) {
+    if (message.role === "user" && typeof message.content === "string") {
+      converted.push({ role: "user", content: message.content });
+      continue;
+    }
+
+    if (message.role === "assistant" && Array.isArray(message.content)) {
+      const text = [];
+      const toolCalls = [];
+      for (const block of message.content) {
+        if (block.type === "text" && block.text) {
+          text.push(block.text);
+        }
+        if (block.type === "tool_use") {
+          toolCalls.push({
+            id: block.id,
+            type: "function",
+            function: {
+              name: block.name,
+              arguments: JSON.stringify(block.input ?? {}),
+            },
+          });
+        }
+      }
+      converted.push({
+        role: "assistant",
+        content: text.join("\n") || null,
+        ...(toolCalls.length ? { tool_calls: toolCalls } : {}),
+      });
+      continue;
+    }
+
+    if (message.role === "user" && Array.isArray(message.content)) {
+      for (const block of message.content) {
+        if (block.type === "tool_result") {
+          converted.push({
+            role: "tool",
+            tool_call_id: block.tool_use_id,
+            content: block.content ?? "",
+          });
+        }
+      }
+      continue;
+    }
+
+    converted.push({ role: message.role, content: String(message.content ?? "") });
+  }
+
+  return converted;
+}
+
+function normalizeOpenAIResponse(data) {
+  const choice = data.choices?.[0];
+  if (!choice) {
+    throw new Error(`OpenAI-compatible response had no choices: ${JSON.stringify(data).slice(0, 500)}`);
+  }
+
+  const message = choice.message ?? {};
+  const content = [];
+  if (message.content) {
+    content.push({ type: "text", text: message.content });
+  }
+  for (const toolCall of message.tool_calls ?? []) {
+    let input = {};
+    const rawArgs = toolCall.function?.arguments ?? "{}";
+    try {
+      input = JSON.parse(rawArgs || "{}");
+    } catch {
+      input = { command: rawArgs };
+    }
+    content.push({
+      type: "tool_use",
+      id: toolCall.id,
+      name: toolCall.function?.name,
+      input,
+    });
+  }
+
+  const finishReason = choice.finish_reason;
+  const usage = data.usage ?? {};
+  return {
+    content,
+    stop_reason: finishReason === "tool_calls" ? "tool_use" : "end_turn",
+    usage: {
+      input_tokens: usage.prompt_tokens ?? 0,
+      output_tokens: usage.completion_tokens ?? 0,
+    },
+  };
+}
+
+async function callModel({ provider, client, model, systemPrompt, messages }) {
+  if (provider === "anthropic") {
+    return client.messages.create({
+      model,
+      max_tokens: MAX_TOKENS,
+      system: systemPrompt,
+      tools: TOOLS,
+      messages,
+    });
+  }
+
+  const headers = {
+    "Authorization": `Bearer ${client.apiKey}`,
+    "Content-Type": "application/json",
+  };
+  if (client.organization) {
+    headers["OpenAI-Organization"] = client.organization;
+  }
+  if (process.env.OPENAI_SITE_URL) {
+    headers["HTTP-Referer"] = process.env.OPENAI_SITE_URL;
+  }
+  if (process.env.OPENAI_APP_NAME) {
+    headers["X-Title"] = process.env.OPENAI_APP_NAME;
+  }
+
+  const response = await fetch(`${client.baseUrl}/chat/completions`, {
+    method: "POST",
+    headers,
+    body: JSON.stringify({
+      model,
+      max_tokens: MAX_TOKENS,
+      messages: toOpenAIMessages(systemPrompt, messages),
+      tools: toOpenAITools(TOOLS),
+      tool_choice: "auto",
+    }),
+  });
+
+  const text = await response.text();
+  let data;
+  try {
+    data = JSON.parse(text);
+  } catch {
+    throw new Error(`OpenAI-compatible API returned non-JSON (${response.status}): ${text.slice(0, 500)}`);
+  }
+  if (!response.ok) {
+    throw new Error(`OpenAI-compatible API error ${response.status}: ${JSON.stringify(data).slice(0, 1000)}`);
+  }
+  return normalizeOpenAIResponse(data);
 }
 
 // ── Helpers ─────────────────────────────────────────────────────────
@@ -370,9 +583,10 @@ ${strategy}
 async function main() {
   const workspace = resolveWorkspace();
   const taskName = getTaskName(workspace);
-  ensureApiKey();
+  const provider = getProvider();
+  ensureApiKey(provider);
 
-  const model = getArg("model", DEFAULT_MODEL);
+  const model = getModel(provider);
   const taskDir = path.join(workspace, "tasks", taskName);
   const tracesDir = path.join(workspace, "traces", taskName);
 
@@ -391,7 +605,7 @@ async function main() {
   }
 
   const browseEnv = getArg("env", "local");
-  const client = new Anthropic();
+  const client = createClient(provider);
   const runNumber = getNextRunNumber(tracesDir);
   const runId = `run-${String(runNumber).padStart(3, "0")}`;
   const traceDir = path.join(tracesDir, runId);
@@ -405,7 +619,7 @@ async function main() {
   console.error(`\n${"=".repeat(60)}`);
   console.error(`  AUTOBROWSE — ${taskName} — Run ${runNumber}`);
   console.error(`${"=".repeat(60)}`);
-  console.error(`Model: ${model} | Env: ${browseEnv} | Max turns: ${MAX_TURNS} | Trace: ${traceDir}\n`);
+  console.error(`Provider: ${provider} | Model: ${model} | Env: ${browseEnv} | Max turns: ${MAX_TURNS} | Trace: ${traceDir}\n`);
 
   const trace = [];
   const messages = [
@@ -423,13 +637,7 @@ async function main() {
   while (turn < MAX_TURNS) {
     turn++;
 
-    const response = await client.messages.create({
-      model,
-      max_tokens: MAX_TOKENS,
-      system: systemPrompt,
-      tools: TOOLS,
-      messages,
-    });
+    const response = await callModel({ provider, client, model, systemPrompt, messages });
 
     totalInputTokens += response.usage.input_tokens;
     totalOutputTokens += response.usage.output_tokens;
@@ -536,6 +744,8 @@ async function main() {
     "claude-opus-4-6": [5, 25],
     "claude-sonnet-4-6": [3, 15],
     "claude-haiku-4-5-20251001": [1, 5],
+    "gpt-4.1": [2, 8],
+    "gpt-4.1-mini": [0.4, 1.6],
   };
   const [inputRate, outputRate] = pricing[model] ?? [3, 15];
   const costUsd = (totalInputTokens * inputRate + totalOutputTokens * outputRate) / 1_000_000;
@@ -544,6 +754,7 @@ async function main() {
     `# ${taskName} — Run ${runId} Summary`,
     "",
     `**Status:** ${runStatus}${finalStopReason ? ` (${finalStopReason})` : ""}`,
+    `**Provider:** ${provider} | **Model:** ${model}`,
     `**Duration:** ${durationSec.toFixed(1)}s | **Turns:** ${turn} | **Cost:** ~$${costUsd.toFixed(2)}`,
     `**Tokens:** ${totalInputTokens.toLocaleString()} in / ${totalOutputTokens.toLocaleString()} out`,
     "",
@@ -602,6 +813,8 @@ async function main() {
     run: runId,
     status: runStatus,
     stop_reason: finalStopReason ?? (runStatus === "max_turns" ? "max_turns" : null),
+    provider,
+    model,
     duration_sec: parseFloat(durationSec.toFixed(1)),
     cost_usd: parseFloat(costUsd.toFixed(2)),
     turns: turn,
