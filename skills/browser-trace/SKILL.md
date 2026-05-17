@@ -1,7 +1,7 @@
 ---
 name: browser-trace
 description: Capture a full DevTools-protocol trace of any browser automation — CDP firehose, screenshots, and DOM dumps — then bisect the stream into per-page searchable buckets. Use when the user wants to debug a failed run, audit network/console/DOM activity, attach a trace to an in-progress session, or feed structured per-page summaries back into an agent loop so its next iteration learns from the last one.
-compatibility: "Requires Node 18+, the browse CLI (`npm install -g browse` — `browse cdp` is alpha-tagged), and optionally `jq` for ad-hoc querying of the bisected JSONL files. For remote Browserbase sessions, also requires `BROWSERBASE_API_KEY` (the same `browse` binary handles `browse cloud sessions ...` API calls). The skill scripts themselves use only the Node standard library — no `npm install` step."
+compatibility: "Requires Node 18+, the browse CLI (`npm install -g browse`) with `browse cdp`, and optionally `jq` for ad-hoc querying of the bisected JSONL files. For remote Browserbase sessions, also requires `BROWSERBASE_API_KEY`. The skill scripts themselves use only the Node standard library — no `npm install` step."
 license: MIT
 allowed-tools: Bash, Read, Grep
 ---
@@ -25,14 +25,14 @@ If the user just wants to **drive** the browser, use the `browser` skill instead
 
 ```bash
 node --version                                  # require Node 18+
-which browse || npm install -g browse              # provides both `browse` and `browse cloud ...` API commands
+which browse || npm install -g browse
 which jq     || true                                # optional — used only for ad-hoc querying
 ```
 
-Verify `browse cdp` exists (it ships in 0.5.0-alpha-a4ca430+):
+Verify `browse cdp` exists:
 
 ```bash
-browse --help | grep -q "^\s*cdp " || echo "browse cdp not in this version — install @alpha"
+browse --help | grep -q "^\s*cdp " || echo "browse cdp not available — update browse"
 ```
 
 ## How it works

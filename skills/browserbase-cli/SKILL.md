@@ -55,7 +55,7 @@ Use this skill when the user wants to:
 - `browse cloud fetch <url>` for Fetch API requests
 - `browse cloud search "<query>"` for Search API requests
 - `browse templates` to browse and scaffold starter templates
-- `browse open`, `browse get`, `browse click`, etc. for direct local/remote browser driving (no separate package required — same binary)
+- `browse open`, `browse get`, `browse click`, etc. for direct local/remote browser driving
 - `browse skills install` to install Browserbase agent skills for Claude Code
 
 For local browser work, `browse open <url> --local` starts a clean isolated browser by default. Use `browse open <url> --auto-connect` only when you need to reuse an existing local Chrome session, cookies, or login state.
@@ -118,7 +118,6 @@ browse templates clone amazon-product-scraping --language python ./my-scraper
 4. Use environment variables for auth unless the user explicitly wants one-off overrides.
 5. Pass structured request bodies with JSON strings in `--body` or `--params`.
 6. Remember that both `browse functions ...` and `browse cloud ...` use `--base-url` for API base URL overrides.
-7. The driver and cloud commands ship in the same `browse` binary — no separate install required.
 
 ## Troubleshooting
 

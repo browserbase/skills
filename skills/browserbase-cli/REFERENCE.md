@@ -224,7 +224,7 @@ Options:
 
 ## Local & remote browser driving
 
-The same `browse` binary drives local and remote browsers directly. There is no separate package — top-level commands like `browse open`, `browse get`, `browse click`, `browse fill`, `browse press`, `browse screenshot`, `browse cdp` all live here.
+Top-level `browse` commands drive local and remote browsers directly: `browse open`, `browse get`, `browse click`, `browse fill`, `browse press`, `browse screenshot`, and `browse cdp`.
 
 ```bash
 browse open https://example.com                            # default mode (clean local browser)

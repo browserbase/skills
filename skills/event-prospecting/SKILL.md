@@ -27,7 +27,7 @@ metadata:
 
 Take a conference URL → get a ranked list of people the AE should talk to, with a "why reach out" rationale per person.
 
-**Required**: `BROWSERBASE_API_KEY` env var and the `browse` CLI installed (`npm install -g browse`). The unified `browse` binary handles both API calls (`browse cloud ...`) and local browser rendering (`browse open` / `browse get markdown`) for JS-heavy speaker pages.
+**Required**: `BROWSERBASE_API_KEY` env var and the `browse` CLI installed (`npm install -g browse`). Use `browse cloud ...` for API calls and `browse open` / `browse get markdown` for JS-heavy speaker pages.
 
 **Path rules**: Always use the full literal path in all Bash commands — NOT `~` or `$HOME` (both trigger "shell expansion syntax" approval prompts). Resolve the home directory once and use it everywhere. When constructing subagent prompts, replace `{SKILL_DIR}` with the full literal path (typically `/Users/jay/skills/skills/event-prospecting`).
 
