@@ -35,7 +35,7 @@ Take a conference URL → get a ranked list of people the AE should talk to, wit
 
 **CRITICAL — Tool restrictions (applies to main agent AND all subagents)**:
 - All web searches: use `browse cloud search`. NEVER use WebSearch.
-- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `browse cloud fetch`, parses title + meta tags + visible body text, and automatically falls back to `browse get markdown` when the page is JS-rendered or over 1MB. NEVER hand-roll a `browse cloud fetch | sed` pipeline. NEVER use WebFetch.
+- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `browse cloud fetch --output`, parses title + meta tags + visible body text, and automatically falls back to `browse get markdown` when fetch fails or returns thin JS-rendered content. NEVER hand-roll a `browse cloud fetch | sed` pipeline. NEVER use WebFetch.
 - All research output: subagents write **one markdown file per company OR per person** to `{OUTPUT_DIR}/companies/{slug}.md` or `{OUTPUT_DIR}/people/{slug}.md` using bash heredoc. NEVER use the Write tool or `python3 -c`. See `references/example-research.md` for both file formats.
 - Report compilation: use `node {SKILL_DIR}/scripts/compile_report.mjs {OUTPUT_DIR} --open`.
 - **Subagents must use ONLY the Bash tool. No other tools allowed.**
@@ -302,7 +302,7 @@ Per person: harvest LinkedIn URL, recent activity (podcast / blog / talk / GitHu
 1. `browse cloud search "{name} {company} linkedin"` (always)
 2. `browse cloud search "{name} podcast OR talk OR blog 2026"` (deep+)
 3. `browse cloud search "{name} github"` (deeper)
-4. `browse cloud search "{name} site:x.com OR site:twitter.com"` (deeper)
+4. `browse cloud search "{name} site:x.com OR site:twitter.com"` (deeper, best-effort)
 
 Quick mode: skip Step 8 entirely. Deep mode: lanes 1-2. Deeper mode: lanes 1-4.
 

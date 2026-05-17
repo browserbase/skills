@@ -134,7 +134,7 @@ TOOL RULES — CRITICAL:
 1. You may ONLY use the Bash tool. No exceptions.
 2. All searches:  browse cloud search "..." --num-results 10
 3. All page extractions:  node {SKILL_DIR}/scripts/extract_page.mjs "URL" --max-chars 3000
-   (handles JSON envelope, meta tags, JS-render fallback to browse get markdown)
+   (uses `--output` to avoid the stdout JSON envelope, preserves meta tags, and falls back to browse get markdown when needed)
    DO NOT hand-roll a `browse cloud fetch | sed` pipeline. Use raw `browse cloud fetch` only for sitemap.xml / llms.txt.
 4. HARD TOOL-CALL CAP: 5 calls per company. Budget:
      1× extract_page on homepage
@@ -220,7 +220,7 @@ Report back ONLY: "Deep research batch: {researched}/{total} companies, {finding
 1. `browse cloud search "{name} {company} linkedin"` — always (deep + deeper)
 2. `browse cloud search "{name} podcast OR talk OR blog 2026"` — deep + deeper
 3. `browse cloud search "{name} github"` — deeper only
-4. `browse cloud search "{name} site:x.com OR site:twitter.com"` — deeper only
+4. `browse cloud search "{name} site:x.com OR site:twitter.com"` — deeper only, best-effort
 
 Deep mode: lanes 1-2 (max 2 calls/person). Deeper mode: lanes 1-4 (max 4 calls/person).
 
@@ -284,7 +284,7 @@ Lane 3 (deeper only):
 Lane 4 (deeper only):
   # browse call 4/{LANES} (person: {slug})
   browse cloud search "\"{name}\" site:x.com OR site:twitter.com" --num-results 5
-  → harvest x.com/{handle} URL + most recent post topic if shown
+  → attempt to find x.com/{handle} URL + most recent post topic; leave null if no direct profile appears
 
 HOOK SOURCE PRIORITY (run sequentially, stop at first hit):
 1. Recent activity (lane 2): podcast title / blog headline / talk title from the last 6 months. THIS IS THE BEST HOOK — concrete, dated, public.

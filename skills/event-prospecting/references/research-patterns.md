@@ -257,7 +257,7 @@ Per person at an ICP-fit company:
 - `browse cloud search "{name} {company} linkedin"` — verify role + harvest LinkedIn URL (always)
 - `browse cloud search "{name} podcast OR talk OR blog 2026"` — last 6 months for hooks (deep+)
 - `browse cloud search "{name} github"` — open-source signal (deeper)
-- `browse cloud search "{name} site:x.com OR site:twitter.com"` — recent posts (deeper)
+- `browse cloud search "{name} site:x.com OR site:twitter.com"` — best-effort recent posts (deeper)
 
 **Hard cap: 4 tool calls per person.** Deep mode runs lanes 1-2 (max 2 calls). Deeper mode runs lanes 1-4 (max 4 calls). Quick mode skips Step 8 entirely.
 

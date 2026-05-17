@@ -23,7 +23,7 @@ Technical reference for the `browse` CLI tool.
 The browse CLI is a **daemon-based** command-line tool:
 
 - **Daemon process**: A background process manages the browser instance. Auto-starts on the first command (e.g., `browse open`), persists across commands, and stops with `browse stop`.
-- **Local mode** (default): `browse open <url> --local` launches a clean isolated local browser. Use `browse open <url> --auto-connect` to reuse an existing debuggable Chrome, or `browse open <url> --cdp <port|url>` to attach to a specific CDP target.
+- **Local mode**: `browse open <url> --local` launches a clean isolated local browser. It is the default when `BROWSERBASE_API_KEY` is unset. Use `browse open <url> --auto-connect` to attach to an existing debuggable Chrome, or `browse open <url> --cdp <port|url>` to attach to a specific CDP target.
 - **Remote mode** (Browserbase): Connects to a Browserbase cloud browser session when `BROWSERBASE_API_KEY` is set.
 - **Accessibility-first**: Use `browse snapshot` to get the page's accessibility tree with element refs, then interact using those refs.
 
@@ -100,7 +100,7 @@ Returns a text representation of the page with refs like `@0-5` that can be pass
 Take a visual screenshot. Slower than snapshot and uses vision tokens.
 
 ```bash
-browse screenshot                        # auto-generated path
+browse screenshot                        # print base64 JSON
 browse screenshot --path ./capture.png   # custom path
 browse screenshot --full-page            # capture entire scrollable page
 ```
@@ -200,25 +200,25 @@ browse press Cmd+A                       # select all (Mac)
 browse press Ctrl+C                      # copy (Linux/Windows)
 ```
 
-#### `scroll <x> <y> <deltaX> <deltaY>`
+#### `mouse scroll <x> <y> <deltaX> <deltaY>`
 
 Scroll at a given position by a given amount.
 
 ```bash
-browse scroll 500 300 0 -300             # scroll up at (500, 300)
-browse scroll 500 300 0 500              # scroll down
+browse mouse scroll 500 300 0 -300       # scroll up at (500, 300)
+browse mouse scroll 500 300 0 500        # scroll down
 ```
 
-#### `drag <fromX> <fromY> <toX> <toY>`
+#### `mouse drag <fromX> <fromY> <toX> <toY>`
 
 Drag from one viewport coordinate to another.
 
 ```bash
-browse drag 80 80 310 100                # drag with default 10 steps
-browse drag 80 80 310 100 --steps 20     # more intermediate steps
-browse drag 80 80 310 100 --delay 50     # 50ms between steps
-browse drag 80 80 310 100 --button right # use right mouse button
-browse drag 80 80 310 100 --xpath        # return source/target XPaths
+browse mouse drag 80 80 310 100                # drag with default 10 steps
+browse mouse drag 80 80 310 100 --steps 20     # more intermediate steps
+browse mouse drag 80 80 310 100 --delay 50     # 50ms between steps
+browse mouse drag 80 80 310 100 --button right # use right mouse button
+browse mouse drag 80 80 310 100 --return-xpath # return source/target XPaths
 ```
 
 #### `highlight <selector>`
@@ -321,7 +321,7 @@ browse tab switch 1
 
 #### `tab close [index-or-target-id]`
 
-Close a tab. Closes current tab if no index given.
+Close a tab. Closes current tab if no index given. The CLI refuses to close the last remaining tab.
 
 ```bash
 browse tab close          # close current tab

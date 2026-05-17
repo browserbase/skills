@@ -48,7 +48,7 @@ Each research subagent writes one markdown file per company. See `references/exa
 
 ## Extracting Page Content
 
-Use `extract_page.mjs` for all homepage/product-page content extraction. It fetches via `browse cloud fetch`, parses title + meta + visible body text, and falls back to `browse get markdown` automatically when the page is JS-rendered or too large for fetch:
+Use `extract_page.mjs` for all homepage/product-page content extraction. It fetches via `browse cloud fetch --output`, parses title + meta + visible body text, and falls back to `browse get markdown` automatically when fetch fails or returns thin JS-rendered content:
 
 ```bash
 node {SKILL_DIR}/scripts/extract_page.mjs "https://example.com" --max-chars 3000
@@ -69,7 +69,7 @@ BODY:
 <cleaned visible text, max N chars>
 ```
 
-**Why not a raw `browse cloud fetch | sed` pipeline?** `browse cloud fetch` returns a JSON envelope with the HTML embedded as an escaped string — a naive sed pipeline strips `<>` from the JSON wrapper too and destroys the content. It also strips `<meta>` tags, which on Framer/Next.js SPAs are often the only readable content. `extract_page.mjs` handles both correctly.
+**Why not a raw `browse cloud fetch | sed` pipeline?** Without `--output`, `browse cloud fetch` returns a JSON envelope with the HTML embedded as an escaped string. A naive sed pipeline strips `<>` from the wrapper and content, and it removes `<meta>` tags, which on Framer/Next.js SPAs are often the only readable content. `extract_page.mjs` uses `--output` to parse raw HTML directly.
 
 **When to use raw `browse cloud fetch`**: Only for small structured files where you want the JSON envelope intact — e.g. `sitemap.xml`, `robots.txt`, `llms.txt`. For any HTML page you'd feed to a model, use `extract_page.mjs`.
 
@@ -128,8 +128,8 @@ TOOL RULES — CRITICAL, FOLLOW EXACTLY:
 2. All searches: Bash → browse cloud search "..." --num-results 10
 3. All homepage/product-page content extraction:
    Bash → node {SKILL_DIR}/scripts/extract_page.mjs "URL" --max-chars 3000
-   This returns structured TITLE / META_DESCRIPTION / OG_DESCRIPTION / HEADINGS / BODY and auto-falls back to browse get markdown for JS-rendered or >1MB pages.
-   DO NOT hand-roll a `browse cloud fetch | sed` pipeline — it silently strips meta tags and doesn't parse the JSON envelope. Use `browse cloud fetch` raw only for sitemap.xml, robots.txt, llms.txt.
+   This returns structured TITLE / META_DESCRIPTION / OG_DESCRIPTION / HEADINGS / BODY and auto-falls back to browse get markdown when fetch fails or returns thin JS-rendered content.
+   DO NOT hand-roll a `browse cloud fetch | sed` pipeline — it strips meta tags and doesn't parse the stdout JSON envelope. Use `browse cloud fetch` raw only for sitemap.xml, robots.txt, llms.txt.
 4. BATCH all file writes: Write ALL markdown files in a SINGLE Bash call using chained heredocs (one permission prompt, not one per file).
 5. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep — ALL BANNED.
    If you use ANY banned tool, the entire run fails. Use ONLY Bash.
@@ -150,7 +150,7 @@ For each sub-question (or just the homepage in quick mode):
 1. Run browse cloud search with relevant query
 2. Pick 1-2 most relevant URLs from results
 3. Extract page content: node {SKILL_DIR}/scripts/extract_page.mjs "URL" --max-chars 3000
-   (auto-handles the JSON envelope, meta tags, and the browse get markdown fallback)
+   (uses `--output` to avoid the stdout JSON envelope, preserves meta tags, and falls back to browse get markdown when needed)
 4. Smart page discovery: use `browse cloud fetch --allow-redirects` on /sitemap.xml or /llms.txt to find relevant URLs — these are small XML/text files where the raw JSON envelope is fine. For the actual HTML pages you discover, use extract_page.mjs.
 5. Extract findings: factual statements with source, confidence level
 6. Accumulate findings, move to next sub-question

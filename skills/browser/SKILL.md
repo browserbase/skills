@@ -34,7 +34,7 @@ The CLI supports explicit per-command environment flags. If you do nothing, the 
 
 ### Local mode
 - `browse open <url> --local` starts a clean isolated local browser
-- `browse open <url> --auto-connect` reuses an already-running debuggable Chrome and falls back to isolated if nothing is available
+- `browse open <url> --auto-connect` attaches to an already-running debuggable Chrome; use `--local` when no debuggable Chrome is available
 - `browse open <url> --cdp <port|url>` attaches to a specific CDP target
 - Best for: development, localhost, trusted sites, and reproducible runs
 
@@ -54,11 +54,11 @@ The CLI supports explicit per-command environment flags. If you do nothing, the 
 
 ## Commands
 
-All commands work identically in both modes. The daemon auto-starts on first command.
+Most driver commands work across local, remote, and CDP sessions after the daemon starts.
 
 ### Navigation
 ```bash
-browse open <url>                        # Go to URL (aliases: goto)
+browse open <url>                        # Go to URL
 browse open <url> --local                # Go to URL in a clean local browser
 browse open <url> --remote               # Go to URL in a Browserbase session
 browse reload                            # Reload current page
@@ -160,11 +160,11 @@ Don't switch for simple sites (docs, wikis, public APIs, localhost).
 
 ```bash
 browse open <url> --local          # clean isolated local browser
-browse open <url> --auto-connect   # reuse existing Chrome state
+browse open <url> --auto-connect   # attach to existing debuggable Chrome
 browse open <url> --remote         # Browserbase session
 ```
 
-Mode flags are applied when a session starts. After `browse stop`, the next start falls back to env-var-based auto detection. Use `browse status` to inspect the resolved local strategy while the daemon is running.
+Mode flags are applied when a session starts. After `browse stop`, the next start falls back to env-var-based auto detection. Use `browse status` to inspect the resolved mode and target while the daemon is running.
 
 For detailed examples, see [EXAMPLES.md](EXAMPLES.md).
 For API reference, see [REFERENCE.md](REFERENCE.md).

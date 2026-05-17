@@ -33,7 +33,7 @@ function browse(...subargs) {
 
 function probe() {
   // Navigate + settle
-  browse('goto', url);
+  browse('open', url);
   browse('wait', 'timeout', '2500');
   const titleRes = JSON.parse(browse('get', 'title'));
   const title = titleRes.title || '';

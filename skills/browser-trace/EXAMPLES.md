@@ -132,14 +132,15 @@ SESSION=$(browse cloud sessions create --keep-alive --timeout 600)
 SID=$(echo "$SESSION" | jq -r .id)
 URL=$(echo "$SESSION" | jq -r .connectUrl)
 
-browse open https://app.example.com/dashboard --remote --session "$SID"
+BROWSE_NAME=prod-repro-browser
+browse open https://app.example.com/dashboard --cdp "$URL" --session "$BROWSE_NAME"
 node scripts/start-capture.mjs "$URL" prod-repro
 
 # Drive whatever flow is suspected. The daemon caches the remote target,
 # so subsequent commands only need --session to pick the right daemon.
-browse click @0-5 --session "$SID"
-browse type 'search query' --session "$SID"
-browse press Enter --session "$SID"
+browse click @0-5 --session "$BROWSE_NAME"
+browse type 'search query' --session "$BROWSE_NAME"
+browse press Enter --session "$BROWSE_NAME"
 sleep 5
 
 node scripts/stop-capture.mjs prod-repro

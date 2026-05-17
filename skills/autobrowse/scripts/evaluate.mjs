@@ -86,7 +86,7 @@ Options:
 Environment variables:
   ANTHROPIC_API_KEY          Required — Claude API key
   BROWSERBASE_API_KEY        Required for --env remote
-  BROWSERBASE_PROJECT_ID     Required for --env remote
+  BROWSERBASE_PROJECT_ID     Optional Browserbase project override
 
 Output:
   traces/<task>/run-NNN/summary.md     Decision log and final output

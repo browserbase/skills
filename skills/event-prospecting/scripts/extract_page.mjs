@@ -34,15 +34,19 @@ function browseFetch(url, outFile) {
 }
 
 function browseGetMarkdown(url) {
+  const session = `extract-page-${process.pid}-${Date.now()}`;
+  const env = { ...process.env, BROWSE_SESSION: session };
   try {
     execFileSync("browse", ["open", url, "--local", "--headless"], {
       stdio: ["ignore", "ignore", "ignore"],
       timeout: 90000,
+      env,
     });
     const out = execFileSync("browse", ["get", "markdown"], {
       encoding: "utf8",
       timeout: 90000,
       maxBuffer: 50 * 1024 * 1024,
+      env,
     });
     // browse prints banners (e.g. "Update available...") before the JSON blob.
     // Find the first '{' and try to JSON.parse from there.
@@ -62,6 +66,14 @@ function browseGetMarkdown(url) {
     return "";
   } catch (err) {
     return "";
+  } finally {
+    try {
+      execFileSync("browse", ["stop"], {
+        stdio: ["ignore", "ignore", "ignore"],
+        timeout: 15000,
+        env,
+      });
+    } catch {}
   }
 }
 

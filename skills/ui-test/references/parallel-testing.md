@@ -22,7 +22,7 @@ BROWSE_SESSION=dashboard browse open http://localhost:3000/dashboard --local
 Local mode variants follow the CLI contract:
 
 - `browse open <url> --local` — clean isolated local browser (default; preferred for reproducible localhost testing)
-- `browse open <url> --auto-connect` — auto-discover local Chrome, fallback to isolated (use only when a test needs existing local login/cookies/state)
+- `browse open <url> --auto-connect` — auto-discover an existing debuggable local Chrome (use only when a test needs existing local login/cookies/state)
 - `browse open <url> --cdp <port|url>` — explicit CDP attach to a specific local browser target
 
 ### When to use parallel vs sequential

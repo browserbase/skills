@@ -37,7 +37,7 @@ Discover and deeply research companies to sell to. Uses Browserbase Search API f
 
 **CRITICAL — Tool restrictions (applies to main agent AND all subagents)**:
 - All web searches: use `browse cloud search`. NEVER use WebSearch.
-- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `browse cloud fetch`, parses title + meta tags + visible body text, and automatically falls back to `browse get markdown` when the page is JS-rendered or over 1MB. NEVER hand-roll a `browse cloud fetch | sed` pipeline — it silently strips meta tags and doesn't handle the JSON envelope. NEVER use WebFetch.
+- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `browse cloud fetch --output`, parses title + meta tags + visible body text, and automatically falls back to `browse get markdown` when fetch fails or returns thin JS-rendered content. NEVER hand-roll a `browse cloud fetch | sed` pipeline — it strips meta tags and doesn't parse the stdout JSON envelope. NEVER use WebFetch.
 - All research output: subagents write **one markdown file per company** to `{OUTPUT_DIR}/{company-slug}.md` using bash heredoc. NEVER use the Write tool or `python3 -c`. See `references/example-research.md` for the file format.
 - Report + CSV compilation: use `node {SKILL_DIR}/scripts/compile_report.mjs {OUTPUT_DIR} --open` — generates HTML report and CSV in one step, opens overview in browser.
 - URL deduplication: use `node {SKILL_DIR}/scripts/list_urls.mjs /tmp` after discovery.

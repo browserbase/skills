@@ -72,7 +72,7 @@ node scripts/bisect-cdp.mjs my-run
 
 Two helpers wrap the platform-side bookkeeping: `bb-capture.mjs` creates or attaches to a session and starts the tracer; `bb-finalize.mjs` pulls platform artifacts (final session metadata, server logs, downloads) into the run dir at the end.
 
-> Browserbase ends a session as soon as its last CDP client disconnects. **Always create with `--keep-alive` and attach an automation client before (or together with) the tracer.** `bb-capture.mjs --new` does this for you.
+> Browserbase ends a session as soon as its last CDP client disconnects. **Create with `--keep-alive`, then attach automation to the session's `connectUrl` before or together with the tracer.** `bb-capture.mjs --new` handles the keep-alive session and tracer setup; your automation still needs to attach.
 
 ```bash
 export BROWSERBASE_API_KEY=...
@@ -84,8 +84,10 @@ node scripts/bb-capture.mjs --new my-run
 
 # 2. Drive automation. bb-capture stamped the session id into the manifest.
 SID=$(jq -r .browserbase.session_id .o11y/my-run/manifest.json)
-browse open https://example.com --remote --session "$SID"
-browse open https://news.ycombinator.com --session "$SID"
+CONNECT_URL="$(browse cloud sessions get "$SID" | jq -r .connectUrl)"
+BROWSE_NAME=my-run-browser
+browse open https://example.com --cdp "$CONNECT_URL" --session "$BROWSE_NAME"
+browse open https://news.ycombinator.com --session "$BROWSE_NAME"
 
 # 3. Stop the tracer, bisect, then pull platform artifacts and release.
 node scripts/stop-capture.mjs my-run
@@ -231,7 +233,7 @@ See **REFERENCE.md** for the full jq recipe library and a method-by-method bisec
 3. **Order matters for remote**: on Browserbase, attach the main automation client before (or together with) the tracer, and create the session with `--keep-alive`. Otherwise the session ends as soon as the tracer's WS closes.
 4. **Don't poll faster than ~1s**: each sample runs browser CLI read commands and screenshots Chrome. 2s is a good default.
 5. **Pick domains deliberately**: defaults (`Network Console Runtime Log Page`) cover most debugging. Add `DOM` for DOM-tree mutations (very noisy) via `O11Y_DOMAINS="$O11Y_DOMAINS DOM"`.
-6. **Reuse one Browserbase session for the automation client on remote** by passing `--remote --session <session-id>`, not a fresh `browse open --remote` without `--session` (which would create a new session each time).
+6. **Reuse one Browserbase session for the automation client on remote** by attaching to that session's `connectUrl` with `browse open ... --cdp "$CONNECT_URL" --session <name>`. The `--session` flag names the local browse daemon; it is not a Browserbase session attach flag.
 7. **Always run `stop-capture.mjs`**, even after a crash, so background processes don't linger and the manifest gets `stopped_at`.
 8. **Bisect once per run**: `bisect-cdp.mjs` is idempotent — it overwrites the per-bucket files from `raw.ndjson` each time.
 

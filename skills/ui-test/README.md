@@ -44,7 +44,7 @@ which browse || npm install -g browse
 ```
 
 - **Localhost** → `browse open <url> --local` (no API key needed)
-- **Need existing local login/cookies/state on localhost** → `browse open <url> --auto-connect` (auto-discover local Chrome, fallback to isolated)
+- **Need existing local login/cookies/state on localhost** → `browse open <url> --auto-connect` (requires an existing debuggable local Chrome)
 - **Need explicit local CDP attach** → `browse open <url> --cdp <port|url>`
 - **Deployed sites** → `browse open <url> --remote` (uses Browserbase cloud browsers)
 - **Parallel** → `BROWSE_SESSION=<name>` for independent concurrent sessions

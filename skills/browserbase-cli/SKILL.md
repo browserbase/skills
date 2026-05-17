@@ -1,7 +1,7 @@
 ---
 name: browserbase-cli
 description: Use the Browserbase CLI (`browse`) for Browserbase Functions and platform API workflows. Use when the user asks to run `browse`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, search the web through the Browserbase Search API, or scaffold starter templates. Prefer the Browser skill for interactive browsing; use the top-level `browse` driver commands (`browse open`, `browse get`, etc.) only when the user explicitly wants the CLI path.
-compatibility: "Requires the Browserbase CLI (`npm install -g browse`). API commands require `BROWSERBASE_API_KEY`. `BROWSERBASE_PROJECT_ID` is only needed for `browse functions dev` and `browse functions publish`."
+compatibility: "Requires the Browserbase CLI (`npm install -g browse`). API commands require `BROWSERBASE_API_KEY`."
 license: MIT
 allowed-tools: Bash
 ---
@@ -23,12 +23,6 @@ For authenticated commands, set the API key:
 
 ```bash
 export BROWSERBASE_API_KEY="your_api_key"
-```
-
-If using `browse functions dev` or `browse functions publish`, also set:
-
-```bash
-export BROWSERBASE_PROJECT_ID="your_project_id"
 ```
 
 ## When to use this skill
@@ -58,7 +52,7 @@ Use this skill when the user wants to:
 - `browse open`, `browse get`, `browse click`, etc. for direct local/remote browser driving
 - `browse skills install` to install Browserbase agent skills for Claude Code
 
-For local browser work, `browse open <url> --local` starts a clean isolated browser by default. Use `browse open <url> --auto-connect` only when you need to reuse an existing local Chrome session, cookies, or login state.
+For local browser work, `browse open <url> --local` starts a clean isolated browser. Use `browse open <url> --auto-connect` only when you need to attach to an existing debuggable Chrome session.
 
 ## Common workflows
 
@@ -122,7 +116,6 @@ browse templates clone amazon-product-scraping --language python ./my-scraper
 ## Troubleshooting
 
 - Missing API key: set `BROWSERBASE_API_KEY` or pass `--api-key`
-- Missing project ID on `browse functions dev` or `browse functions publish`: set `BROWSERBASE_PROJECT_ID`
 - Unknown flag: rerun the relevant command with `--help` and use the exact dash-case form
 - Command not found: re-run `npm install -g browse` and verify with `which browse`
 

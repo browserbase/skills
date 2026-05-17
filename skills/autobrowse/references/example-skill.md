@@ -130,7 +130,6 @@ Read the confirmation number from the snapshot and immediately output the final 
   "location_entered": "INTERSECTION OF 7TH ST & CHARLES J BRENHAM PL SAN FRANCISCO, CA 94102",
   "submission_method": "anonymous",
   "gotchas": [
-    "Use --session sf311 to avoid contaminated default Browserbase session",
     "Run browse stop before --remote when a daemon may already be active",
     "Location field is map-driven: type in ESRI search box, click autocomplete, Enter → wait 3000ms → Tab",
     "XPath Next buttons fail — always snapshot first and click by ref",

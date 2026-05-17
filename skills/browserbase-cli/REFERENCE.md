@@ -37,12 +37,6 @@ All authenticated commands require an API key:
 export BROWSERBASE_API_KEY="your_api_key"
 ```
 
-Only `browse functions dev` and `browse functions publish` require a project ID:
-
-```bash
-export BROWSERBASE_PROJECT_ID="your_project_id"
-```
-
 ### Platform API commands
 
 These command groups share a common flag shape:
@@ -227,11 +221,12 @@ Options:
 Top-level `browse` commands drive local and remote browsers directly: `browse open`, `browse get`, `browse click`, `browse fill`, `browse press`, `browse screenshot`, and `browse cdp`.
 
 ```bash
-browse open https://example.com                            # default mode (clean local browser)
+browse open https://example.com                            # default mode from env
 browse open https://example.com --local --headless         # explicit local + headless
-browse open https://example.com --auto-connect             # reuse existing local Chrome session
+browse open https://example.com --auto-connect             # attach to existing debuggable Chrome
 browse open https://example.com --remote                   # create a new Browserbase remote session
-browse open https://example.com --remote --session <id>    # attach to an existing remote session
+browse open https://example.com --remote --session research # use a named browse daemon session
+browse open https://example.com --cdp "$CONNECT_URL"       # attach to a pre-created CDP endpoint
 browse get markdown body                                   # extract the current page as markdown
 browse status                                              # show the active session
 ```
@@ -251,7 +246,6 @@ This runs the skill installer non-interactively via npx.
 ## Troubleshooting
 
 - Missing API key: set `BROWSERBASE_API_KEY` or pass `--api-key`
-- Missing project ID on `browse functions dev` or `browse functions publish`: set `BROWSERBASE_PROJECT_ID`
 - Wrong base URL flag: use `--base-url` for both `browse functions ...` and `browse cloud ...`
 - Invalid JSON input: wrap `--body` and `--params` payloads in single quotes so the shell preserves the JSON string
 - Command not found: re-run `npm install -g browse` and verify with `which browse`

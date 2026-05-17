@@ -215,7 +215,7 @@ browse open http://localhost:3000 --local
 
 Use local-mode variants only when needed:
 
-- `browse open <url> --auto-connect` — auto-discover existing local Chrome, fallback to isolated. Use this only when the test explicitly needs existing local login/cookies/state.
+- `browse open <url> --auto-connect` — auto-discover an existing debuggable local Chrome. Use this only when the test explicitly needs existing local login/cookies/state.
 - `browse open <url> --cdp <port|url>` — attach to a specific CDP target (explicit local browser attach).
 
 ### Remote Mode (deployed sites via cookie-sync)
@@ -225,11 +225,16 @@ Use local-mode variants only when needed:
 node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains your-app.com
 # Output: Context ID: ctx_abc123
 
-# Step 2: Open in remote mode
-browse open https://staging.your-app.com --remote
+# Step 2: Open in remote mode with the synced context
+SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://staging.your-app.com --cdp "$CONNECT_URL"
 browse snapshot
 # ... run tests ...
 browse stop
+browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
 Cookie-sync flags: `--domains`, `--context`, `--stealth`, `--proxy "City,ST,US"`

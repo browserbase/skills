@@ -2,7 +2,7 @@
 
 Common browser automation workflows using the `browse` CLI. Each example demonstrates a distinct pattern using real commands.
 
-For localhost and other local dev flows, start with `browse open <url> --local` for a clean isolated browser. Use `browse open <url> --auto-connect` only when the agent should reuse your existing local Chrome session, cookies, or login state.
+For localhost and other local dev flows, start with `browse open <url> --local` for a clean isolated browser. Use `browse open <url> --auto-connect` only when the agent should attach to an existing debuggable Chrome session for cookies or login state.
 
 ## Example 1: Extract Data from a Page
 
