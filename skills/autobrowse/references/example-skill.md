@@ -59,7 +59,7 @@ browse open "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/aut
 browse wait load
 ```
 
-`browse stop` before `browse open ... --remote` is mandatory. Skipping it can reuse a contaminated or ended prior session.
+If a daemon may already be active, run `browse stop` before opening remote; active local sessions do not switch to remote automatically.
 
 ### Page 1 — Disclaimer (turns 6–7)
 
@@ -131,7 +131,7 @@ Read the confirmation number from the snapshot and immediately output the final 
   "submission_method": "anonymous",
   "gotchas": [
     "Use --session sf311 to avoid contaminated default Browserbase session",
-    "browse stop + browse open --remote forces a fresh Browserbase session",
+    "Run browse stop before --remote when a daemon may already be active",
     "Location field is map-driven: type in ESRI search box, click autocomplete, Enter → wait 3000ms → Tab",
     "XPath Next buttons fail — always snapshot first and click by ref",
     "Page 3 description: use CSS selector #dform_widget_Request_description with fill",
@@ -143,7 +143,7 @@ Read the confirmation number from the snapshot and immediately output the final 
 
 ## Site-Specific Gotchas
 
-1. **Dead session on reconnect**: After a session ends, `browse stop` followed by `browse open <url> --remote` forces a fresh session.
+1. **Active daemon mode switch**: If a daemon may already be running in local or remote mode, run `browse stop` before `browse open <url> --remote`; active sessions do not switch modes automatically.
 
 3. **Location field is map-driven**: The Location textarea is populated by the ESRI geocoder. Workflow: type in the search box → wait 2000ms → snapshot → click autocomplete suggestion → press Enter → wait 3000ms → press Tab → Location field auto-populates.
 
@@ -183,7 +183,7 @@ To recover in future runs: follow the exact turn budget above with no deviations
   "location_entered": "INTERSECTION OF 7TH ST & CHARLES J BRENHAM PL SAN FRANCISCO, CA 94102",
   "submission_method": "anonymous",
   "gotchas": [
-    "browse stop + browse open --remote forces a fresh Browserbase session",
+    "Run browse stop before --remote when a daemon may already be active",
     "Location field is map-driven: type in ESRI search box, click autocomplete, Enter → wait 3000ms → Tab",
     "XPath Next buttons fail — always snapshot first and use ref ID",
     "Page 3 description: use CSS selector #dform_widget_Request_description with fill",

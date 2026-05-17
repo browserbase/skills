@@ -279,7 +279,7 @@ function buildSystemPrompt(strategy, traceDir, browseEnv) {
 browse stop
 browse open <url> --remote
 \`\`\`
-Always run \`browse stop\` first to kill any existing local session before opening the target with \`--remote\`.`
+Run \`browse stop\` first when a prior daemon may be active; active sessions do not switch between local and remote automatically.`
     : `Use **local mode** — runs on local Chrome:
 \`\`\`
 browse open <url> --local
@@ -338,7 +338,7 @@ ${envDesc}
 7. \`browse stop\` — clean up
 
 ## Critical Rules
-1. **Always start with \`browse stop\` then \`browse open <url> ${openFlag}\`**
+1. **Start clean when needed** — if a daemon may already be active, run \`browse stop\` before \`browse open <url> ${openFlag}\`
 2. **ALWAYS snapshot after every action** — refs like \`[0-5]\` invalidate when the DOM changes
 3. **Use fill, not type, for input fields** — fill clears existing text first
 4. **Use refs from the LATEST snapshot only** — old refs are stale
