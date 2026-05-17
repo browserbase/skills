@@ -171,12 +171,12 @@ browse type "human-like" --mistakes      # simulate human typing with typos
 
 #### `fill <selector> <value>`
 
-Fill an input element matching a CSS selector and press Enter.
+Fill an input element matching a CSS selector. Add `--press-enter` when Enter is needed.
 
 ```bash
 browse fill "#search" "browser automation"
 browse fill "input[name=email]" "user@example.com"
-browse fill "#search" "query" --no-press-enter   # fill without pressing Enter
+browse fill "#search" "query" --press-enter   # fill and press Enter
 ```
 
 #### `select <selector> <values...>`
