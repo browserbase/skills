@@ -273,7 +273,8 @@ function readMdDir(p) {
     const fields = parseFrontmatter(content);
     if (!fields) return null;
     const body = parseBody(content);
-    const slug = f.replace('.md', '');
+    // Sanitize slug to prevent path traversal via crafted filenames
+    const slug = f.replace('.md', '').replace(/\.\./g, '').replace(/[\\/]/g, '');
     return { ...fields, body, slug, file: f };
   }).filter(Boolean);
 }
@@ -907,6 +908,6 @@ console.error(JSON.stringify({
 console.log(join(dir, 'index.html'));
 
 if (shouldOpen) {
-  const { execSync } = await import('child_process');
-  try { execSync(`open "${join(dir, 'index.html')}"`); } catch {}
+  const { execFileSync } = await import('child_process');
+  try { execFileSync('open', [join(dir, 'index.html')]); } catch {}
 }
