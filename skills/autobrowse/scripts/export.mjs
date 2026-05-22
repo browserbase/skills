@@ -4,9 +4,10 @@
  * export.mjs — Translate a graduated autobrowse task into a deterministic
  * runnable script.
  *
- * Currently supports --target playwright. The Stagehand variant lives in
- * the standalone /stagehand-export skill; once Playwright is shipped and
- * proven we can fold both targets behind this CLI.
+ * Supports --target playwright (default) and --target stagehand. Playwright
+ * resolves every ARIA ref to a locator at export time; Stagehand-native
+ * collapses every interaction op to `page.act(...)` and lets Stagehand
+ * self-heal at replay time.
  *
  * Usage:
  *   node scripts/export.mjs --task <name> --target playwright \\
@@ -26,7 +27,14 @@ import {
   playwrightPackageJson,
   playwrightTsconfig,
 } from "./lib/codegen-playwright.mjs";
+import {
+  generateStagehandScript,
+  stagehandPackageJson,
+  stagehandTsconfig,
+} from "./lib/codegen-stagehand.mjs";
 import { verifyGenerated } from "./lib/verify.mjs";
+
+const SUPPORTED_TARGETS = new Set(["playwright", "stagehand"]);
 
 // ── CLI args ───────────────────────────────────────────────────────
 
@@ -43,7 +51,7 @@ Usage: node scripts/export.mjs --task <name> [options]
 
 Options:
   --task <name>          Task name — matches tasks/<name>/ (required)
-  --target <kind>        playwright (default; stagehand lives in /stagehand-export)
+  --target <kind>        playwright (default) | stagehand
   --workspace <dir>      Workspace root holding tasks/ and traces/ (default: ./autobrowse)
   --run <id>             Force a specific run (default: newest passing)
   --output <dir>         Output directory for generated files (default: <workspace>/tasks/<name>/<target>)
@@ -69,8 +77,8 @@ if (!TASK) {
   console.error("Run with --help for usage.");
   process.exit(1);
 }
-if (TARGET !== "playwright") {
-  console.error(`ERROR: --target=${TARGET} not yet supported here. Use the /stagehand-export skill for Stagehand output.`);
+if (!SUPPORTED_TARGETS.has(TARGET)) {
+  console.error(`ERROR: --target=${TARGET} not supported. Use one of: ${[...SUPPORTED_TARGETS].join(", ")}.`);
   process.exit(1);
 }
 
@@ -130,9 +138,10 @@ for (let i = trace.length - 1; i >= 0; i--) {
   }
 }
 
-// ── Generate Playwright script ─────────────────────────────────────
+// ── Generate script ────────────────────────────────────────────────
 
-const { scriptCode, cachedActions, stats, extract } = await generatePlaywrightScript({
+const generate = TARGET === "stagehand" ? generateStagehandScript : generatePlaywrightScript;
+const { scriptCode, cachedActions, stats, extract } = await generate({
   task: TASK,
   runId,
   workspace: WORKSPACE,
@@ -168,15 +177,21 @@ fs.writeFileSync(
     2,
   ),
 );
+const pkgGen = TARGET === "stagehand" ? stagehandPackageJson : playwrightPackageJson;
+const tsconfigGen = TARGET === "stagehand" ? stagehandTsconfig : playwrightTsconfig;
 if (!fs.existsSync(pkgPath)) {
-  fs.writeFileSync(pkgPath, JSON.stringify(playwrightPackageJson(TASK), null, 2));
+  fs.writeFileSync(pkgPath, JSON.stringify(pkgGen(TASK), null, 2));
 }
 if (!fs.existsSync(tsconfigPath)) {
-  fs.writeFileSync(tsconfigPath, JSON.stringify(playwrightTsconfig(), null, 2));
+  fs.writeFileSync(tsconfigPath, JSON.stringify(tsconfigGen(), null, 2));
 }
 
 console.error(`[export] wrote ${path.relative(process.cwd(), scriptPath)}`);
-console.error(`[export] ops: ${ops.length} | cached: ${stats.cached} | ref_resolved: ${stats.ref_resolved} | ref_failed: ${stats.ref_failed} | dropped: ${stats.dropped}`);
+if (TARGET === "stagehand") {
+  console.error(`[export] ops: ${ops.length} | deterministic: ${stats.deterministic} | act: ${stats.act} | ref_resolved: ${stats.ref_resolved} | ref_failed: ${stats.ref_failed} | dropped: ${stats.dropped}`);
+} else {
+  console.error(`[export] ops: ${ops.length} | cached: ${stats.cached} | ref_resolved: ${stats.ref_resolved} | ref_failed: ${stats.ref_failed} | dropped: ${stats.dropped}`);
+}
 console.error(`[export] schema fields: ${schemaFieldCount} | extract: ${extract.generated ? "LLM-generated" : `fallback (${extract.reason})`}`);
 
 // ── Verify ─────────────────────────────────────────────────────────

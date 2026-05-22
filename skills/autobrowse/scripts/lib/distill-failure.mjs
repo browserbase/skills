@@ -1,16 +1,21 @@
-// distill-failure.mjs — Playwright failure → strategy.md addendum.
+// distill-failure.mjs — replay failure → strategy.md addendum.
 //
-// When the in-loop Playwright replay fails, this module asks Claude Haiku to
-// distill the error into a concise, actionable strategy.md entry: what
-// failed, the likely cause, and what to try next iteration. The addendum is
-// appended to strategy.md's "Recent Playwright Failures" section so both the
-// explorer agent (next evaluate run) and the codegen (next export) can react.
+// When the in-loop replay (Playwright or Stagehand) fails, this module asks
+// Claude Haiku to distill the error into a concise, actionable strategy.md
+// entry: what failed, the likely cause, and what to try next iteration. The
+// addendum is appended to strategy.md's "Recent <Target> Failures" section
+// so both the explorer agent (next evaluate run) and the codegen (next
+// export) can react.
 
 import Anthropic from "@anthropic-ai/sdk";
 import * as fs from "node:fs";
 
-const FALLBACK = (iter, exitCode, stderrSnip) =>
-  `### Iteration ${iter} — Playwright replay failed (exit ${exitCode})
+function targetLabel(target) {
+  return target === "stagehand" ? "Stagehand" : "Playwright";
+}
+
+const FALLBACK = (iter, exitCode, stderrSnip, target) =>
+  `### Iteration ${iter} — ${targetLabel(target)} replay failed (exit ${exitCode})
 
 \`\`\`
 ${stderrSnip.slice(0, 800)}
@@ -22,6 +27,7 @@ ${stderrSnip.slice(0, 800)}
 export async function distillFailure({
   iteration,
   taskName,
+  target = "playwright",
   scriptPath,
   exitCode,
   stdout = "",
@@ -33,7 +39,7 @@ export async function distillFailure({
 
   if (!process.env.ANTHROPIC_API_KEY) {
     return {
-      addendum: FALLBACK(iteration, exitCode, stderrSnip),
+      addendum: FALLBACK(iteration, exitCode, stderrSnip, target),
       generated: false,
       reason: "no ANTHROPIC_API_KEY",
     };
@@ -58,7 +64,14 @@ export async function distillFailure({
     /* best-effort */
   }
 
-  const prompt = `A deterministic Playwright replay script for task "${taskName}" just failed mid-replay. You are writing one short Markdown entry that will be appended to that task's \`strategy.md\` so the next iteration of the explorer agent can learn from this failure.
+  const tLabel = targetLabel(target);
+  const targetGuidance = target === "stagehand"
+    ? `This is a Stagehand-native script: every interactive step is a \`page.act("...")\` call that lets the model self-heal across DOM drift. Failures usually mean either (a) the act() instruction was too vague for the model to pick the right element, (b) the page state wasn't ready when act() ran (need a wait), or (c) the \`page.extract({ instruction, schema })\` step couldn't find the fields.\n\nFixes to suggest: rewrite the act() instruction to reference a more specific element (role, name, surrounding text); insert a \`page.waitForLoadState\` / \`page.waitForTimeout\` before the failing act(); restructure the extract instruction to name fields explicitly.`
+    : `This is a deterministic Playwright script with resolved locators. Failures usually mean (a) the locator broke (DOM drift, role/name changed), (b) actionability check failed (disabled, intercepted by overlay, off-screen), or (c) a timing issue (element rendered too late, or stale after re-render).\n\nFixes to suggest: force-click via .click({force:true}); use eval-find-by-text instead of getByRole; add a waitForTimeout before the action; swap to a fallback locator from selectors.cache.json.`;
+
+  const prompt = `A deterministic ${tLabel} replay script for task "${taskName}" just failed mid-replay. You are writing one short Markdown entry that will be appended to that task's \`strategy.md\` so the next iteration of the explorer agent can learn from this failure.
+
+${targetGuidance}
 
 Exit code: ${exitCode}
 Script path: ${scriptPath}
@@ -74,11 +87,11 @@ Write a tight Markdown entry with this exact structure (no surrounding prose, no
 
 ### Iteration ${iteration} — <one-line failure summary>
 
-- **What failed**: <locator / action / step / line number>
-- **Likely cause**: <one sentence; e.g., "element is rendered as <select disabled> for ~3s after the prior fill", "styled label intercepts pointer events on the underlying input", "selector resolved to a stale ref after a re-render">
-- **Fix to try next iteration**: <one actionable suggestion the explorer or codegen can adopt; e.g., "force-click via .click({force:true})", "use eval-find-by-text instead of getByRole", "add 1500ms wait before the click">
+- **What failed**: <locator / act() instruction / step / line number>
+- **Likely cause**: <one sentence>
+- **Fix to try next iteration**: <one actionable suggestion the explorer or codegen can adopt>
 
-Keep it under 80 words total. Be specific. Reference the actual locator or line number when you can.`;
+Keep it under 80 words total. Be specific. Reference the actual locator, act() instruction, or line number when you can.`;
 
   try {
     const client = new Anthropic();
@@ -90,7 +103,7 @@ Keep it under 80 words total. Be specific. Reference the actual locator or line 
     const text = resp.content.find((b) => b.type === "text")?.text?.trim() ?? "";
     if (!text || !text.startsWith("###")) {
       return {
-        addendum: FALLBACK(iteration, exitCode, stderrSnip),
+        addendum: FALLBACK(iteration, exitCode, stderrSnip, target),
         generated: false,
         reason: "LLM output did not match expected heading",
       };
@@ -98,21 +111,21 @@ Keep it under 80 words total. Be specific. Reference the actual locator or line 
     return { addendum: text + "\n", generated: true, reason: null };
   } catch (err) {
     return {
-      addendum: FALLBACK(iteration, exitCode, stderrSnip),
+      addendum: FALLBACK(iteration, exitCode, stderrSnip, target),
       generated: false,
       reason: String(err?.message || err),
     };
   }
 }
 
-// Append an addendum to strategy.md under the "Recent Playwright Failures"
+// Append an addendum to strategy.md under the "Recent <Target> Failures"
 // section. Creates the section if it doesn't exist.
-export function appendToStrategy(strategyPath, addendum) {
-  const SECTION_HEADER = "## Recent Playwright Failures";
+export function appendToStrategy(strategyPath, addendum, target = "playwright") {
+  const SECTION_HEADER = `## Recent ${targetLabel(target)} Failures`;
   let md = fs.existsSync(strategyPath) ? fs.readFileSync(strategyPath, "utf-8") : "";
 
   if (!md.trim()) {
-    md = `# Navigation Strategy\n\n## Navigation Heuristics\n\n(grows as the explorer learns)\n\n## Codegen Hints\n\n(per-task overrides the Playwright codegen should apply)\n\n${SECTION_HEADER}\n\n${addendum}`;
+    md = `# Navigation Strategy\n\n## Navigation Heuristics\n\n(grows as the explorer learns)\n\n## Codegen Hints\n\n(per-task overrides the codegen should apply)\n\n${SECTION_HEADER}\n\n${addendum}`;
   } else if (md.includes(SECTION_HEADER)) {
     // Insert addendum right after the section header (newest first).
     md = md.replace(SECTION_HEADER, `${SECTION_HEADER}\n\n${addendum.trim()}\n`);
