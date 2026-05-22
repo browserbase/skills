@@ -1,25 +1,27 @@
 #!/usr/bin/env node
 
 /**
- * loop.mjs — Iterative autobrowse + Playwright verification.
+ * loop.mjs — Iterative autobrowse + deterministic verification.
  *
  * Wraps the existing evaluate.mjs and export.mjs into a single loop that
  * converges on a workflow which BOTH the LLM explorer and the deterministic
- * Playwright replay can complete. Each iteration:
+ * replay can complete. Each iteration:
  *
  *   1. Run evaluate.mjs (the inner LLM agent)
  *   2. If the trace passed (success: true in final JSON), run export.mjs to
- *      emit a Playwright script and replay it against a fresh BB session.
- *   3. If the Playwright replay also passed → record a pass.
+ *      emit a script for the chosen target (--target playwright|stagehand)
+ *      and replay it against a fresh BB session.
+ *   3. If the replay also passed → record a pass.
  *      Else → distill the failure into strategy.md and continue.
- *   4. Graduate when Playwright has passed in 2 of the last 3 iterations.
+ *   4. Graduate when the replay has passed in 2 of the last 3 iterations.
  *
  * The shared `strategy.md` is the convergence point. The explorer reads it
- * each iteration. The codegen (eventually) reads its "Codegen Hints" section.
- * Playwright failures land in "Recent Playwright Failures".
+ * each iteration. The codegen reads its "Codegen Hints" section. Replay
+ * failures land in "Recent <Target> Failures".
  *
  * Usage:
- *   node scripts/loop.mjs --task <name> [--max-iterations N] [--max-turns-per-iter N]
+ *   node scripts/loop.mjs --task <name> [--target playwright|stagehand]
+ *                         [--max-iterations N] [--max-turns-per-iter N]
  *                         [--workspace ./autobrowse] [--env local|remote]
  */
 
@@ -44,21 +46,22 @@ function getArg(name, fallback) {
 const hasFlag = (n) => process.argv.includes(`--${n}`);
 
 if (hasFlag("help") || hasFlag("h")) {
-  console.log(`autobrowse loop — iterate evaluate + Playwright verification until convergence
+  console.log(`autobrowse loop — iterate evaluate + deterministic replay until convergence
 
 Usage: node scripts/loop.mjs --task <name> [options]
 
 Options:
   --task <name>              Task name — matches tasks/<name>/ (required)
+  --target <kind>            playwright (default) | stagehand
   --max-iterations N         Cap on outer iterations (default: 8)
   --max-turns-per-iter N     Per-evaluate turn budget (default: 60)
   --workspace <dir>          Default: ./autobrowse
   --env local|remote         Default: local (use remote for bot-protected sites)
-  --skip-verify              Skip the Playwright verify step (still emit script)
+  --skip-verify              Skip the replay verify step (still emit script)
 
-Convergence: graduates when the emitted Playwright script passes in 2 of the
-last 3 iterations. Until then, each Playwright failure is distilled into
-strategy.md so the next evaluate run can adapt.
+Convergence: graduates when the emitted script passes in 2 of the last 3
+iterations. Until then, each replay failure is distilled into strategy.md so
+the next evaluate run can adapt.
 
 Env vars:
   ANTHROPIC_API_KEY          Required for evaluate + distillation + LLM extract
@@ -69,6 +72,7 @@ Env vars:
 }
 
 const TASK = getArg("task");
+const TARGET = getArg("target", "playwright");
 const MAX_ITER = parseInt(getArg("max-iterations", "8"), 10);
 const MAX_TURNS_PER_ITER = parseInt(getArg("max-turns-per-iter", "60"), 10);
 const WORKSPACE = path.resolve(getArg("workspace", "autobrowse"));
@@ -79,6 +83,11 @@ if (!TASK) {
   console.error("ERROR: --task <name> is required. Run with --help.");
   process.exit(1);
 }
+if (TARGET !== "playwright" && TARGET !== "stagehand") {
+  console.error(`ERROR: --target=${TARGET} not supported. Use playwright or stagehand.`);
+  process.exit(1);
+}
+const TARGET_LABEL = TARGET === "stagehand" ? "Stagehand" : "Playwright";
 
 // ── Paths ──────────────────────────────────────────────────────────
 
@@ -87,8 +96,8 @@ const exportScript = path.join(SKILL_DIR, "scripts", "export.mjs");
 const taskDir = path.join(WORKSPACE, "tasks", TASK);
 const tracesDir = path.join(WORKSPACE, "traces", TASK);
 const strategyPath = path.join(taskDir, "strategy.md");
-const playwrightDir = path.join(taskDir, "playwright");
-const playwrightScript = path.join(playwrightDir, `${TASK}.ts`);
+const targetDir = path.join(taskDir, TARGET);
+const targetScript = path.join(targetDir, `${TASK}.ts`);
 
 if (!fs.existsSync(taskDir)) {
   console.error(`ERROR: ${taskDir} does not exist. Create task.md first (see SKILL.md).`);
@@ -99,7 +108,7 @@ fs.mkdirSync(path.join(WORKSPACE, "reports"), { recursive: true });
 const reportPath = path.join(
   WORKSPACE,
   "reports",
-  `loop-${TASK}-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.md`,
+  `loop-${TASK}-${TARGET}-${new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19)}.md`,
 );
 
 // ── Helpers ────────────────────────────────────────────────────────
@@ -144,12 +153,12 @@ function tracePassed(runId) {
 }
 
 function runExport(runId) {
-  log(`exporting Playwright script from ${runId}…`);
+  log(`exporting ${TARGET_LABEL} script from ${runId}…`);
   const args = [
     exportScript,
     "--task", TASK,
     "--workspace", WORKSPACE,
-    "--target", "playwright",
+    "--target", TARGET,
     "--run", runId,
     "--no-verify", // we run the verification ourselves below so we can capture/distill output
   ];
@@ -160,12 +169,12 @@ function runExport(runId) {
   return result.status === 0;
 }
 
-function runPlaywright() {
-  log(`replaying Playwright script…`);
+function runReplay() {
+  log(`replaying ${TARGET_LABEL} script…`);
   // Ensure deps are installed (first iter only is slow; npm caches after).
-  if (!fs.existsSync(path.join(playwrightDir, "node_modules"))) {
+  if (!fs.existsSync(path.join(targetDir, "node_modules"))) {
     const install = spawnSync("npm", ["install", "--silent"], {
-      cwd: playwrightDir,
+      cwd: targetDir,
       stdio: ["ignore", "inherit", "inherit"],
     });
     if (install.status !== 0) {
@@ -173,7 +182,7 @@ function runPlaywright() {
     }
   }
   const run = spawnSync("npx", ["tsx", `${TASK}.ts`], {
-    cwd: playwrightDir,
+    cwd: targetDir,
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
@@ -194,10 +203,10 @@ function runPlaywright() {
 
 // ── Main loop ──────────────────────────────────────────────────────
 
-const history = []; // [{ iter, runId, evalPassed, pwPassed, distillReason }]
+const history = []; // [{ iter, runId, evalPassed, replayPassed, distillReason }]
 
 async function main() {
-  log(`task=${TASK} workspace=${WORKSPACE} env=${ENV} max-iter=${MAX_ITER}`);
+  log(`task=${TASK} target=${TARGET} workspace=${WORKSPACE} env=${ENV} max-iter=${MAX_ITER}`);
 
   for (let iter = 1; iter <= MAX_ITER; iter++) {
     log(`──────── iteration ${iter}/${MAX_ITER} ────────`);
@@ -208,76 +217,77 @@ async function main() {
     const evalPassed = runId ? tracePassed(runId) : false;
     log(`iter ${iter}: evaluate ${evalPassed ? "✅ passed" : "❌ no success: true"} (run=${runId ?? "?"})`);
 
-    const hist = { iter, runId, evalPassed, pwPassed: false, distillReason: null };
+    const hist = { iter, runId, evalPassed, replayPassed: false, distillReason: null };
     history.push(hist);
 
     if (!evalPassed) {
-      log(`iter ${iter}: skipping Playwright (trace not passing) — agent will iterate next round`);
+      log(`iter ${iter}: skipping ${TARGET_LABEL} (trace not passing) — agent will iterate next round`);
       continue;
     }
 
-    // 2. Emit Playwright (overwrites previous if any)
+    // 2. Emit script (overwrites previous if any)
     const exportOk = runExport(runId);
     if (!exportOk) {
-      log(`iter ${iter}: export failed; treating as Playwright fail`);
+      log(`iter ${iter}: export failed; treating as ${TARGET_LABEL} fail`);
       hist.distillReason = "export script returned non-zero";
       continue;
     }
 
     if (SKIP_VERIFY) {
-      log(`iter ${iter}: --skip-verify set; not running Playwright`);
+      log(`iter ${iter}: --skip-verify set; not replaying ${TARGET_LABEL}`);
       continue;
     }
 
-    // 3. Run Playwright
-    const pw = runPlaywright();
-    hist.pwPassed = pw.passed;
-    log(`iter ${iter}: Playwright ${pw.passed ? "✅ passed" : `❌ failed (exit=${pw.exitCode})`}`);
+    // 3. Run replay
+    const replay = runReplay();
+    hist.replayPassed = replay.passed;
+    log(`iter ${iter}: ${TARGET_LABEL} ${replay.passed ? "✅ passed" : `❌ failed (exit=${replay.exitCode})`}`);
 
-    if (!pw.passed) {
+    if (!replay.passed) {
       // 4. Distill the failure into strategy.md
-      log(`iter ${iter}: distilling Playwright failure into strategy.md…`);
+      log(`iter ${iter}: distilling ${TARGET_LABEL} failure into strategy.md…`);
       const { addendum, generated, reason } = await distillFailure({
         iteration: iter,
         taskName: TASK,
-        scriptPath: playwrightScript,
-        exitCode: pw.exitCode,
-        stdout: pw.stdout,
-        stderr: pw.stderr,
+        target: TARGET,
+        scriptPath: targetScript,
+        exitCode: replay.exitCode,
+        stdout: replay.stdout,
+        stderr: replay.stderr,
       });
-      appendToStrategy(strategyPath, addendum);
+      appendToStrategy(strategyPath, addendum, TARGET);
       hist.distillReason = generated ? "LLM-summarized" : `fallback: ${reason}`;
       log(`iter ${iter}: strategy.md updated (${hist.distillReason})`);
     }
 
-    // 5. Convergence check — Playwright passed in 2 of last 3 iterations?
+    // 5. Convergence check — replay passed in 2 of last 3 iterations?
     const last3 = history.slice(-3);
-    const passes = last3.filter((h) => h.pwPassed).length;
+    const passes = last3.filter((h) => h.replayPassed).length;
     if (passes >= 2 && history.length >= 2) {
-      log(`🎓 GRADUATED: Playwright passed in ${passes} of last ${last3.length} iterations`);
+      log(`🎓 GRADUATED: ${TARGET_LABEL} passed in ${passes} of last ${last3.length} iterations`);
       break;
     }
   }
 
   // ── Write report ─────────────────────────────────────────────────
-  const passedCount = history.filter((h) => h.pwPassed).length;
+  const passedCount = history.filter((h) => h.replayPassed).length;
   const lines = [
-    `# autobrowse loop report — ${TASK}`,
+    `# autobrowse loop report — ${TASK} (${TARGET})`,
     ``,
     `**Total iterations:** ${history.length}`,
-    `**Playwright passes:** ${passedCount}`,
+    `**${TARGET_LABEL} passes:** ${passedCount}`,
     `**Final status:** ${passedCount >= 2 ? "✅ graduated" : "❌ did not converge"}`,
     ``,
     `## Per-iteration`,
     ``,
-    `| Iter | Run | Trace passed | Playwright passed | Distill |`,
-    `|------|-----|--------------|-------------------|---------|`,
+    `| Iter | Run | Trace passed | ${TARGET_LABEL} passed | Distill |`,
+    `|------|-----|--------------|----------------------|---------|`,
     ...history.map((h) =>
-      `| ${h.iter} | ${h.runId ?? "?"} | ${h.evalPassed ? "✅" : "❌"} | ${h.pwPassed ? "✅" : "❌"} | ${h.distillReason ?? "—"} |`,
+      `| ${h.iter} | ${h.runId ?? "?"} | ${h.evalPassed ? "✅" : "❌"} | ${h.replayPassed ? "✅" : "❌"} | ${h.distillReason ?? "—"} |`,
     ),
     ``,
     `Strategy file: \`${strategyPath}\``,
-    passedCount >= 1 ? `Latest emitted script: \`${playwrightScript}\`` : "",
+    passedCount >= 1 ? `Latest emitted script: \`${targetScript}\`` : "",
   ];
   fs.writeFileSync(reportPath, lines.filter(Boolean).join("\n") + "\n");
   log(`wrote report → ${reportPath}`);
@@ -285,12 +295,13 @@ async function main() {
   // Final structured stdout
   console.log(JSON.stringify({
     task: TASK,
+    target: TARGET,
     iterations: history.length,
-    pw_passes: passedCount,
+    replay_passes: passedCount,
     graduated: passedCount >= 2,
     history,
     report: reportPath,
-    script: passedCount >= 1 ? playwrightScript : null,
+    script: passedCount >= 1 ? targetScript : null,
   }, null, 2));
 
   process.exit(passedCount >= 2 ? 0 : 2);

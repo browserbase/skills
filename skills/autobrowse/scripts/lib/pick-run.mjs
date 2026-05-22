@@ -1,7 +1,7 @@
 // pick-run.mjs — choose which autobrowse run to mine for export.
 //
 // A run is "passing" when its summary.md's final JSON has `success: true`.
-// Lifted from stagehand-export/scripts/export.mjs.
+// Shared by all target codegens (playwright, stagehand).
 
 import * as fs from "node:fs";
 import * as path from "node:path";

@@ -296,23 +296,35 @@ How refs are resolved: every `[X-Y]` ref in the trace is looked up against the m
 
 The final extract step is generated with one Claude Haiku call at export time (requires `ANTHROPIC_API_KEY`). The LLM is given the final snapshot, the Zod schema parsed from `task.md`'s `## Output` block, and the agent's final reasoning. If the API key is missing the export still produces a script — the extract block is a TODO placeholder.
 
-For a Stagehand-targeted export (LLM-driven replay via `stagehand.act`/`observe`), use the standalone `/stagehand-export` skill.
-
-## Iterative Playwright loop (recommended for tasks that need a deterministic artifact)
-
-When the end goal is a runnable Playwright script (cron, Browserbase Functions, etc.), prefer `loop.mjs` over manually orchestrating evaluate + export. The loop converges on a workflow that **both** the LLM explorer **and** the deterministic Playwright replay can complete — which is a strictly stronger guarantee than "the LLM agent's trace ends with success: true."
+For a Stagehand-targeted export (self-healing replay via `stagehand.page.act` / `stagehand.page.extract`), pass `--target stagehand`:
 
 ```bash
+node ${CLAUDE_SKILL_DIR}/scripts/export.mjs --task <task-name> --target stagehand
+```
+
+Stagehand-native: every interaction op (clicks, fills, selects) collapses into a `page.act("…")` call. Deterministic ops (goto, waits, keyboard, scroll, eval, page nav) stay as raw `page.*` calls — there's no element to find, so no LLM call is needed. The final extract step uses `page.extract({ instruction, schema })` with a one-sentence instruction generated at export time (Haiku, ~$0.001) or a generic fallback if `ANTHROPIC_API_KEY` is missing.
+
+The Stagehand script reads `BROWSERBASE_API_KEY` / `BROWSERBASE_PROJECT_ID` to run against Browserbase (and `BROWSERBASE_CONTEXT_ID` for pre-authed sessions); when those are absent it falls back to `env: "LOCAL"`. Model selection is controlled by the `STAGEHAND_MODEL` env var (defaults to a current Claude Sonnet).
+
+## Iterative loop (recommended for tasks that need a deterministic artifact)
+
+When the end goal is a runnable script (cron, Browserbase Functions, etc.), prefer `loop.mjs` over manually orchestrating evaluate + export. The loop converges on a workflow that **both** the LLM explorer **and** the deterministic replay can complete — which is a strictly stronger guarantee than "the LLM agent's trace ends with success: true."
+
+```bash
+# Playwright (default)
 node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs --task <task-name> --env remote \
   --max-iterations 8 --max-turns-per-iter 60
+
+# Stagehand
+node ${CLAUDE_SKILL_DIR}/scripts/loop.mjs --task <task-name> --target stagehand --env remote
 ```
 
 What it does per iteration:
 
 1. Runs `evaluate.mjs` (one LLM-driven exploration round).
-2. If the trace passed (`success: true` in the final JSON), runs `export.mjs --target playwright --no-verify` to emit a fresh script.
+2. If the trace passed (`success: true` in the final JSON), runs `export.mjs --target <playwright|stagehand> --no-verify` to emit a fresh script.
 3. Runs the emitted script (`npx tsx <task>.ts`) against a new BB session — the actual deterministic replay.
-4. If the Playwright replay passed → records a pass. If it failed → distills the failure (Claude Haiku, ~$0.01) into a new entry under `strategy.md`'s "Recent Playwright Failures" section.
+4. If the replay passed → records a pass. If it failed → distills the failure (Claude Haiku, ~$0.01) into a new entry under `strategy.md`'s "Recent Playwright Failures" or "Recent Stagehand Failures" section (target-scoped).
 5. Next iteration's evaluate reads the updated strategy.md and adapts.
 
 **Convergence**: graduates when the emitted script passes in 2 of the last 3 iterations.
