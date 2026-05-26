@@ -48,6 +48,7 @@ const TOOLS = [
       "  browse get url/title/text  — Get page info\n" +
       "  browse mouse drag <x1> <y1> <x2> <y2> — Drag (for sliders)\n" +
       "  browse back/reload/stop    — Navigation/session control\n\n" +
+      "If a throwaway inbox was provisioned for this task (see the Agent Inbox section, when present), you may also run `node <path>/scripts/inbox.mjs wait-otp|latest ...` through this tool to read verification emails.\n\n" +
       "Critical: Always `browse snapshot` after every action — refs invalidate on DOM changes.",
     input_schema: {
       type: "object",
@@ -81,6 +82,8 @@ Options:
   --env local|remote   Browser environment (default: local)
   --model <model>      Claude model for the inner agent (default: ${DEFAULT_MODEL})
   --run-number N       Force a specific run number (default: auto-increment)
+  --inbox-email <addr> Throwaway inbox address for signup/login/MFA tasks
+                       (provision it first via scripts/inbox.mjs create)
   --help               Show this help message
 
 Environment variables:
@@ -159,6 +162,17 @@ function getNextRunNumber(tracesDir) {
 }
 
 const ALLOWED_COMMAND = "browse";
+// Absolute path to the throwaway-inbox helper. The agent may shell out to it
+// (e.g. `node <abs>/scripts/inbox.mjs wait-otp ...`) when a task involves
+// signup/login/MFA and an inbox was provisioned for the run.
+const INBOX_SCRIPT = path.join(SKILL_DIR, "scripts", "inbox.mjs");
+
+function isAllowedCommand(executable, args) {
+  if (executable === ALLOWED_COMMAND) return true;
+  // node <abs-path-to-inbox.mjs> ...
+  if (executable === "node" && args[0] && path.resolve(args[0]) === INBOX_SCRIPT) return true;
+  return false;
+}
 
 function parseCommand(command) {
   const args = [];
@@ -250,8 +264,8 @@ function executeCommand(command) {
   }
 
   const [executable, ...args] = parsed.args;
-  if (executable !== ALLOWED_COMMAND) {
-    return { output: `BLOCKED: only browse commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
+  if (!isAllowedCommand(executable, args)) {
+    return { output: `BLOCKED: only browse and inbox.mjs commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
   }
 
   const start = Date.now();
@@ -271,7 +285,34 @@ function executeCommand(command) {
   }
 }
 
-function buildSystemPrompt(strategy, traceDir, browseEnv) {
+function buildInboxSection(inboxEmail, workspace, taskName) {
+  if (!inboxEmail) return "";
+  return `
+# Agent Inbox
+
+You have been provisioned a throwaway email inbox for this task:
+
+  ${inboxEmail}
+
+Use this address for any signup, login, or MFA / email-verification step — type it into email fields exactly as shown. To read mail that arrives (verification links, one-time codes), shell out via the execute tool:
+
+- Wait for an OTP / verification code:
+  \`node ${INBOX_SCRIPT} wait-otp --workspace ${workspace} --task ${taskName} --from <sender-domain> --within 60\`
+  Prints just the extracted code on stdout (or fails after the timeout). Use the sending domain you expect, e.g. \`--from stripe.com\`. Default matches a 4–8 digit code; pass \`--regex "<pattern>"\` for alphanumeric codes.
+
+- Wait for a verification / magic link, then open it:
+  \`node ${INBOX_SCRIPT} wait-link --workspace ${workspace} --task ${taskName} --from <sender-domain> --within 60\`
+  Prints just the first URL found (optionally filter with \`--match <substr>\`, e.g. \`--match verify\`). Then \`browse open <that-url>\` to complete verification.
+
+- Read the most recent message raw (fallback if the helpers above miss):
+  \`node ${INBOX_SCRIPT} latest --workspace ${workspace} --task ${taskName}\`
+  Prints the newest message as JSON (from, subject, text, html).
+
+Do not call AgentMail or any other email API directly — only the commands above.
+`;
+}
+
+function buildSystemPrompt(strategy, traceDir, browseEnv, inboxSection) {
   const openFlag = browseEnv === "remote" ? "--remote" : "--local";
   const envDesc = browseEnv === "remote"
     ? `Use **remote mode** (Browserbase) — Browserbase Identity, Verified browsers, CAPTCHA solving, residential proxies:
@@ -352,7 +393,7 @@ ${envDesc}
 - **Page seems empty**: Try \`browse wait timeout 1000\` then \`browse snapshot\`; if you know the target element, use \`browse wait selector "<selector>"\`
 - **Dropdown didn't open**: Wait briefly, then snapshot to check
 - **Slider won't move with click**: Use \`browse press ArrowRight\` / \`browse press ArrowLeft\` after clicking the slider thumb
-
+${inboxSection}
 # Current Navigation Strategy
 
 The following strategy has been learned from previous iterations. Follow these guidelines:
@@ -401,7 +442,9 @@ async function main() {
 
   const strategy = fs.readFileSync(strategyFile, "utf-8");
   const task = fs.readFileSync(taskFile, "utf-8");
-  const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv);
+  const inboxEmail = getArg("inbox-email");
+  const inboxSection = buildInboxSection(inboxEmail, workspace, taskName);
+  const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv, inboxSection);
 
   console.error(`\n${"=".repeat(60)}`);
   console.error(`  AUTOBROWSE — ${taskName} — Run ${runNumber}`);

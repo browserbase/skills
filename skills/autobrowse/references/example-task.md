@@ -13,6 +13,12 @@ List the data the agent needs (credentials, form values, etc.):
 - Field 1: value
 - Field 2: value
 
+If the task requires registering an account, logging in, or email/MFA
+verification, provision a throwaway inbox before the loop (see SKILL.md) and the
+agent receives `{{inbox_email}}` automatically — use it for any email field:
+
+- Email: {{inbox_email}}
+
 ## Steps
 
 1. Navigate to the URL

@@ -4,3 +4,4 @@ tasks/
 traces/
 *.log
 .DS_Store
+.inbox.json

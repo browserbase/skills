@@ -72,11 +72,30 @@ List available tasks:
 ls ./autobrowse/tasks/
 ```
 
+### Step 2.5 — (Only if the task needs email) Provision a throwaway inbox
+
+If the workflow requires **registering an account, logging in, or email / MFA verification**, give the inner agent its own disposable inbox. You never touch AgentMail or supply a human email — `scripts/inbox.mjs` mints a Browserbase-owned throwaway inbox via browse.sh and the address is injected into the run.
+
+Requires `BROWSE_SH_WEBHOOK_SECRET` in the environment (see `.env.example`). Then, once per task, before the loop:
+
+```bash
+node ${CLAUDE_SKILL_DIR}/scripts/inbox.mjs create --workspace ./autobrowse --task <task>
+# prints the inbox address, e.g. ab-3f9k2@agentmail.to
+```
+
+Capture it and pass `--inbox-email` to **every** `evaluate.mjs` run for this task (see "Run the inner agent"). The address is also available to task.md authors as `{{inbox_email}}`.
+
+The inbox is **loop-only** — it exists just so exploration can complete signup/MFA. Always release it when the loop ends (see "Clean up the inbox"). Graduated skills do not depend on it; end users supply their own email/credentials at run time.
+
+> **Concurrency limit:** the Browserbase AgentMail org caps at 3 inboxes. Sequential loops self-heal (a stale inbox is swept on the next `create`), but **do not run more than 3 email-needing tasks in parallel** (`--all` / `--tasks`) — the 4th `create` will fail. If you hit this, run them in smaller batches.
+
 ### Step 3 — Multi-task: spawn parallel sub-agents
 
 If running multiple tasks, use the Agent tool to spawn one sub-agent per task simultaneously. Each sub-agent receives a self-contained prompt to run the full autobrowse loop for its task:
 
 > "You are running the autobrowse skill for task `<name>`. Workspace: `<absolute-path-to-workspace>` (e.g. `/path/to/project/autobrowse`). Run `<N>` iterations of: evaluate → read trace → improve strategy.md → repeat. Use `--env <env>`. Pass `--workspace <workspace>` to every evaluate.mjs invocation. Follow the autobrowse loop instructions exactly.
+>
+> If this task needs signup/login/MFA, run `inbox.mjs create` once before the loop, pass `--inbox-email <addr>` to every evaluate.mjs run, and run `inbox.mjs release` when the loop ends (even on failure).
 >
 > When graduating, install the skill to `~/.claude/skills/<task-name>/SKILL.md` with proper agentskills frontmatter (name + description). Do not just copy strategy.md — write a self-contained skill.
 >
@@ -104,6 +123,8 @@ Check that `./autobrowse/tasks/<task>/task.md` exists (scaffold it from the temp
 node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse
 # or for bot-protected sites:
 node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse --env remote
+# if you provisioned an inbox in Step 2.5, pass it on every run:
+node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse --inbox-email <addr>
 ```
 
 This runs the browser session and writes a full trace to `./autobrowse/traces/<task>/latest/`.
@@ -220,6 +241,18 @@ ls ~/.claude/skills/<task-name>/SKILL.md
 ```
 
 The skill is now available as `/<task-name>` in Claude Code.
+
+> **Email/MFA tasks — graduation note:** the throwaway inbox is loop-only. The graduated SKILL.md must **not** reference `inbox.mjs` or the autobrowse inbox. Instead, document that the end user supplies their own email/credentials at run time (or reuses an authenticated session via `/cookie-sync`), and note in "Site-Specific Gotchas" that the flow requires email/MFA verification.
+
+### Clean up the inbox
+
+If you provisioned an inbox in Step 2.5, release it once the loop ends — **whether it graduated, failed, or hit max iterations**:
+
+```bash
+node ${CLAUDE_SKILL_DIR}/scripts/inbox.mjs release --workspace ./autobrowse --task <task>
+```
+
+This deletes the throwaway inbox and removes its local `.inbox.json`. It's best-effort and safe to run even if no inbox exists. (Abandoned inboxes are also swept automatically on the next `create`, but release promptly to stay under the 3-inbox cap.)
 
 ---
 
