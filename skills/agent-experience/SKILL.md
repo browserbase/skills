@@ -1,5 +1,5 @@
 ---
-name: audit-agent-experience
+name: agent-experience
 description: "Audit the developer experience of a product, SDK, docs site, or SKILL.md by dropping multiple Claude subagents at it with only a tiny task prompt and real tools (WebFetch, Bash, Write). Agents must discover the docs themselves, install deps, ask for credentials if needed, and attempt real execution. The skill captures each agent's trace — tool calls, retries, wall time, errors — and scores on Setup Friction, Speed, Efficiency, Error Recovery, and Doc Quality, then emits an HTML report with an A–F grade and concrete fixes. Use when the user asks to audit agent experience, test a skill, audit docs for agents, check if a SDK is agent-friendly, validate a SKILL.md, measure agent DX, or benchmark how painful onboarding is for an AI agent. Triggers: 'audit agent experience', 'test this skill', 'audit docs for agents', 'is my SDK agent-friendly', 'run a DX audit', 'agent experience test', 'test my docs', 'how do agents do with my product'."
 license: MIT
 metadata:
@@ -405,7 +405,7 @@ Rationale: a 404 finding is useless if the user can't click to verify. A session
 
 ### Step 10 — Save and surface
 
-Save to `./audit-agent-experience-<slug>-<timestamp>.html` (cwd). Slug = lowercase target basename with non-alphanumerics → `-`. Timestamp = `YYYYMMDD-HHMMSS`.
+Save to `./agent-experience-<slug>-<timestamp>.html` (cwd). Slug = lowercase target basename with non-alphanumerics → `-`. Timestamp = `YYYYMMDD-HHMMSS`.
 
 Print to chat:
 - Grade, overall score, and the single biggest fix.
