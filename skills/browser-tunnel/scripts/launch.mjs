@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * browserbase-localhost launcher
+ * browser-tunnel launcher
  *
  * Creates a Browserbase cloud session that can reach a localhost port via an
  * auth-gated cloudflared quick tunnel. Outputs connection details as JSON,
@@ -10,7 +10,8 @@
  *   node launch.mjs --port 3000
  *   node launch.mjs --port 5173 --host 127.0.0.1 --env dev
  *
- * Required env: BROWSERBASE_API_KEY, BROWSERBASE_PROJECT_ID
+ * Required env: BROWSERBASE_API_KEY
+ * Optional env: BROWSERBASE_PROJECT_ID (defaults to the first project on the account)
  *
  * Output (stdout, single JSON line then "---READY---" sentinel):
  *   {
@@ -54,9 +55,8 @@ if (!port || Number.isNaN(port)) {
 }
 
 const BB_API_KEY = process.env.BROWSERBASE_API_KEY;
-const BB_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID;
-if (!BB_API_KEY || !BB_PROJECT_ID) {
-  console.error("ERROR: BROWSERBASE_API_KEY and BROWSERBASE_PROJECT_ID must be set");
+if (!BB_API_KEY) {
+  console.error("ERROR: BROWSERBASE_API_KEY must be set");
   process.exit(2);
 }
 
@@ -64,6 +64,25 @@ const BB_API_BASE =
   env === "dev" ? "https://api.dev.browserbase.com" : "https://api.browserbase.com";
 const BB_DASH_BASE =
   env === "dev" ? "https://www.dev.browserbase.com" : "https://www.browserbase.com";
+
+// Project ID is optional — if unset, use the first project on the account.
+let BB_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID;
+if (!BB_PROJECT_ID) {
+  const projRes = await fetch(`${BB_API_BASE}/v1/projects`, {
+    headers: { "x-bb-api-key": BB_API_KEY },
+  });
+  if (!projRes.ok) {
+    console.error(`ERROR: could not list projects (${projRes.status} ${await projRes.text()})`);
+    process.exit(1);
+  }
+  const projects = await projRes.json();
+  BB_PROJECT_ID = Array.isArray(projects) ? projects[0]?.id : projects?.data?.[0]?.id;
+  if (!BB_PROJECT_ID) {
+    console.error("ERROR: no Browserbase projects found for this API key");
+    process.exit(1);
+  }
+  console.error(`[bb] using project ${BB_PROJECT_ID} (set BROWSERBASE_PROJECT_ID to override)`);
+}
 
 const SECRET = randomUUID();
 const HEADER = "X-Tunnel-Auth";
@@ -117,7 +136,12 @@ proxy.on("upgrade", (req, clientSocket, head) => {
           .join("\r\n") +
         "\r\n\r\n"
     );
+    // Forward any buffered bytes that arrived with the handshake, in both
+    // directions, before wiring up the bidirectional pipe. `head` is the
+    // client's trailing buffer (already consumed from clientSocket, so pipe
+    // won't re-emit it); `upHead` is the upstream's.
     if (upHead?.length) clientSocket.write(upHead);
+    if (head?.length) upstreamSocket.write(head);
     upstreamSocket.pipe(clientSocket).pipe(upstreamSocket);
   });
   upstream.on("error", () => clientSocket.destroy());
@@ -196,19 +220,30 @@ async function shutdown(signal) {
   if (shuttingDown) return;
   shuttingDown = true;
   console.error(`\n[shutdown] received ${signal}, cleaning up...`);
+
+  // Local cleanup first — these are instant and must happen even if the BB API
+  // is slow or unreachable, so nothing lingers after Ctrl-C.
+  cf.kill("SIGINT");
+  proxy.close();
+
+  // Hard safety net: never let a hanging release request keep us alive.
+  const hardExit = setTimeout(() => process.exit(0), 3000);
+  hardExit.unref?.();
+
+  // Time-box the release so a slow API can't block the (already-done) cleanup.
   try {
     await fetch(`${BB_API_BASE}/v1/sessions/${session.id}`, {
       method: "POST",
       headers: { "Content-Type": "application/json", "x-bb-api-key": BB_API_KEY },
       body: JSON.stringify({ status: "REQUEST_RELEASE", projectId: BB_PROJECT_ID }),
+      signal: AbortSignal.timeout(2500),
     });
     console.error("[shutdown] BB session released");
   } catch (e) {
     console.error("[shutdown] release error:", e.message);
   }
-  cf.kill("SIGINT");
-  proxy.close();
-  setTimeout(() => process.exit(0), 500);
+  clearTimeout(hardExit);
+  process.exit(0);
 }
 process.on("SIGINT", () => shutdown("SIGINT"));
 process.on("SIGTERM", () => shutdown("SIGTERM"));

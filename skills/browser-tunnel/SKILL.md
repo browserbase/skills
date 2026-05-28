@@ -1,9 +1,9 @@
 ---
-name: browserbase-localhost
+name: browser-tunnel
 description: Open a Browserbase cloud browser that can reach the user's localhost via an auth-gated cloudflared tunnel. Use when the user wants to run a cloud browser against a local dev server (e.g. localhost:3000), test a local app on a remote browser, or get a shareable Browserbase session link for a local-only URL. Solves the "BB sessions can't see my localhost" gap without exposing the dev server to the public internet via ngrok.
 ---
 
-# Browserbase for Localhost
+# Browser Tunnel — cloud browser → localhost
 
 Run a **Browserbase cloud session** that can hit a `localhost` URL on this machine. The cloud browser sees a public `*.trycloudflare.com` URL that is gated by a random per-session secret, so only this BB session can use the tunnel. Random scrapers get `401 Unauthorized`.
 
@@ -40,10 +40,11 @@ BB cloud browser ──HTTPS──► xyz.trycloudflare.com ──HTTP──► 
 brew install cloudflared          # macOS
 # or: see https://github.com/cloudflare/cloudflared/releases
 
-# Env vars
+# Env var
 export BROWSERBASE_API_KEY="..."       # from browserbase.com/settings
-export BROWSERBASE_PROJECT_ID="..."
 ```
+
+The launcher uses your first Browserbase project automatically. Set `BROWSERBASE_PROJECT_ID` only if you want to pin a specific project.
 
 Node.js 18+ required (uses built-in `fetch`).
 
@@ -52,7 +53,7 @@ Node.js 18+ required (uses built-in `fetch`).
 Run the launcher in the **background**. It prints a single-line JSON config to stdout, then `---READY---`, then stays alive until killed.
 
 ```bash
-nohup node .claude/skills/browserbase-localhost/scripts/launch.mjs --port 3000 \
+nohup node .claude/skills/browser-tunnel/scripts/launch.mjs --port 3000 \
   > /tmp/bb-localhost.log 2>&1 &
 echo $! > /tmp/bb-localhost.pid
 
@@ -87,9 +88,9 @@ Always show the user the `dashboardUrl` so they can watch live.
 
 ## Step 2 — Drive the BB session
 
-The crucial bit: you must inject `X-Tunnel-Auth: <secret>` via CDP's `Network.setExtraHTTPHeaders`, **not** Playwright's `page.setExtraHTTPHeaders()`. The latter only covers top-level navigations, so subresources (JS/CSS/API calls) will 401.
+The crucial bit: you must inject `X-Tunnel-Auth: <secret>` via CDP's `Network.setExtraHTTPHeaders`. A framework-level helper like Playwright's `page.setExtraHTTPHeaders()` only covers top-level navigations, so subresources (JS/CSS/API calls) will 401. Any CDP-capable driver works — Playwright and Stagehand below are equivalent, so use whichever your project already has. They inject the header the same way.
 
-### Option A — Playwright (recommended)
+### Option A — Playwright
 
 ```javascript
 import { chromium } from "playwright-core";
@@ -135,17 +136,19 @@ await page.goto(tunnelUrl);
 await stagehand.act({ action: "click the login button" });
 ```
 
-### Option C — `browse` CLI
+### Option C — `browse` CLI (not yet supported)
 
-The `browse` CLI doesn't support per-request header injection. For browse-CLI flows, **prefer Playwright/Stagehand** (above) which gives you CDP control. If you only need a single navigation, you can connect via:
+The `browse` CLI would be the simplest path, but it can't inject `X-Tunnel-Auth` on every request today — so subresources (JS/CSS/API calls) through the tunnel will 401. Until the CLI supports per-request header injection, use Playwright or Stagehand (above) for any tunnel flow.
+
+> **Known gap / feature request:** add per-request extra-header support to the `browse` CLI (e.g. `--header "X-Tunnel-Auth: <secret>"` wired to CDP `Network.setExtraHTTPHeaders`). That would make the CLI the primary, one-command path for this skill.
+
+A single bare navigation can still be done, but it will only load the root document:
 
 ```bash
 SESSION_ID=$(echo "$CONFIG_JSON" | jq -r .sessionId)
 TUNNEL_URL=$(echo "$CONFIG_JSON" | jq -r .tunnelUrl)
 browse --connect "$SESSION_ID" open "$TUNNEL_URL"
 ```
-
-but this will fail to load subresources without header injection. Treat as last resort.
 
 ## Step 3 — Clean up
 
@@ -179,7 +182,7 @@ A complete "test my localhost on a cloud browser, screenshot, share the replay" 
 
 ```bash
 # 1. Launch
-nohup node .claude/skills/browserbase-localhost/scripts/launch.mjs --port 3000 \
+nohup node .claude/skills/browser-tunnel/scripts/launch.mjs --port 3000 \
   > /tmp/bb-localhost.log 2>&1 &
 echo $! > /tmp/bb-localhost.pid
 until grep -q "^---READY---$" /tmp/bb-localhost.log 2>/dev/null; do sleep 0.5; done

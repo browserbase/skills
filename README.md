@@ -10,7 +10,7 @@ This plugin includes the following skills (see `skills/` for details):
 |-------|-------------|
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with anti-bot stealth, CAPTCHA solving, and residential proxies |
 | [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `bb` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
-| [browserbase-localhost](skills/browserbase-localhost/SKILL.md) | Open a Browserbase cloud browser that can reach your `localhost:<port>` via an auth-gated cloudflared tunnel — no ngrok, no public exposure |
+| [browser-tunnel](skills/browser-tunnel/SKILL.md) | Open a Browserbase cloud browser that can reach your `localhost:<port>` via an auth-gated cloudflared tunnel — no ngrok, no public exposure |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `bb` CLI |
 | [site-debugger](skills/site-debugger/SKILL.md) | Diagnose and fix failing browser automations — analyzes bot detection, selectors, timing, auth, and captchas, then generates a tested site playbook |
 | [browser-trace](skills/browser-trace/SKILL.md) | Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets |
