@@ -23,7 +23,7 @@ Technical reference for the `browse` CLI tool.
 The browse CLI is a **daemon-based** command-line tool:
 
 - **Daemon process**: A background process manages the browser instance. Auto-starts on the first command (e.g., `browse open`), persists across commands, and stops with `browse stop`.
-- **Local mode** (default): `browse env local` launches a clean isolated local browser. Use `browse env local --auto-connect` or `browse env local <port|url>` to attach to an existing browser via CDP.
+- **Local mode**: `browse open <url> --local` launches a clean isolated local browser. It is the default when `BROWSERBASE_API_KEY` is unset. Use `browse open <url> --auto-connect` to attach to an existing debuggable Chrome, or `browse open <url> --cdp <port|url>` to attach to a specific CDP target.
 - **Remote mode** (Browserbase): Connects to a Browserbase cloud browser session when `BROWSERBASE_API_KEY` is set.
 - **Accessibility-first**: Use `browse snapshot` to get the page's accessibility tree with element refs, then interact using those refs.
 
@@ -33,7 +33,7 @@ The browse CLI is a **daemon-based** command-line tool:
 
 #### `open <url>`
 
-Navigate to a URL. Alias: `goto`. Auto-starts the daemon if not running.
+Navigate to a URL. Auto-starts the daemon if not running.
 
 ```bash
 browse open https://example.com
@@ -45,17 +45,23 @@ The `--wait` flag controls when navigation is considered complete. Values: `load
 
 ##### Context persistence (remote mode only)
 
-Use `--context-id` to load a Browserbase context, which carries browser state (cookies, localStorage, sessionStorage) across sessions. Add `--persist` to save any state changes back to the context when the session ends.
+Create a Browserbase session with `browse cloud sessions create --context-id <id>`, then attach to its CDP endpoint with `browse open <url> --cdp <connectUrl>`. Add `--persist` to the cloud session if state changes should save back to the context.
 
 ```bash
-browse open https://example.com --context-id ctx_abc123              # load context (read-only)
-browse open https://example.com --context-id ctx_abc123 --persist    # load + save changes back
+SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://example.com --cdp "$CONNECT_URL"
+# ...interact with the page...
+browse stop
+browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
-- `--context-id <id>` — Browserbase context ID to load. **Remote mode only** — the CLI will error if used in local mode.
-- `--persist` — Save cookies/storage changes back to the context on `browse stop`. Requires `--context-id`.
-- If the daemon is already running with a different context, it automatically restarts with the new one.
-- Calling `browse open` without `--context-id` clears any previously loaded context.
+- `--context-id <id>` — Browserbase context ID to load when creating the cloud session.
+- `--persist` — Save cookies/storage changes back to the context when the Browserbase session is released. Requires `--context-id`.
+- `--keep-alive` — Keep the Browserbase session alive while the local browse daemon attaches and detaches.
+- After `browse open ... --cdp "$CONNECT_URL"`, follow-up commands in that session do not repeat `--cdp`; the daemon remembers the attached target.
 
 #### `reload`
 
@@ -94,8 +100,8 @@ Returns a text representation of the page with refs like `@0-5` that can be pass
 Take a visual screenshot. Slower than snapshot and uses vision tokens.
 
 ```bash
-browse screenshot                        # auto-generated path
-browse screenshot ./capture.png          # custom path
+browse screenshot                        # print base64 JSON
+browse screenshot --path ./capture.png   # custom path
 browse screenshot --full-page            # capture entire scrollable page
 ```
 
@@ -165,12 +171,12 @@ browse type "human-like" --mistakes      # simulate human typing with typos
 
 #### `fill <selector> <value>`
 
-Fill an input element matching a CSS selector and press Enter.
+Fill an input element matching a CSS selector. Add `--press-enter` when Enter is needed.
 
 ```bash
 browse fill "#search" "browser automation"
 browse fill "input[name=email]" "user@example.com"
-browse fill "#search" "query" --no-press-enter   # fill without pressing Enter
+browse fill "#search" "query" --press-enter   # fill and press Enter
 ```
 
 #### `select <selector> <values...>`
@@ -194,25 +200,25 @@ browse press Cmd+A                       # select all (Mac)
 browse press Ctrl+C                      # copy (Linux/Windows)
 ```
 
-#### `scroll <x> <y> <deltaX> <deltaY>`
+#### `mouse scroll <x> <y> <deltaX> <deltaY>`
 
 Scroll at a given position by a given amount.
 
 ```bash
-browse scroll 500 300 0 -300             # scroll up at (500, 300)
-browse scroll 500 300 0 500              # scroll down
+browse mouse scroll 500 300 0 -300       # scroll up at (500, 300)
+browse mouse scroll 500 300 0 500        # scroll down
 ```
 
-#### `drag <fromX> <fromY> <toX> <toY>`
+#### `mouse drag <fromX> <fromY> <toX> <toY>`
 
 Drag from one viewport coordinate to another.
 
 ```bash
-browse drag 80 80 310 100                # drag with default 10 steps
-browse drag 80 80 310 100 --steps 20     # more intermediate steps
-browse drag 80 80 310 100 --delay 50     # 50ms between steps
-browse drag 80 80 310 100 --button right # use right mouse button
-browse drag 80 80 310 100 --xpath        # return source/target XPaths
+browse mouse drag 80 80 310 100                # drag with default 10 steps
+browse mouse drag 80 80 310 100 --steps 20     # more intermediate steps
+browse mouse drag 80 80 310 100 --delay 50     # 50ms between steps
+browse mouse drag 80 80 310 100 --button right # use right mouse button
+browse mouse drag 80 80 310 100 --return-xpath # return source/target XPaths
 ```
 
 #### `highlight <selector>`
@@ -272,54 +278,54 @@ Check whether the daemon is running, its connection details, and current environ
 browse status
 ```
 
-#### `env [local|remote] [port|url]`
+#### Starting sessions with a mode flag
 
-Show or switch the browser environment. Without arguments, prints the current environment. With an argument, stores a per-session override, restarts the daemon if needed, and keeps using that mode until you switch again or run `browse stop`.
+Choose the browser target on the command that starts the session:
 
 ```bash
-browse env                               # print current environment
-browse env local                         # use clean isolated local browser
-browse env local --auto-connect          # auto-discover existing Chrome, fallback to isolated
-browse env local 9222                    # attach to a specific CDP target
-browse env local ws://localhost:9222/devtools/browser/...   # attach to explicit browser WebSocket
-browse env remote                        # switch to Browserbase (requires API keys)
+browse open https://example.com --local
+browse open https://example.com --local --headed
+browse open https://example.com --auto-connect
+browse open https://example.com --cdp 9222
+browse open https://example.com --cdp ws://localhost:9222/devtools/browser/...
+browse open https://example.com --remote
 ```
 
-- `browse status` shows the resolved local strategy when the daemon is running (`localStrategy`, `localSource`, `resolvedCdpUrl`)
-- `browse stop` clears the override so the next start falls back to env-var-based auto detection
+- `browse status` shows the resolved mode and active target once the daemon is running.
+- `browse stop` closes the current daemon session; the next `browse open` chooses mode from its flags or environment.
 
-#### `newpage [url]`
+#### `tab new [url]`
 
 Create a new tab, optionally navigating to a URL.
 
 ```bash
-browse newpage                           # open blank tab
-browse newpage https://example.com       # open tab with URL
+browse tab new                           # open blank tab
+browse tab new https://example.com       # open tab with URL
 ```
 
-#### `pages`
+#### `tab list`
 
 List all open tabs.
 
 ```bash
-browse pages
+browse tab list
 ```
 
-#### `tab_switch <index>`
+#### `tab switch <index-or-target-id>`
 
-Switch to a tab by its index (from `browse pages`).
+Switch to a tab by its index or target ID (from `browse tab list`).
 
 ```bash
-browse tab_switch 1
+browse tab switch 1
 ```
 
-#### `tab_close [index]`
+#### `tab close [index-or-target-id]`
 
-Close a tab. Closes current tab if no index given.
+Close a tab. Closes current tab if no index given. The CLI refuses to close the last remaining tab.
 
 ```bash
-browse tab_close          # close current tab
-browse tab_close 2        # close tab at index 2
+browse tab close          # close current tab
+browse tab close 2        # close tab at index 2
 ```
 
 ---
@@ -389,33 +395,18 @@ browse network clear
 
 ## Configuration
 
-### Global Flags
-
-#### `--json`
-
-Output as JSON for all commands. Useful for structured, parseable output.
-
-```bash
-browse --json get url                    # returns {"url": "https://..."}
-browse --json snapshot                   # returns JSON accessibility tree
-```
+### Common Flags
 
 #### `--session <name>`
 
 Run commands against a named session, enabling multiple concurrent browsers.
 
 ```bash
-browse --session work open https://a.com
-browse --session personal open https://b.com
+browse open https://a.com --session work
+browse open https://b.com --session personal
 ```
 
-#### `--context-id <id>`
-
-Load a Browserbase context to persist browser state (cookies, localStorage, sessionStorage) across sessions. Remote mode only. See [`open`](#open-url) for details.
-
-#### `--persist`
-
-Save browser state changes back to the Browserbase context when the session ends. Must be used with `--context-id`.
+Context flags such as `--context-id` and `--persist` live on `browse cloud sessions create`; attach to the resulting `connectUrl` with `browse open ... --cdp <connectUrl>`.
 
 ### Environment Variables
 
@@ -425,7 +416,7 @@ Save browser state changes back to the Browserbase context when the session ends
 | `BROWSERBASE_API_KEY` | For remote mode | API key from https://browserbase.com/settings; makes Browserbase the default desired mode when no override is set |
 | `BROWSERBASE_PROJECT_ID` | No | Passed through to Browserbase when set |
 
-Without an override, setting `BROWSERBASE_API_KEY` makes Browserbase the default desired mode. Otherwise the default desired mode is local. `browse env local`, `browse env local --auto-connect`, and `browse env remote` override that per session until `browse stop`.
+Without an override, setting `BROWSERBASE_API_KEY` makes Browserbase the default desired mode. Otherwise the default desired mode is local. Use `--local`, `--remote`, `--auto-connect`, or `--cdp <port|url>` on `browse open` when you need an explicit target.
 
 ### Setting credentials
 
@@ -445,7 +436,7 @@ Get these values from https://browserbase.com/settings.
 
 **"Chrome not found"** / **"Could not find local Chrome installation"**
 - Chrome/Chromium is not installed or not in a standard location.
-- Fix: Install Chrome, use `browse env local --auto-connect` if you already have a debuggable Chrome running, or switch to remote with `browse env remote` (no local browser needed).
+- Fix: Install Chrome, use `browse open <url> --auto-connect` if you already have a debuggable Chrome running, or switch to remote with `browse open <url> --remote` (no local browser needed).
 
 **"Daemon not running"**
 - No daemon process is active. Most commands auto-start the daemon, but `snapshot`, `click`, etc. require an active session.

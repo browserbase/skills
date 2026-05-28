@@ -2,7 +2,7 @@
 
 Common browser automation workflows using the `browse` CLI. Each example demonstrates a distinct pattern using real commands.
 
-For localhost and other local dev flows, start with `browse env local` for a clean isolated browser. Use `browse env local --auto-connect` only when the agent should reuse your existing local Chrome session, cookies, or login state.
+For localhost and other local dev flows, start with `browse open <url> --local` for a clean isolated browser. Use `browse open <url> --auto-connect` only when the agent should attach to an existing debuggable Chrome session for cookies or login state.
 
 ## Example 1: Extract Data from a Page
 
@@ -75,8 +75,7 @@ browse stop
 
 ```bash
 # Attempt 1: local mode
-browse env local
-browse open https://competitor.com/pricing
+browse open https://competitor.com/pricing --local
 browse snapshot
 # Output shows: "Checking your browser..." (Cloudflare interstitial)
 # or: page content is empty / access denied
@@ -85,7 +84,7 @@ browse stop
 
 The agent detects bot protection and tells the user:
 
-> This site has Cloudflare bot detection. Browserbase remote mode can bypass this with anti-bot stealth and residential proxies. Want me to set it up?
+> This site has Cloudflare bot detection. Browserbase remote mode can use Browserbase Identity with a Verified browser and residential proxies. Want me to set it up?
 
 If the user agrees:
 
@@ -94,8 +93,7 @@ If the user agrees:
 export BROWSERBASE_API_KEY="bb_live_..."
 
 # Retry in remote mode
-browse env remote
-browse open https://competitor.com/pricing
+browse open https://competitor.com/pricing --remote
 browse snapshot                          # full page content now accessible
 browse get text ".pricing-table"
 browse stop
@@ -109,8 +107,11 @@ This uses Browserbase contexts to persist cookies and storage across sessions. R
 
 ```bash
 # Session 1: Log in and persist state
-browse env remote
-browse open https://app.example.com/login --context-id ctx_abc123 --persist
+SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://app.example.com/login --cdp "$CONNECT_URL"
 browse snapshot                          # find login form fields
 browse click @0-3                        # click email input
 browse type "user@example.com"
@@ -119,21 +120,26 @@ browse type "my-password"
 browse click @0-7                        # click Sign In button
 browse wait load
 browse snapshot                          # confirm logged-in dashboard
-browse stop                              # state is saved back to ctx_abc123
+browse stop
+browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE  # state is saved back to ctx_abc123
 ```
 
 In a later session, reuse the same context — already authenticated:
 
 ```bash
 # Session 2: Resume with saved state (already logged in)
-browse env remote
-browse open https://app.example.com/dashboard --context-id ctx_abc123
+SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://app.example.com/dashboard --cdp "$CONNECT_URL"
 browse snapshot                          # dashboard loads — no login needed
 browse get text ".welcome-message"
 browse stop
+browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
-**Key pattern**: Use `--context-id <id> --persist` on the first session to save auth state. On subsequent sessions, use `--context-id <id>` (with or without `--persist`) to resume where you left off. Omit `--persist` if you don't want changes from that session saved back.
+**Key pattern**: Use `browse cloud sessions create --context-id <id> --persist` for the first Browserbase session to save auth state, then attach with `browse open ... --cdp "$CONNECT_URL"`. On subsequent sessions, create with the same `--context-id` and omit `--persist` if you don't want changes saved back.
 
 ## Tips
 

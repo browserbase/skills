@@ -40,16 +40,16 @@ npx skills add browserbase/ui-test
 ## Browser Execution
 
 ```bash
-which browse || npm install -g @browserbasehq/browse-cli
+which browse || npm install -g browse
 ```
 
-- **Localhost** → `browse env local` (no API key needed)
-- **Need existing local login/cookies/state on localhost** → `browse env local --auto-connect` (auto-discover local Chrome, fallback to isolated)
-- **Need explicit local CDP attach** → `browse env local <port|url>`
-- **Deployed sites** → `browse env remote` (uses Browserbase cloud browsers)
+- **Localhost** → `browse open <url> --local` (no API key needed)
+- **Need existing local login/cookies/state on localhost** → `browse open <url> --auto-connect` (requires an existing debuggable local Chrome)
+- **Need explicit local CDP attach** → `browse open <url> --cdp <port|url>`
+- **Deployed sites** → `browse open <url> --remote` (uses Browserbase cloud browsers)
 - **Parallel** → `BROWSE_SESSION=<name>` for independent concurrent sessions
 
-For default localhost QA, start with `browse env local` for clean, reproducible runs.
+For default localhost QA, pass `--local` on the first `browse open` for clean, reproducible runs.
 
 ## Project Structure
 
@@ -77,6 +77,6 @@ No YAML files, no generated test suites, no artifacts. The agent reads the diff 
 
 ## Requirements
 
-- `browse` CLI (`npm install -g @browserbasehq/browse-cli`)
+- `browse` CLI (`npm install -g browse`)
 - For remote testing: `BROWSERBASE_API_KEY` environment variable
 - A running web app (localhost or deployed URL)

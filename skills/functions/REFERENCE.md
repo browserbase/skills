@@ -129,7 +129,6 @@ cat .env
 
 # Or set for current shell
 export BROWSERBASE_API_KEY="your_key"
-export BROWSERBASE_PROJECT_ID="your_project"
 ```
 
 ### Dev server won't start

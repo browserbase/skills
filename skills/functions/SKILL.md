@@ -6,15 +6,14 @@ license: MIT
 
 # Browserbase Functions
 
-Deploy serverless browser automation using the official `bb` CLI.
+Deploy serverless browser automation using the official `browse` CLI.
 
 ## Prerequisites
 
-Get API key and Project ID from: https://browserbase.com/settings
+Get an API key from: https://browserbase.com/settings
 
 ```bash
 export BROWSERBASE_API_KEY="your_api_key"
-export BROWSERBASE_PROJECT_ID="your_project_id"
 ```
 
 ## Creating a Function Project
@@ -22,7 +21,7 @@ export BROWSERBASE_PROJECT_ID="your_project_id"
 ### 1. Initialize
 
 ```bash
-pnpm dlx @browserbasehq/sdk-functions init my-function
+browse functions init my-function
 cd my-function
 ```
 
@@ -38,7 +37,6 @@ my-function/
 
 ```bash
 echo "BROWSERBASE_API_KEY=$BROWSERBASE_API_KEY" >> .env
-echo "BROWSERBASE_PROJECT_ID=$BROWSERBASE_PROJECT_ID" >> .env
 ```
 
 ### 3. Install Dependencies
@@ -78,7 +76,7 @@ defineFn("my-function", async (context) => {
 ### 1. Start Dev Server
 
 ```bash
-pnpm bb dev index.ts
+browse functions dev index.ts
 ```
 
 Server runs at `http://127.0.0.1:14113`
@@ -98,7 +96,7 @@ The dev server auto-reloads on file changes. Use `console.log()` for debugging -
 ## Deploying
 
 ```bash
-pnpm bb publish index.ts
+browse functions publish index.ts
 ```
 
 Output:
@@ -114,8 +112,8 @@ Function ID: xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx
 
 | Command | Description |
 |---------|-------------|
-| `pnpm dlx @browserbasehq/sdk-functions init <name>` | Create new project |
-| `pnpm bb dev <file>` | Start local dev server |
-| `pnpm bb publish <file>` | Deploy to Browserbase |
+| `browse functions init <name>` | Create new project |
+| `browse functions dev <file>` | Start local dev server |
+| `browse functions publish <file>` | Deploy to Browserbase |
 
 For invocation examples, common patterns, and troubleshooting, see [REFERENCE.md](REFERENCE.md).

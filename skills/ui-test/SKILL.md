@@ -6,7 +6,7 @@ metadata:
   author: browserbase
   version: "0.4.0"
 allowed-tools: Bash Read Glob Grep Agent
-compatibility: "Requires the browse CLI (`npm install -g @browserbasehq/browse-cli`). For remote testing: BROWSERBASE_API_KEY and cookie-sync skill."
+compatibility: "Requires the browse CLI (`npm install -g browse`). For remote testing: BROWSERBASE_API_KEY and cookie-sync skill."
 ---
 
 # UI Test — Agentic UI Testing Skill
@@ -175,7 +175,7 @@ browse screenshot --path .context/ui-test-screenshots/modal-open.png
 ## Setup
 
 ```bash
-which browse || npm install -g @browserbasehq/browse-cli
+which browse || npm install -g browse
 ```
 
 ### Avoid permission fatigue
@@ -200,24 +200,23 @@ The first pattern covers plain `browse` commands. The second covers parallel ses
 
 | Target | Mode | Command | Auth |
 |--------|------|---------|------|
-| `localhost` / `127.0.0.1` | Local | `browse env local` | None needed (clean isolated local browser by default) |
-| Deployed/staging site | Remote | `browse env remote` | cookie-sync → `--context-id` |
+| `localhost` / `127.0.0.1` | Local | `browse open <url> --local` | None needed (clean isolated local browser by default) |
+| Deployed/staging site | Remote | `browse open <url> --remote` | Browserbase credentials; use contexts where supported |
 
-**Rule: If the target URL contains `localhost` or `127.0.0.1`, always use `browse env local`.**
+**Rule: If the target URL contains `localhost` or `127.0.0.1`, pass `--local` on the first `browse open`.**
 
 ### Local Mode (default for localhost)
 
 ```bash
-browse env local
-browse open http://localhost:3000
+browse open http://localhost:3000 --local
 ```
 
-`browse env local` uses a clean isolated local browser by default, which is best for reproducible localhost QA runs.
+`browse open ... --local` uses a clean isolated local browser by default, which is best for reproducible localhost QA runs.
 
 Use local-mode variants only when needed:
 
-- `browse env local --auto-connect` — auto-discover existing local Chrome, fallback to isolated. Use this only when the test explicitly needs existing local login/cookies/state.
-- `browse env local <port|url>` — attach to a specific CDP target (explicit local browser attach).
+- `browse open <url> --auto-connect` — auto-discover an existing debuggable local Chrome. Use this only when the test explicitly needs existing local login/cookies/state.
+- `browse open <url> --cdp <port|url>` — attach to a specific CDP target (explicit local browser attach).
 
 ### Remote Mode (deployed sites via cookie-sync)
 
@@ -226,15 +225,19 @@ Use local-mode variants only when needed:
 node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains your-app.com
 # Output: Context ID: ctx_abc123
 
-# Step 2: Switch to remote mode
-browse env remote
-browse open https://staging.your-app.com --context-id ctx_abc123 --persist
+# Step 2: Open in remote mode with the synced context
+SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://staging.your-app.com --cdp "$CONNECT_URL"
 browse snapshot
 # ... run tests ...
 browse stop
+browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
-Cookie-sync flags: `--domains`, `--context`, `--stealth`, `--proxy "City,ST,US"`
+Cookie-sync flags: `--domains`, `--context`, `--verified`, `--proxy "City,ST,US"`
 
 ## Workflow A: Diff-Driven Testing
 
@@ -336,14 +339,14 @@ Changed: src/components/SignupForm.tsx (added email validation)
 browse stop 2>/dev/null
 mkdir -p .context/ui-test-screenshots
 # localhost/default QA → clean, reproducible local run
-browse env local
+browse open http://localhost:3000 --local
 ```
 
 For each test, follow the **before/after pattern**:
 
 ```bash
 # Navigate
-browse open http://localhost:3000/path
+browse open http://localhost:3000/path --local
 browse wait load
 
 # BEFORE snapshot
@@ -583,7 +586,7 @@ For worked examples with exact commands, read [EXAMPLES.md](EXAMPLES.md) if you 
 3. **Before/after for every interaction** — snapshot, act, snapshot, compare
 4. **Screenshot every failure** — `browse screenshot` immediately on STEP_FAIL, save to `.context/ui-test-screenshots/<step-id>.png`
 5. **Deterministic checks first** — axe-core, console errors, form labels before visual judgment
-6. **For localhost, start with clean local mode** — use `browse env local` first for reproducible runs; use `--auto-connect` only when existing local state is required
+6. **For localhost, start with clean local mode** — pass `--local` on the first `browse open` for reproducible runs; use `--auto-connect` only when existing local state is required
 7. **Always `browse stop` when done** — for parallel runs, stop every named session
 8. **Report failures with reproduction steps** — action, expected, actual, screenshot path, suggestion
 9. **Parallelize independent tests** — use Workflow C with named sessions when testing multiple pages or categories on a deployed site
@@ -596,6 +599,6 @@ For worked examples with exact commands, read [EXAMPLES.md](EXAMPLES.md) if you 
 - **Element ref not found**: `browse snapshot` again — refs change on page update
 - **Blank snapshot**: `browse wait load` or `browse wait selector ".expected"` before snapshotting
 - **SPA deep links 404**: Navigate to `/` first, then click through
-- **Remote auth fails**: Re-run cookie-sync with `--context <id>`, try `--stealth`
+- **Remote auth fails**: Re-run cookie-sync with `--context <id>`, try `--verified`
 - **Parallel session conflicts**: Ensure every `browse` command uses `BROWSE_SESSION=<name>` — without it, commands go to the default session
 - **Session not stopping**: `BROWSE_SESSION=<name> browse stop`. For zombies: `pkill -f "browse.*<name>.*daemon"`

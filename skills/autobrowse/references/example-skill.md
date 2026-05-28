@@ -29,9 +29,8 @@ tsx scripts/evaluate.ts --task sf-311-request --env remote
 
 ```bash
 browse stop
-browse env local
-browse env remote
-browse open <url>
+browse open <url> --local
+browse open <url> --remote
 browse wait load
 browse wait timeout <ms>
 browse snapshot
@@ -41,7 +40,7 @@ browse type <text>
 browse press Enter
 browse press Tab
 browse select "//select" <value>
-browse fill "#css-id" <text> --no-press-enter
+browse fill "#css-id" <text>
 ```
 
 Wait syntax:
@@ -56,13 +55,11 @@ Wait syntax:
 
 ```bash
 browse stop
-browse env local        # REQUIRED: forces new Browserbase session
-browse env remote       # restarted:true = clean session
-browse open "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=street_defect&Nature_of_request=pavement_defect"
+browse open "https://sanfrancisco.form.us.empro.verintcloudservices.com/form/auto/pw_street_sidewalkdefect?Issue=street_defect&Nature_of_request=pavement_defect" --remote
 browse wait load
 ```
 
-The `env local` + `env remote` sequence is mandatory. Skipping `env local` causes `env remote` to reconnect to a dead prior session, producing "No Page found" errors.
+If a daemon may already be active, run `browse stop` before opening remote; active local sessions do not switch to remote automatically.
 
 ### Page 1 — Disclaimer (turns 6–7)
 
@@ -95,7 +92,7 @@ The Location textarea is map-driven — the ESRI geocoder populates it. Do not t
 
 ```bash
 browse select "//select" "Pothole or pavement defect"
-browse fill "#dform_widget_Request_description" "Large pothole approximately 12 inches wide near the crosswalk, causing hazard for cyclists" --no-press-enter
+browse fill "#dform_widget_Request_description" "Large pothole approximately 12 inches wide near the crosswalk, causing hazard for cyclists"
 browse click 0-970
 ```
 
@@ -133,11 +130,10 @@ Read the confirmation number from the snapshot and immediately output the final 
   "location_entered": "INTERSECTION OF 7TH ST & CHARLES J BRENHAM PL SAN FRANCISCO, CA 94102",
   "submission_method": "anonymous",
   "gotchas": [
-    "Use --session sf311 to avoid contaminated default Browserbase session",
-    "env local + env remote forces a fresh Browserbase session",
+    "Run browse stop before --remote when a daemon may already be active",
     "Location field is map-driven: type in ESRI search box, click autocomplete, Enter → wait 3000ms → Tab",
     "XPath Next buttons fail — always snapshot first and click by ref",
-    "Page 3 description: use CSS selector #dform_widget_Request_description with fill --no-press-enter",
+    "Page 3 description: use CSS selector #dform_widget_Request_description with fill",
     "Page 3 Next ref 0-970 is stable — no snapshot needed"
   ],
   "error_reasoning": null
@@ -146,13 +142,13 @@ Read the confirmation number from the snapshot and immediately output the final 
 
 ## Site-Specific Gotchas
 
-1. **Dead session on reconnect**: After a session ends, `browse env remote` alone reconnects to the same dead Browserbase session (no pages). The `env local` → `env remote` sequence forces creating a fresh session.
+1. **Active daemon mode switch**: If a daemon may already be running in local or remote mode, run `browse stop` before `browse open <url> --remote`; active sessions do not switch modes automatically.
 
 3. **Location field is map-driven**: The Location textarea is populated by the ESRI geocoder. Workflow: type in the search box → wait 2000ms → snapshot → click autocomplete suggestion → press Enter → wait 3000ms → press Tab → Location field auto-populates.
 
 4. **XPath Next button fails**: `//button[normalize-space(.)='Next']` XPath fails to advance pages on this Verint form. Always click Next by ref obtained from a snapshot.
 
-5. **Page 3 textarea by CSS ID**: The Request Description textarea has a stable `id="dform_widget_Request_description"`. Use `fill "#dform_widget_Request_description" <text> --no-press-enter`.
+5. **Page 3 textarea by CSS ID**: The Request Description textarea has a stable `id="dform_widget_Request_description"`. Use `fill "#dform_widget_Request_description" <text>`.
 
 6. **Page 3 Next ref is stable at 0-970**: No snapshot needed before clicking Next on Page 3.
 
@@ -186,10 +182,10 @@ To recover in future runs: follow the exact turn budget above with no deviations
   "location_entered": "INTERSECTION OF 7TH ST & CHARLES J BRENHAM PL SAN FRANCISCO, CA 94102",
   "submission_method": "anonymous",
   "gotchas": [
-    "env local + env remote forces a fresh Browserbase session",
+    "Run browse stop before --remote when a daemon may already be active",
     "Location field is map-driven: type in ESRI search box, click autocomplete, Enter → wait 3000ms → Tab",
     "XPath Next buttons fail — always snapshot first and use ref ID",
-    "Page 3 description: use CSS selector #dform_widget_Request_description with fill --no-press-enter",
+    "Page 3 description: use CSS selector #dform_widget_Request_description with fill",
     "Page 3 Next ref 0-970 is stable — no snapshot needed before clicking"
   ],
   "error_reasoning": null

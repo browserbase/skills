@@ -12,9 +12,9 @@ The output is a `skill.md` — a site-specific playbook any agent can follow. On
 
 - Node.js 18+
 - [Claude Code](https://claude.ai/code)
-- `browse` CLI: `npm install -g @browserbasehq/browse-cli`
+- `browse` CLI: `npm install -g browse`
 - `ANTHROPIC_API_KEY` in your environment
-- For bot-protected sites: `BROWSERBASE_API_KEY` + `BROWSERBASE_PROJECT_ID`
+- For bot-protected sites: `BROWSERBASE_API_KEY`
 
 ## Setup
 
