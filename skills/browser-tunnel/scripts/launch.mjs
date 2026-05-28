@@ -16,7 +16,7 @@
  * Output (stdout, single JSON line then "---READY---" sentinel):
  *   {
  *     "tunnelUrl":   "https://random.trycloudflare.com",
- *     "authUrl":     "https://tunnel:uuid@random.trycloudflare.com",
+ *     "authUrl":     "https://random.trycloudflare.com/?__tunnel=uuid",
  *     "secret":      "uuid",
  *     "headerName":  "X-Tunnel-Auth",
  *     "sessionId":   "...",
@@ -66,36 +66,42 @@ const BB_API_BASE =
 const BB_DASH_BASE =
   env === "dev" ? "https://www.dev.browserbase.com" : "https://www.browserbase.com";
 
-// Project ID is optional — if unset, use the first project on the account.
-let BB_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID;
-if (!BB_PROJECT_ID) {
-  const projRes = await fetch(`${BB_API_BASE}/v1/projects`, {
-    headers: { "x-bb-api-key": BB_API_KEY },
-  });
-  if (!projRes.ok) {
-    console.error(`ERROR: could not list projects (${projRes.status} ${await projRes.text()})`);
-    process.exit(1);
-  }
-  const projects = await projRes.json();
-  BB_PROJECT_ID = Array.isArray(projects) ? projects[0]?.id : projects?.data?.[0]?.id;
-  if (!BB_PROJECT_ID) {
-    console.error("ERROR: no Browserbase projects found for this API key");
-    process.exit(1);
-  }
-  console.error(`[bb] using project ${BB_PROJECT_ID} (set BROWSERBASE_PROJECT_ID to override)`);
-}
+// Project ID is optional. Each API key is scoped to exactly one project, so the
+// Browserbase API resolves it from the key when projectId is omitted. Set
+// BROWSERBASE_PROJECT_ID only to pin a specific project. (Don't guess from
+// GET /v1/projects — that lists every project the account can see, and the
+// wrong one returns "Unauthorized Project ID".)
+let BB_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID || null;
 
 const SECRET = randomUUID();
 const HEADER = "X-Tunnel-Auth";
+const COOKIE = "bb_tunnel_auth";
+const QUERY = "__tunnel";
 
-// A request is authed if it carries the secret either as:
-//   (a) the X-Tunnel-Auth header — used by Playwright/Stagehand via CDP, or
-//   (b) HTTP Basic auth whose password == SECRET — lets `browse open
-//       https://tunnel:<secret>@host` work with no per-request header injection
-//       (the browser replays the URL credentials on every same-origin request).
+// A request is authed if it carries the secret as any of:
+//   (a) the X-Tunnel-Auth header — used by Playwright/Stagehand via CDP
+//   (b) the bb_tunnel_auth cookie — set by us on the first authed response, then
+//       replayed by the browser on every same-origin request (incl. subresources)
+//   (c) the ?__tunnel=<secret> query param — the entry point for browser drivers
+//       (e.g. `browse open <authUrl>`): the first navigation carries it, we set
+//       the cookie, and everything after rides the cookie
+//   (d) HTTP Basic auth whose password == SECRET — handy for curl debugging
 // Returns how it authed so we can strip exactly the credential we consumed.
+// NOTE: credentials embedded in the URL (https://user:pass@host) are NOT used —
+// Chrome strips them on CDP navigation, so they never reach us. Hence the cookie.
 function authVia(req) {
   if (req.headers[HEADER.toLowerCase()] === SECRET) return "header";
+
+  const cookie = req.headers["cookie"];
+  if (cookie) {
+    const m = cookie.match(new RegExp(`(?:^|;\\s*)${COOKIE}=([^;]+)`));
+    if (m && m[1] === SECRET) return "cookie";
+  }
+
+  try {
+    if (new URL(req.url, "http://x").searchParams.get(QUERY) === SECRET) return "query";
+  } catch {}
+
   const auth = req.headers["authorization"];
   if (auth && auth.startsWith("Basic ")) {
     try {
@@ -106,16 +112,49 @@ function authVia(req) {
   return null;
 }
 
-// Strip whichever credential authed the request so the dev server never sees it.
-function stripAuth(headers, via) {
+// Strip whichever credential(s) we consumed and our query param, so the dev
+// server never sees the tunnel secret. Returns the rewritten upstream path.
+function sanitize(req, via) {
+  const headers = { ...req.headers };
   delete headers[HEADER.toLowerCase()];
   if (via === "basic") delete headers["authorization"];
+  if (headers["cookie"]) {
+    const kept = headers["cookie"]
+      .split(/;\s*/)
+      .filter((c) => !c.startsWith(`${COOKIE}=`))
+      .join("; ");
+    if (kept) headers["cookie"] = kept;
+    else delete headers["cookie"];
+  }
+  headers.host = `${host}:${port}`;
+
+  let path = req.url;
+  try {
+    const u = new URL(req.url, "http://x");
+    if (u.searchParams.has(QUERY)) {
+      u.searchParams.delete(QUERY);
+      path = u.pathname + u.search + u.hash;
+    }
+  } catch {}
+  return { headers, path };
+}
+
+// Append our auth cookie to an upstream response's headers (preserving any
+// Set-Cookie the app already sent), so the browser carries the secret onward.
+function withAuthCookie(upHeaders) {
+  const out = { ...upHeaders };
+  const existing = out["set-cookie"] || [];
+  out["set-cookie"] = [
+    ...(Array.isArray(existing) ? existing : [existing]),
+    `${COOKIE}=${SECRET}; Path=/; HttpOnly; Secure; SameSite=Lax`,
+  ];
+  return out;
 }
 
 // ─── Auth-gated local HTTP proxy ─────────────────────────────────────────────
 // Sits between cloudflared edge and the user's localhost:<port>.
-// Requires the secret (X-Tunnel-Auth header or Basic-auth password). Forwards
-// request+body, streams response.
+// Requires the secret (cookie, ?__tunnel query, X-Tunnel-Auth header, or Basic
+// password). Forwards request+body, streams response, and plants the auth cookie.
 const proxy = http.createServer((req, res) => {
   const via = authVia(req);
   if (!via) {
@@ -123,15 +162,12 @@ const proxy = http.createServer((req, res) => {
     res.end("unauthorized: missing or invalid tunnel auth\n");
     return;
   }
-  const headers = { ...req.headers };
-  stripAuth(headers, via);
-  // rewrite Host so the upstream sees what it expects
-  headers.host = `${host}:${port}`;
+  const { headers, path } = sanitize(req, via);
 
   const upstream = http.request(
-    { host, port, method: req.method, path: req.url, headers },
+    { host, port, method: req.method, path, headers },
     (upRes) => {
-      res.writeHead(upRes.statusCode || 502, upRes.headers);
+      res.writeHead(upRes.statusCode || 502, withAuthCookie(upRes.headers));
       upRes.pipe(res);
     }
   );
@@ -150,11 +186,9 @@ proxy.on("upgrade", (req, clientSocket, head) => {
     clientSocket.destroy();
     return;
   }
-  const headers = { ...req.headers };
-  stripAuth(headers, via);
-  headers.host = `${host}:${port}`;
+  const { headers, path } = sanitize(req, via);
 
-  const upstream = http.request({ host, port, method: req.method, path: req.url, headers });
+  const upstream = http.request({ host, port, method: req.method, path, headers });
   upstream.on("upgrade", (upRes, upstreamSocket, upHead) => {
     clientSocket.write(
       `HTTP/1.1 101 Switching Protocols\r\n` +
@@ -214,7 +248,7 @@ console.error(`[bb] creating session on ${BB_API_BASE}...`);
 const bbRes = await fetch(`${BB_API_BASE}/v1/sessions`, {
   method: "POST",
   headers: { "Content-Type": "application/json", "x-bb-api-key": BB_API_KEY },
-  body: JSON.stringify({ projectId: BB_PROJECT_ID }),
+  body: JSON.stringify(BB_PROJECT_ID ? { projectId: BB_PROJECT_ID } : {}),
 });
 if (!bbRes.ok) {
   const text = await bbRes.text();
@@ -224,12 +258,16 @@ if (!bbRes.ok) {
   process.exit(1);
 }
 const session = await bbRes.json();
-console.error(`[bb] session: ${session.id}`);
+// Resolve the actual project the API assigned (from the key) for later release.
+BB_PROJECT_ID = session.projectId || BB_PROJECT_ID;
+console.error(`[bb] session: ${session.id} (project ${BB_PROJECT_ID})`);
 
 // ─── Emit connection JSON on stdout ─────────────────────────────────────────
-// authUrl embeds the secret as Basic-auth credentials, so `browse open <authUrl>`
-// (or any browser) authenticates every request with no header injection.
-const authUrl = tunnelUrl.replace(/^https:\/\//, `https://tunnel:${SECRET}@`);
+// authUrl carries the secret as a query param. The first navigation authenticates
+// on it; the proxy then plants the bb_tunnel_auth cookie, so every subsequent
+// request (subresources, XHR/fetch) authenticates via the cookie — no header
+// injection, and it survives Chrome stripping URL credentials.
+const authUrl = `${tunnelUrl}/?${QUERY}=${SECRET}`;
 const output = {
   tunnelUrl,
   authUrl,
