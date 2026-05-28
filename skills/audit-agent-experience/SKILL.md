@@ -3,7 +3,7 @@ name: audit-agent-experience
 description: "Audit the developer experience of a product, SDK, docs site, or SKILL.md by dropping multiple Claude subagents at it with only a tiny task prompt and real tools (WebFetch, Bash, Write). Agents must discover the docs themselves, install deps, ask for credentials if needed, and attempt real execution. The skill captures each agent's trace — tool calls, retries, wall time, errors — and scores on Setup Friction, Speed, Efficiency, Error Recovery, and Doc Quality, then emits an HTML report with an A–F grade and concrete fixes. Use when the user asks to audit agent experience, test a skill, audit docs for agents, check if a SDK is agent-friendly, validate a SKILL.md, measure agent DX, or benchmark how painful onboarding is for an AI agent. Triggers: 'audit agent experience', 'test this skill', 'audit docs for agents', 'is my SDK agent-friendly', 'run a DX audit', 'agent experience test', 'test my docs', 'how do agents do with my product'."
 license: MIT
 metadata:
-  author: jay
+  author: jay-sahnan
   version: "1.4.0"
 allowed-tools: Read WebFetch Write Bash AskUserQuestion Agent
 ---
@@ -158,7 +158,7 @@ If a credential manager produces hits, list them as candidates the same way as t
 
 Write the value into per-agent workspace `.env` files using the same generic names (`API_KEY`, `PROJECT_ID`, `SECRET`) as the paste flow — see Step 2. The discovery layer is upstream of injection; downstream behavior (generic names, agent must read docs to map them) is unchanged.
 
-**Orchestrator-retained credentials.** After writing per-agent `.env` files, the orchestrator keeps the **original product-specific names → values** (e.g. `BROWSERBASE_API_KEY`, `BROWSERBASE_PROJECT_ID`) available to itself for downstream verification work in Steps 6 / 6.5 / 8 — for example, calling the product's API with `curl` to confirm that a session ID an agent reported actually resolves, or fetching session metadata to enrich the report. The orchestrator can read them with `printenv` (no need to store anywhere — the parent shell already has them since auto-discover sourced them from there).
+**Orchestrator-retained credentials.** After writing per-agent `.env` files, the orchestrator keeps the **original product-specific names → values** (e.g. `BROWSERBASE_API_KEY`) available to itself for downstream verification work in Steps 6 / 6.5 / 8 — for example, calling the product's API with `curl` to confirm that a session ID an agent reported actually resolves, or fetching session metadata to enrich the report. The orchestrator can read them with `printenv` (no need to store anywhere — the parent shell already has them since auto-discover sourced them from there).
 
 This is asymmetric on purpose: the subagents see only generic `API_KEY` / `PROJECT_ID` / `SECRET` so the doc-quality test stays honest (they must read the docs to discover the real var name). The orchestrator is not being audited, so it can use the real names freely for verification.
 
