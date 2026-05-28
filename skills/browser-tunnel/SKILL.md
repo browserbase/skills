@@ -22,15 +22,15 @@ Run a **Browserbase cloud session** that can hit a `localhost` URL on this machi
 ```
 BB cloud browser ──HTTPS──► xyz.trycloudflare.com ──HTTP──► local auth proxy (127.0.0.1:auto)
                                                                     │
-                                                                    │ check: X-Tunnel-Auth header
+                                                                    │ check: secret (Basic-auth pw or X-Tunnel-Auth)
                                                                     ▼
                                                             user's localhost:<port>
 ```
 
 1. `cloudflared` exposes an ephemeral `*.trycloudflare.com` URL pointed at a local auth proxy
-2. The auth proxy gates every request on `X-Tunnel-Auth: <random UUID>`
-3. The launcher creates a Browserbase session and prints the tunnel URL + secret
-4. You drive the BB session via Playwright/Stagehand, injecting the header via CDP
+2. The auth proxy gates every request on a `<random UUID>` secret, accepted either as the **Basic-auth password** in the URL or as an `X-Tunnel-Auth` header
+3. The launcher creates a Browserbase session and prints an `authUrl` (`https://tunnel:<secret>@...`) plus the raw `tunnelUrl` + `secret`
+4. You drive the BB session — easiest with the `browse` CLI pointed at `authUrl` (the browser replays the URL credentials on every request, no header injection needed)
 5. On exit, the launcher releases the BB session, kills cloudflared, closes the proxy
 
 ## Prerequisites
@@ -69,9 +69,10 @@ The JSON has these fields:
 
 | Field | What it is |
 |---|---|
-| `tunnelUrl` | The `https://*.trycloudflare.com` URL the BB browser should hit |
-| `secret` | UUID — must be sent as `X-Tunnel-Auth` on every request |
-| `headerName` | `X-Tunnel-Auth` (the header name to use) |
+| `authUrl` | `https://tunnel:<secret>@*.trycloudflare.com` — the URL to open. Carries the secret as Basic-auth creds, so every request authenticates automatically. **Use this with the `browse` CLI.** |
+| `tunnelUrl` | The bare `https://*.trycloudflare.com` URL (no creds) — use when injecting the secret as a header instead |
+| `secret` | UUID — the tunnel secret. Sent as the Basic-auth password (in `authUrl`) or as `X-Tunnel-Auth` |
+| `headerName` | `X-Tunnel-Auth` (header name, for CDP injection) |
 | `sessionId` | Browserbase session ID |
 | `connectUrl` | `wss://...` — for `chromium.connectOverCDP()` |
 | `dashboardUrl` | `https://www.browserbase.com/sessions/<id>` — share with the user |
@@ -88,9 +89,29 @@ Always show the user the `dashboardUrl` so they can watch live.
 
 ## Step 2 — Drive the BB session
 
-The crucial bit: you must inject `X-Tunnel-Auth: <secret>` via CDP's `Network.setExtraHTTPHeaders`. A framework-level helper like Playwright's `page.setExtraHTTPHeaders()` only covers top-level navigations, so subresources (JS/CSS/API calls) will 401. Any CDP-capable driver works — Playwright and Stagehand below are equivalent, so use whichever your project already has. They inject the header the same way.
+The secret can travel two ways. Pick based on your driver:
 
-### Option A — Playwright
+- **Basic-auth in the URL (`authUrl`)** — open `https://tunnel:<secret>@host`. The browser replays the credentials on every same-origin request (page *and* subresources), so nothing else is needed. This is what makes the **`browse` CLI** a clean one-liner.
+- **`X-Tunnel-Auth` header via CDP** — for programmatic drivers (Playwright/Stagehand), inject the header with `Network.setExtraHTTPHeaders`. Don't use a framework helper like `page.setExtraHTTPHeaders()`: it only covers top-level navigations, so subresources will 401.
+
+### Option A — `browse` CLI (recommended)
+
+Attach the `browse` CLI to the session the launcher already created (via its `connectUrl`) and open the `authUrl`. No header injection — the Basic-auth creds in the URL cover every request.
+
+```bash
+AUTH_URL=$(echo "$CONFIG_JSON" | jq -r .authUrl)
+CONNECT_URL=$(echo "$CONFIG_JSON" | jq -r .connectUrl)
+
+browse open --cdp "$CONNECT_URL" "$AUTH_URL"
+
+# then drive normally — snapshot, click, screenshot, etc.
+browse snapshot
+browse screenshot --path /tmp/local-on-bb.png
+```
+
+### Option B — Playwright
+
+Use when you need programmatic control. Inject the header via CDP before navigating, then go to the bare `tunnelUrl`.
 
 ```javascript
 import { chromium } from "playwright-core";
@@ -115,9 +136,11 @@ await page.screenshot({ path: "/tmp/login.png", fullPage: true });
 await browser.close();
 ```
 
-### Option B — Stagehand
+> Playwright can also use `authUrl` directly (`page.goto(authUrl)`) and skip the CDP header — the `X-Tunnel-Auth` route is just the alternative if you'd rather not put creds in the URL.
 
-Same idea — inject headers via CDP before any `page.goto()` calls, then navigate to `tunnelUrl` instead of `localhost:<port>`.
+### Option C — Stagehand
+
+Same as Playwright — inject the header via CDP before any `page.goto()`, then navigate to `tunnelUrl` (or just `page.goto(authUrl)` and skip the header).
 
 ```javascript
 const stagehand = new Stagehand({
@@ -134,20 +157,6 @@ await client.send("Network.setExtraHTTPHeaders", {
 
 await page.goto(tunnelUrl);
 await stagehand.act({ action: "click the login button" });
-```
-
-### Option C — `browse` CLI (not yet supported)
-
-The `browse` CLI would be the simplest path, but it can't inject `X-Tunnel-Auth` on every request today — so subresources (JS/CSS/API calls) through the tunnel will 401. Until the CLI supports per-request header injection, use Playwright or Stagehand (above) for any tunnel flow.
-
-> **Known gap / feature request:** add per-request extra-header support to the `browse` CLI (e.g. `--header "X-Tunnel-Auth: <secret>"` wired to CDP `Network.setExtraHTTPHeaders`). That would make the CLI the primary, one-command path for this skill.
-
-A single bare navigation can still be done, but it will only load the root document:
-
-```bash
-SESSION_ID=$(echo "$CONFIG_JSON" | jq -r .sessionId)
-TUNNEL_URL=$(echo "$CONFIG_JSON" | jq -r .tunnelUrl)
-browse --connect "$SESSION_ID" open "$TUNNEL_URL"
 ```
 
 ## Step 3 — Clean up
@@ -169,9 +178,10 @@ curl -s "https://api.browserbase.com/v1/sessions/$SESSION_ID" \
 
 What you can tell a security-minded user:
 
-- The `*.trycloudflare.com` URL exists during the session, **but** every request requires `X-Tunnel-Auth: <random UUID>` — anyone without the secret gets 401
-- The secret lives in exactly two places: the launcher process on the user's machine, and the headers injected into the BB session via CDP. It is never logged, never sent over the public URL, and never persisted
-- The local proxy strips the auth header before forwarding upstream, so the dev server never sees `X-Tunnel-Auth`
+- The `*.trycloudflare.com` URL exists during the session, **but** every request requires the `<random UUID>` secret (Basic-auth password or `X-Tunnel-Auth` header) — anyone without it gets 401
+- The secret lives in exactly two places: the launcher process on the user's machine, and the BB session (in the `authUrl` it navigates to, or the header injected via CDP). It is never logged and never persisted
+- The local proxy strips whichever credential authed the request (the `Authorization` Basic header or `X-Tunnel-Auth`) before forwarding upstream, so the dev server never sees it
+- The secret rides inside the TLS tunnel to Cloudflare's edge; it is never sent in cleartext
 - The proxy listens only on `127.0.0.1`, never on a public interface
 - Tunnel dies when the launcher exits or the BB session ends
 - Cloudflare-the-company terminates TLS at their edge, so trust includes them. For stricter guarantees (no public URL existing at all), the long-term answer is a native `bb tunnel` with a VPC-internal relay. This skill is the v0.
@@ -188,28 +198,17 @@ echo $! > /tmp/bb-localhost.pid
 until grep -q "^---READY---$" /tmp/bb-localhost.log 2>/dev/null; do sleep 0.5; done
 
 CONFIG_JSON=$(grep -m1 '^{' /tmp/bb-localhost.log)
-TUNNEL_URL=$(echo "$CONFIG_JSON" | jq -r .tunnelUrl)
-SECRET=$(echo "$CONFIG_JSON" | jq -r .secret)
+AUTH_URL=$(echo "$CONFIG_JSON" | jq -r .authUrl)
+CONNECT_URL=$(echo "$CONFIG_JSON" | jq -r .connectUrl)
 SESSION_ID=$(echo "$CONFIG_JSON" | jq -r .sessionId)
 DASHBOARD_URL=$(echo "$CONFIG_JSON" | jq -r .dashboardUrl)
 
 echo "Watch live: $DASHBOARD_URL"
 
-# 2. Drive (your script of choice — Playwright/Stagehand here)
-node -e "
-import('playwright-core').then(async ({ chromium }) => {
-  const browser = await chromium.connectOverCDP('$(echo "$CONFIG_JSON" | jq -r .connectUrl)');
-  const context = browser.contexts()[0];
-  const page = context.pages()[0] || await context.newPage();
-  const client = await context.newCDPSession(page);
-  await client.send('Network.enable');
-  await client.send('Network.setExtraHTTPHeaders', { headers: { 'X-Tunnel-Auth': '$SECRET' } });
-  await page.goto('$TUNNEL_URL', { waitUntil: 'domcontentloaded' });
-  console.log('Title:', await page.title());
-  await page.screenshot({ path: '/tmp/local-on-bb.png', fullPage: true });
-  await browser.close();
-});
-"
+# 2. Drive with the browse CLI — attach to the launcher's session, open the
+#    auth URL (creds ride along), snapshot + screenshot.
+browse open --cdp "$CONNECT_URL" "$AUTH_URL"
+browse screenshot --path /tmp/local-on-bb.png
 
 # 3. Clean up
 kill -SIGINT $(cat /tmp/bb-localhost.pid)
@@ -223,11 +222,11 @@ echo "Replay: $DASHBOARD_URL"
 | Symptom | Fix |
 |---|---|
 | `cloudflared not found` | `brew install cloudflared` |
-| 401 on every request from BB | You forgot to inject `X-Tunnel-Auth` via CDP. Use `Network.setExtraHTTPHeaders`, **not** `page.setExtraHTTPHeaders` |
-| Root HTML loads but JS/CSS 401 | Same root cause — Playwright's helper only applies to top-level navs. Switch to CDP |
+| 401 on every request from BB | Open `authUrl` (not the bare `tunnelUrl`) so the Basic-auth creds ride along — or, on a CDP driver, inject `X-Tunnel-Auth` via `Network.setExtraHTTPHeaders` |
+| Root HTML loads but JS/CSS 401 | You used a framework helper like `page.setExtraHTTPHeaders()` (top-level navs only) instead of `authUrl` or CDP `Network.setExtraHTTPHeaders` |
 | Tunnel URL takes 5-10s to be reachable from BB | Normal — cloudflared edge needs to register. Retry once on 502 |
 | Local dev server isn't reached | `curl http://localhost:<port>` first to confirm the dev server is actually up |
-| `BROWSERBASE_API_KEY not set` | `export BROWSERBASE_API_KEY=...` and `BROWSERBASE_PROJECT_ID=...` |
+| `BROWSERBASE_API_KEY not set` | `export BROWSERBASE_API_KEY=...` (project is auto-discovered; set `BROWSERBASE_PROJECT_ID` only to pin one) |
 | WebSockets don't work | The proxy supports HTTP upgrade — make sure your client uses `wss://` (cloudflared quick tunnels are HTTPS-only) |
 | Launcher hangs at "starting quick tunnel" | Network or DNS issue reaching `trycloudflare.com`. `cloudflared tunnel --url http://example.com` to test cloudflared standalone |
 

@@ -16,6 +16,7 @@
  * Output (stdout, single JSON line then "---READY---" sentinel):
  *   {
  *     "tunnelUrl":   "https://random.trycloudflare.com",
+ *     "authUrl":     "https://tunnel:uuid@random.trycloudflare.com",
  *     "secret":      "uuid",
  *     "headerName":  "X-Tunnel-Auth",
  *     "sessionId":   "...",
@@ -87,18 +88,43 @@ if (!BB_PROJECT_ID) {
 const SECRET = randomUUID();
 const HEADER = "X-Tunnel-Auth";
 
+// A request is authed if it carries the secret either as:
+//   (a) the X-Tunnel-Auth header — used by Playwright/Stagehand via CDP, or
+//   (b) HTTP Basic auth whose password == SECRET — lets `browse open
+//       https://tunnel:<secret>@host` work with no per-request header injection
+//       (the browser replays the URL credentials on every same-origin request).
+// Returns how it authed so we can strip exactly the credential we consumed.
+function authVia(req) {
+  if (req.headers[HEADER.toLowerCase()] === SECRET) return "header";
+  const auth = req.headers["authorization"];
+  if (auth && auth.startsWith("Basic ")) {
+    try {
+      const decoded = Buffer.from(auth.slice(6), "base64").toString("utf8");
+      if (decoded.slice(decoded.indexOf(":") + 1) === SECRET) return "basic";
+    } catch {}
+  }
+  return null;
+}
+
+// Strip whichever credential authed the request so the dev server never sees it.
+function stripAuth(headers, via) {
+  delete headers[HEADER.toLowerCase()];
+  if (via === "basic") delete headers["authorization"];
+}
+
 // ─── Auth-gated local HTTP proxy ─────────────────────────────────────────────
 // Sits between cloudflared edge and the user's localhost:<port>.
-// Requires header X-Tunnel-Auth == SECRET. Forwards request+body, streams response.
+// Requires the secret (X-Tunnel-Auth header or Basic-auth password). Forwards
+// request+body, streams response.
 const proxy = http.createServer((req, res) => {
-  if (req.headers[HEADER.toLowerCase()] !== SECRET) {
+  const via = authVia(req);
+  if (!via) {
     res.writeHead(401, { "content-type": "text/plain" });
-    res.end("unauthorized: missing or invalid tunnel auth header\n");
+    res.end("unauthorized: missing or invalid tunnel auth\n");
     return;
   }
   const headers = { ...req.headers };
-  // strip the auth header before forwarding so the dev server never sees it
-  delete headers[HEADER.toLowerCase()];
+  stripAuth(headers, via);
   // rewrite Host so the upstream sees what it expects
   headers.host = `${host}:${port}`;
 
@@ -118,13 +144,14 @@ const proxy = http.createServer((req, res) => {
 
 // WebSocket upgrade passthrough (auth-gated)
 proxy.on("upgrade", (req, clientSocket, head) => {
-  if (req.headers[HEADER.toLowerCase()] !== SECRET) {
+  const via = authVia(req);
+  if (!via) {
     clientSocket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
     clientSocket.destroy();
     return;
   }
   const headers = { ...req.headers };
-  delete headers[HEADER.toLowerCase()];
+  stripAuth(headers, via);
   headers.host = `${host}:${port}`;
 
   const upstream = http.request({ host, port, method: req.method, path: req.url, headers });
@@ -200,8 +227,12 @@ const session = await bbRes.json();
 console.error(`[bb] session: ${session.id}`);
 
 // ─── Emit connection JSON on stdout ─────────────────────────────────────────
+// authUrl embeds the secret as Basic-auth credentials, so `browse open <authUrl>`
+// (or any browser) authenticates every request with no header injection.
+const authUrl = tunnelUrl.replace(/^https:\/\//, `https://tunnel:${SECRET}@`);
 const output = {
   tunnelUrl,
+  authUrl,
   secret: SECRET,
   headerName: HEADER,
   sessionId: session.id,
