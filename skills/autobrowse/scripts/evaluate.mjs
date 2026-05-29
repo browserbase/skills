@@ -16,6 +16,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.resolve(__dirname, "..");
@@ -23,7 +24,7 @@ const SKILL_DIR = path.resolve(__dirname, "..");
 // ── Config ─────────────────────────────────────────────────────────
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
-const MAX_TURNS = 30;
+const MAX_TURNS = Number(process.env.MAX_TURNS) || 30;
 const MAX_TOKENS = 4096;
 const EXEC_TIMEOUT_MS = 30_000;
 
@@ -256,7 +257,15 @@ const PAGE_DRIVING_VERBS = new Set([
   "open", "snapshot", "screenshot", "click", "type", "fill", "press", "select",
   "wait", "get", "reload", "back", "forward", "mouse", "tab",
 ]);
-const TRACE_BROWSE_SESSION = "autobrowse-main";
+
+// Per-process local daemon name. Derived from a hash of the connectUrl so two
+// evaluate.mjs invocations driving different Browserbase sessions (e.g. SKILL.md
+// Step-3 parallel sub-agents) use distinct local daemons and don't collide on
+// the "autobrowse-main" socket. crypto.createHash is sync, fast, no deps.
+function deriveBrowseSessionName(connectUrl) {
+  const hash = crypto.createHash("sha1").update(connectUrl).digest("hex").slice(0, 8);
+  return `autobrowse-${hash}`;
+}
 
 function rewriteArgsForTrace(args, connectUrl) {
   // No-op when not in trace mode or when the first arg isn't a page-driving
@@ -272,7 +281,7 @@ function rewriteArgsForTrace(args, connectUrl) {
     if (out[i] === "--remote" || out[i] === "--local") out.splice(i, 1);
   }
   if (!hasFlag("--cdp")) out.push("--cdp", connectUrl);
-  if (!hasFlag("--session") && !hasFlag("-s")) out.push("--session", TRACE_BROWSE_SESSION);
+  if (!hasFlag("--session") && !hasFlag("-s")) out.push("--session", deriveBrowseSessionName(connectUrl));
   return out;
 }
 
