@@ -147,9 +147,14 @@ node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs \
   --task <task-name> --workspace ./autobrowse --env remote \
   --connect-url "$connect_url" --run-number "$N"
 
-# d. STOP + BISECT — order matters; bisect needs the session to still exist
+# d. STOP + BISECT + UNIFY — order matters; bisect needs the session to still
+#    exist, and unify-trace joins the bisect output with autobrowse's trace.json
+#    into a single time-ordered NDJSON the outer agent reads first each iter.
 node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/stop-capture.mjs "$RUN_ID"
 node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/bisect-cdp.mjs "$RUN_ID"
+node ${CLAUDE_SKILL_DIR}/scripts/unify-trace.mjs \
+  --trace-dir "$TRACE_ROOT" \
+  --o11y-dir "$O11Y_ROOT/$RUN_ID"
 
 # e. RELEASE
 browse cloud sessions update "$sid" --status REQUEST_RELEASE
@@ -169,45 +174,37 @@ If the agent failed or got stuck, look deeper:
 - Read `./autobrowse/traces/<task-name>/latest/trace.json` — search for the failure turn
 - Read screenshots around the failure point with the Read tool
 
-**When `--browser-trace` was used** — you now have **two complementary traces** and must cross-reference both before forming a hypothesis. They answer different questions:
-
-| File | Answers | Granularity |
-|---|---|---|
-| `summary.md` + `trace.json` | What did the **agent do**? (commands, reasoning, return values) | Per turn |
-| `.o11y/<run-id>/cdp/summary.json` | What did the **browser do**? (navigations, network requests, console errors) | Per page |
-
-The cross-reference pattern: skim `cdp/summary.json`'s `pages[]` for the page where things went wrong (high `network.failed`, console exceptions, unexpected URL). Then jump back to `trace.json` and find the turn whose command triggered that page (matching by URL or timing). That gives you both the *cause* (the command the agent issued) and the *effect* (what the browser actually did in response).
+**When `--browser-trace` was used — start with `unified-events.jsonl`.** The harness joins the agent's turn log and the browser's CDP firehose into one time-ordered NDJSON stream at the run root. One file, source-tagged (`source: "agent" | "browser"`), interleaved by wall-clock timestamp. Skim it top-to-bottom; the failure cause is usually one or two adjacent lines (the agent issued command X, the browser responded with Y).
 
 ```bash
-# Per-page bisect — network/console/page-lifecycle bucketed by navigation
-cat ./autobrowse/traces/<task-name>/latest/.o11y/<run-id>/cdp/summary.json
-
-# Drill into a specific failing page (failed XHRs, console errors, etc.)
-export O11Y_ROOT=./autobrowse/traces/<task-name>/latest/.o11y
-node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> list
-node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> errors
-node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> page 2 network/failed
+cat ./autobrowse/traces/<task-name>/latest/unified-events.jsonl
 ```
 
-Then back to `trace.json` for the turn that produced that page:
+The structured files (`trace.json`, `.o11y/<run-id>/cdp/*`) are **also agent-consumable as drill-downs** when the unified stream points at something you need more of:
 
-```bash
-# Example: page 2 had failed XHRs to /api/availability — which turn navigated there?
-node -e "JSON.parse(require('fs').readFileSync('./autobrowse/traces/<task-name>/latest/trace.json')).filter(e=>e.command?.includes('/api/availability')||e.output?.includes('/api/availability')).forEach(e=>console.log('turn',e.turn,e.command||e.output?.slice(0,80)))"
-```
+| Need | Drill-down file or command |
+|---|---|
+| Per-page totals + timing (events, network counts, errors by page) | `.o11y/<run-id>/cdp/summary.json` |
+| All failed network requests in one place | `.o11y/<run-id>/cdp/network/failed.jsonl` |
+| Full console exception payloads (stacktraces, etc.) | `.o11y/<run-id>/cdp/console/exceptions.jsonl` |
+| Per-page slice (only events on page N) | `.o11y/<run-id>/cdp/pages/<pid>/` |
+| Full reasoning text / untruncated tool outputs for a specific turn | `trace.json` (filter by `turn === N`) |
+| Ad-hoc grouped query (e.g. top hosts, errors-by-page) | `O11Y_ROOT=./autobrowse/traces/<task-name>/latest/.o11y node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> <cmd>` |
+
+The unified stream is the default; drill into structured files only when you need a grouped query, a full-text payload, or filtering the stream can't give you.
 
 ### Form one hypothesis
 
 Find the exact turn where things went wrong. What single heuristic would have prevented it?
 
-Under `--browser-trace`, base the hypothesis on **both signals**: the agent's command log (`trace.json` → what was attempted) *and* the browser's CDP record (`cdp/summary.json` → what actually happened). A hypothesis grounded only in the command log might say "the click didn't work" — grounded in both, it can say "the click went through but `/api/checkout` returned 403, so the next iter needs to wait for the auth cookie or switch to `--verified --proxies`."
+Under `--browser-trace`, the hypothesis must cite a **specific event from `unified-events.jsonl`** (line number or timestamp) — or name the drill-down file if you had to descend into one. This keeps updates evidence-grounded rather than vibes-driven. A hypothesis based only on the agent's commands might say "the click didn't work"; grounded in the unified stream, it can say "line 47 of unified-events.jsonl: `browse open` was followed by `Network.responseReceived` status 403 on `/api/checkout` — switch to `--verified --proxies`."
 
 Examples:
 - "After clicking the dropdown, wait 1s — options animate in before they're clickable"
 - "Navigate directly to `/pay-invoice/` — skip the landing page entirely"
 - "Use `browse fill #field_3 value` not `browse type` — this field clears on focus"
 - "The page shows a spinner at turn 8 — add `browse wait timeout 2000` before snapshot"
-- (when using `--browser-trace`) "Page 3's `cdp/summary.json` shows 3 failed XHRs to `/api/availability` returning 403 — the site is fingerprinting; the next iter needs `--verified --proxies`."
+- (with `--browser-trace`) "At line 47 of unified-events.jsonl, 3 consecutive `Network.responseReceived` events on `/api/availability` returned 403 right after `browse open` — the site is fingerprinting; the next iter needs `--verified --proxies`."
 
 ### Update strategy.md
 
