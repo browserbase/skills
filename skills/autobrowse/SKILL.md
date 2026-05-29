@@ -117,6 +117,15 @@ This runs the browser session and writes a full trace to `./autobrowse/traces/<t
 **Traced path (`--browser-trace`, remote only)** — the outer harness pre-creates a Browserbase session, attaches `bb-capture` as a passive observer, and passes the session's `connectUrl` to `evaluate.mjs` so every inner `browse` call uses `--cdp $connectUrl --session autobrowse-main` (the canonical browser-trace pattern that gives observers full Network/Console events). Run this block once per iteration with `$N` set to the 1-indexed iteration number:
 
 ```bash
+# Preflight — fail fast if browser-trace isn't installed alongside autobrowse.
+BT_DIR="${CLAUDE_SKILL_DIR}/../browser-trace"
+if [ ! -f "$BT_DIR/scripts/bb-capture.mjs" ]; then
+  echo "ERROR: --browser-trace requires the browser-trace skill at $BT_DIR." >&2
+  echo "Install it by cloning github.com/browserbase/skills and copying skills/browser-trace/" >&2
+  echo "into the same parent directory as autobrowse (e.g. ~/.claude/skills/browser-trace/)." >&2
+  exit 1
+fi
+
 # a. SESSION SETUP — pre-create the keep-alive session and derive its connectUrl
 sid=$(browse cloud sessions create --keep-alive --verified --proxies \
   | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).id))")
@@ -160,7 +169,14 @@ If the agent failed or got stuck, look deeper:
 - Read `./autobrowse/traces/<task-name>/latest/trace.json` — search for the failure turn
 - Read screenshots around the failure point with the Read tool
 
-**When `--browser-trace` was used** — `cdp/summary.json` is the primary structured-evidence source. Read it first for per-page network/console counts; fall back to the command log and screenshots only when you need extra context:
+**When `--browser-trace` was used** — you now have **two complementary traces** and must cross-reference both before forming a hypothesis. They answer different questions:
+
+| File | Answers | Granularity |
+|---|---|---|
+| `summary.md` + `trace.json` | What did the **agent do**? (commands, reasoning, return values) | Per turn |
+| `.o11y/<run-id>/cdp/summary.json` | What did the **browser do**? (navigations, network requests, console errors) | Per page |
+
+The cross-reference pattern: skim `cdp/summary.json`'s `pages[]` for the page where things went wrong (high `network.failed`, console exceptions, unexpected URL). Then jump back to `trace.json` and find the turn whose command triggered that page (matching by URL or timing). That gives you both the *cause* (the command the agent issued) and the *effect* (what the browser actually did in response).
 
 ```bash
 # Per-page bisect — network/console/page-lifecycle bucketed by navigation
@@ -173,9 +189,18 @@ node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> errors
 node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> page 2 network/failed
 ```
 
+Then back to `trace.json` for the turn that produced that page:
+
+```bash
+# Example: page 2 had failed XHRs to /api/availability — which turn navigated there?
+node -e "JSON.parse(require('fs').readFileSync('./autobrowse/traces/<task-name>/latest/trace.json')).filter(e=>e.command?.includes('/api/availability')||e.output?.includes('/api/availability')).forEach(e=>console.log('turn',e.turn,e.command||e.output?.slice(0,80)))"
+```
+
 ### Form one hypothesis
 
 Find the exact turn where things went wrong. What single heuristic would have prevented it?
+
+Under `--browser-trace`, base the hypothesis on **both signals**: the agent's command log (`trace.json` → what was attempted) *and* the browser's CDP record (`cdp/summary.json` → what actually happened). A hypothesis grounded only in the command log might say "the click didn't work" — grounded in both, it can say "the click went through but `/api/checkout` returned 403, so the next iter needs to wait for the auth cookie or switch to `--verified --proxies`."
 
 Examples:
 - "After clicking the dropdown, wait 1s — options animate in before they're clickable"
