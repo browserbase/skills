@@ -80,7 +80,7 @@ ls ./autobrowse/tasks/
 
 If running multiple tasks, use the Agent tool to spawn one sub-agent per task simultaneously. Each sub-agent receives a self-contained prompt to run the full autobrowse loop for its task:
 
-> "You are running the autobrowse skill for task `<name>`. Workspace: `<absolute-path-to-workspace>` (e.g. `/path/to/project/autobrowse`). Run `<N>` iterations of: evaluate → read trace → improve strategy.md → repeat. Use `--env <env>`. Pass `--workspace <workspace>` to every evaluate.mjs invocation. Follow the autobrowse loop instructions exactly.
+> "You are running the autobrowse skill for task `<name>`. Workspace: `<absolute-path-to-workspace>` (e.g. `/path/to/project/autobrowse`). Run `<N>` iterations of: evaluate → read trace → improve strategy.md → repeat. Use `--env <env>`. Pass `--workspace <workspace>` to every evaluate.mjs invocation. If the parent invocation used `--browser-trace`, you MUST use the traced-path block of the SKILL.md loop for every iteration (pre-create session, attach bb-capture, pass `--connect-url` to evaluate.mjs, stop+bisect, release) — do not fall back to the default single-command path. Follow the autobrowse loop instructions exactly.
 >
 > When graduating, install the skill to `~/.claude/skills/<task-name>/SKILL.md` with proper agentskills frontmatter (name + description). Do not just copy strategy.md — write a self-contained skill.
 >
