@@ -81,6 +81,13 @@ Options:
   --env local|remote   Browser environment (default: local)
   --model <model>      Claude model for the inner agent (default: ${DEFAULT_MODEL})
   --run-number N       Force a specific run number (default: auto-increment)
+  --connect-url <url>  Browserbase wss connectUrl; when set, every inner browse
+                       call is rewritten to attach via --cdp <url> --session
+                       autobrowse-main, and browse stop is suppressed. Used by
+                       the outer harness when --browser-trace is active so a
+                       sibling bb-capture observer can see Network/Console
+                       events (the --remote attach path routes those only to
+                       the driving client).
   --help               Show this help message
 
 Environment variables:
@@ -241,7 +248,35 @@ function parseCommand(command) {
   return { args };
 }
 
-function executeCommand(command) {
+// browse subcommands that drive a page through a local daemon — these need
+// the --cdp/--session injection when --connect-url is set. Excludes commands
+// that don't touch the daemon (cloud/cdp/status) or that would tear it down
+// (stop).
+const PAGE_DRIVING_VERBS = new Set([
+  "open", "snapshot", "screenshot", "click", "type", "fill", "press", "select",
+  "wait", "get", "reload", "back", "forward", "mouse", "tab",
+]);
+const TRACE_BROWSE_SESSION = "autobrowse-main";
+
+function rewriteArgsForTrace(args, connectUrl) {
+  // No-op when not in trace mode or when the first arg isn't a page-driving
+  // verb (cloud, cdp, etc. pass through unchanged).
+  if (!connectUrl || args.length === 0) return args;
+  const verb = args[0];
+  if (!PAGE_DRIVING_VERBS.has(verb)) return args;
+
+  const out = args.slice();
+  const hasFlag = (name) => out.some((a, i) => a === name && i > 0);
+  // Remove --remote / --local — they'd conflict with --cdp.
+  for (let i = out.length - 1; i > 0; i--) {
+    if (out[i] === "--remote" || out[i] === "--local") out.splice(i, 1);
+  }
+  if (!hasFlag("--cdp")) out.push("--cdp", connectUrl);
+  if (!hasFlag("--session") && !hasFlag("-s")) out.push("--session", TRACE_BROWSE_SESSION);
+  return out;
+}
+
+function executeCommand(command, connectUrl) {
   // Security: only allow the browse CLI and execute it without a shell so
   // metacharacters are treated as literal arguments instead of extra commands.
   const parsed = parseCommand(command);
@@ -254,9 +289,18 @@ function executeCommand(command) {
     return { output: `BLOCKED: only browse commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
   }
 
+  // Suppress `browse stop` under --browser-trace: the outer harness owns the
+  // session and daemon; tearing the named daemon down would orphan the trace
+  // observer and block the rest of the iteration.
+  if (connectUrl && args[0] === "stop") {
+    return { output: '{"stopped":true,"suppressed":"browse-trace mode owns the session"}', error: false, duration_ms: 0 };
+  }
+
+  const finalArgs = rewriteArgsForTrace(args, connectUrl);
+
   const start = Date.now();
   try {
-    const output = execFileSync(executable, args, {
+    const output = execFileSync(executable, finalArgs, {
       encoding: "utf-8",
       timeout: EXEC_TIMEOUT_MS,
       stdio: ["pipe", "pipe", "pipe"],
@@ -271,9 +315,16 @@ function executeCommand(command) {
   }
 }
 
-function buildSystemPrompt(strategy, traceDir, browseEnv) {
-  const openFlag = browseEnv === "remote" ? "--remote" : "--local";
-  const envDesc = browseEnv === "remote"
+function buildSystemPrompt(strategy, traceDir, browseEnv, connectUrl) {
+  // Under --browser-trace (connectUrl set), the outer harness owns the
+  // Browserbase session and a sibling bb-capture observer is attached. Every
+  // browse call is rewritten by executeCommand to attach via
+  // --cdp $connectUrl --session autobrowse-main, and `browse stop` is a no-op.
+  // The inner agent must NOT pass --remote/--local or run browse stop.
+  const openFlag = connectUrl ? "" : (browseEnv === "remote" ? "--remote" : "--local");
+  const envDesc = connectUrl
+    ? `**Traced session managed by the outer harness.** Do not run \`browse stop\`. Do not pass \`--remote\` or \`--local\` — the harness routes every browse call through the trace-attached connection automatically. Just write \`browse open <url>\`, \`browse snapshot\`, etc.`
+    : (browseEnv === "remote"
     ? `Use **remote mode** (Browserbase) — Browserbase Identity, Verified browsers, CAPTCHA solving, residential proxies:
 \`\`\`
 browse stop
@@ -283,7 +334,7 @@ Run \`browse stop\` first when a prior daemon may be active; active sessions do 
     : `Use **local mode** — runs on local Chrome:
 \`\`\`
 browse open <url> --local
-\`\`\``;
+\`\`\``);
 
   return `You are a browser automation agent. You navigate websites using the browse CLI via the execute tool.
 
@@ -392,6 +443,11 @@ async function main() {
   }
 
   const browseEnv = getArg("env", "local");
+  const connectUrl = getArg("connect-url");
+  if (connectUrl && browseEnv !== "remote") {
+    console.error("ERROR: --connect-url requires --env remote");
+    process.exit(1);
+  }
   const client = new Anthropic();
   const runNumber = getNextRunNumber(tracesDir);
   const runId = `run-${String(runNumber).padStart(3, "0")}`;
@@ -401,12 +457,12 @@ async function main() {
 
   const strategy = fs.readFileSync(strategyFile, "utf-8");
   const task = fs.readFileSync(taskFile, "utf-8");
-  const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv);
+  const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv, connectUrl);
 
   console.error(`\n${"=".repeat(60)}`);
   console.error(`  AUTOBROWSE — ${taskName} — Run ${runNumber}`);
   console.error(`${"=".repeat(60)}`);
-  console.error(`Model: ${model} | Env: ${browseEnv} | Max turns: ${MAX_TURNS} | Trace: ${traceDir}\n`);
+  console.error(`Model: ${model} | Env: ${browseEnv}${connectUrl ? " (traced)" : ""} | Max turns: ${MAX_TURNS} | Trace: ${traceDir}\n`);
 
   const trace = [];
   const messages = [
@@ -486,7 +542,7 @@ async function main() {
 
       console.error(`  [${turn}] exec: ${command.slice(0, 120)}`);
 
-      const { output, error, duration_ms } = executeCommand(command);
+      const { output, error, duration_ms } = executeCommand(command, connectUrl);
 
       if (error) {
         console.error(`  [${turn}] error: ${output.slice(0, 100)}`);

@@ -20,6 +20,7 @@ Invocation is flexible — both explicit flags and free-form natural language wo
 ```
 /autobrowse --task google-flights
 /autobrowse --task google-flights --iterations 10 --env remote
+/autobrowse --task google-flights --browser-trace
 /autobrowse --tasks google-flights,amazon-add-to-cart
 /autobrowse --all
 
@@ -28,6 +29,8 @@ Invocation is flexible — both explicit flags and free-form natural language wo
 /autobrowse book a flight on delta.com
 /autobrowse fix the existing google-flights skill
 ```
+
+`--browser-trace` (default off, remote-only): pairs each iteration with the sibling `browser-trace` skill — wraps the inner agent in a CDP capture for per-page network/console/page-lifecycle evidence. Implies `--env remote`; errors if combined with `--env local`. Requires the sibling `browser-trace` skill present at `${CLAUDE_SKILL_DIR}/../browser-trace/`, and the `BROWSERBASE_API_KEY` env var.
 
 When the user drops a URL or free-form instruction instead of `--task <name>`:
 - If an existing task in `${WORKSPACE}/tasks/` clearly matches the site/intent, use it.
@@ -44,6 +47,7 @@ Check what was passed:
 - `--tasks a,b,c` or `--all` → multi-task mode (spawn sub-agents)
 - `--iterations N` → how many evaluate → improve cycles (default: 5)
 - `--env local|remote` → browser environment (default: local; use remote for bot-protected sites)
+- `--browser-trace` → opt in to the browser-trace integration (default off). Implies `--env remote`. If `--env local --browser-trace` are both passed explicitly, error with: `browser-trace requires Browserbase; drop --env local or drop --browser-trace.`
 
 If the user passed free-form text instead, map it to one of the above before continuing.
 
@@ -100,6 +104,8 @@ Check that `./autobrowse/tasks/<task>/task.md` exists (scaffold it from the temp
 
 ### Run the inner agent
 
+**Default path (no `--browser-trace`)** — single command, no orchestration:
+
 ```bash
 node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./autobrowse
 # or for bot-protected sites:
@@ -107,6 +113,40 @@ node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <task-name> --workspace ./a
 ```
 
 This runs the browser session and writes a full trace to `./autobrowse/traces/<task>/latest/`.
+
+**Traced path (`--browser-trace`, remote only)** — the outer harness pre-creates a Browserbase session, attaches `bb-capture` as a passive observer, and passes the session's `connectUrl` to `evaluate.mjs` so every inner `browse` call uses `--cdp $connectUrl --session autobrowse-main` (the canonical browser-trace pattern that gives observers full Network/Console events). Run this block once per iteration with `$N` set to the 1-indexed iteration number:
+
+```bash
+# a. SESSION SETUP — pre-create the keep-alive session and derive its connectUrl
+sid=$(browse cloud sessions create --keep-alive --verified --proxies \
+  | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).id))")
+connect_url=$(browse cloud sessions get "$sid" \
+  | node -e "let s='';process.stdin.on('data',c=>s+=c).on('end',()=>process.stdout.write(JSON.parse(s).connectUrl))")
+
+RUN_ID="run-$(printf '%03d' "$N")"
+TRACE_ROOT="./autobrowse/traces/<task-name>/$RUN_ID"
+mkdir -p "$TRACE_ROOT"
+export O11Y_ROOT="$TRACE_ROOT/.o11y"   # park browser-trace output inside the autobrowse run dir
+
+# b. ATTACH BROWSER-TRACE — passive observer; runs in background
+node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/bb-capture.mjs "$sid" "$RUN_ID" &
+sleep 2
+
+# c. RUN AUTOBROWSE — connectUrl flag tells evaluate.mjs to inject --cdp/--session
+#    into every inner browse call. The inner agent never sees --remote.
+node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs \
+  --task <task-name> --workspace ./autobrowse --env remote \
+  --connect-url "$connect_url" --run-number "$N"
+
+# d. STOP + BISECT — order matters; bisect needs the session to still exist
+node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/stop-capture.mjs "$RUN_ID"
+node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/bisect-cdp.mjs "$RUN_ID"
+
+# e. RELEASE
+browse cloud sessions update "$sid" --status REQUEST_RELEASE
+```
+
+This writes the inner-agent trace to `./autobrowse/traces/<task-name>/latest/` and the CDP bisect to `./autobrowse/traces/<task-name>/latest/.o11y/<run-id>/`.
 
 ### Read the trace
 
@@ -120,6 +160,19 @@ If the agent failed or got stuck, look deeper:
 - Read `./autobrowse/traces/<task-name>/latest/trace.json` — search for the failure turn
 - Read screenshots around the failure point with the Read tool
 
+**When `--browser-trace` was used** — `cdp/summary.json` is the primary structured-evidence source. Read it first for per-page network/console counts; fall back to the command log and screenshots only when you need extra context:
+
+```bash
+# Per-page bisect — network/console/page-lifecycle bucketed by navigation
+cat ./autobrowse/traces/<task-name>/latest/.o11y/<run-id>/cdp/summary.json
+
+# Drill into a specific failing page (failed XHRs, console errors, etc.)
+export O11Y_ROOT=./autobrowse/traces/<task-name>/latest/.o11y
+node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> list
+node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> errors
+node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/query.mjs <run-id> page 2 network/failed
+```
+
 ### Form one hypothesis
 
 Find the exact turn where things went wrong. What single heuristic would have prevented it?
@@ -129,6 +182,7 @@ Examples:
 - "Navigate directly to `/pay-invoice/` — skip the landing page entirely"
 - "Use `browse fill #field_3 value` not `browse type` — this field clears on focus"
 - "The page shows a spinner at turn 8 — add `browse wait timeout 2000` before snapshot"
+- (when using `--browser-trace`) "Page 3's `cdp/summary.json` shows 3 failed XHRs to `/api/availability` returning 403 — the site is fingerprinting; the next iter needs `--verified --proxies`."
 
 ### Update strategy.md
 
@@ -280,3 +334,4 @@ Write the file `./autobrowse/reports/YYYY-MM-DD-HH-MM-<tasks>.md` with:
 - **Build on wins** — keep what worked, add to it
 - **Trust the trace** — the inner agent shows exactly what it saw and did
 - **Graduate to `~/.claude/skills/`** — the only file you write there is the final graduated `SKILL.md`
+- **Don't release before bisecting** — under `--browser-trace`, the order at the end of each iteration is non-negotiable: `stop-capture` → `bisect-cdp` → `browse cloud sessions update REQUEST_RELEASE`. Bisect depends on the session still existing when the trace stops.
