@@ -28,9 +28,15 @@ import { randomBytes } from "node:crypto";
 const AGENTMAIL_BASE = "https://api.agentmail.to/v0";
 const POLL_INTERVAL_MS = 3000;
 const DEFAULT_OTP_RE = "\\b\\d{4,8}\\b";
-// URLs in HTML emails live inside href="..." — the char class stops at the
-// closing quote / angle bracket, so this captures the bare URL cleanly.
+// Anchor extraction: real verification links are <a href> CTAs. Pulling hrefs
+// (rather than every URL in the body) skips open-tracking pixels, which are
+// <img src=...gif> — the bug that made wait-link return a useless p.gif.
+// Capture the href and the visible link text so --match can target either.
+const ANCHOR_RE = /<a\b[^>]*\shref\s*=\s*["']([^"']+)["'][^>]*>(.*?)<\/a>/gis;
 const URL_RE = /https?:\/\/[^\s"'<>)]+/g;
+// Links that are never the verification target, even if they're real anchors.
+const REJECT_LINK_RE =
+  /unsubscribe|list-manage|mailto:|tel:|notification-settings|\/preferences|\.gif(\?|$)|\/p\.gif|^#/i;
 
 // Throwaway inboxes carry this local-part prefix so sweep-on-create only ever
 // reclaims our own inboxes — never a human/primary inbox on the same account.
@@ -144,8 +150,33 @@ async function cmdCreate(workspace, task) {
   console.log(inbox_id);
 }
 
+// Prefer AgentMail's cleaned `extracted_*` fields, falling back to raw. The
+// list endpoint omits all of these (body only exists on the single-message
+// fetch), which is why callers must fetch the full message — see pollInbox.
 function partsOf(msg) {
-  return { subject: msg.subject ?? "", text: msg.text ?? "", html: msg.html ?? "" };
+  return {
+    subject: msg.subject ?? "",
+    text: msg.extracted_text ?? msg.text ?? "",
+    html: msg.extracted_html ?? msg.html ?? "",
+  };
+}
+
+function stripTags(html) {
+  return String(html || "").replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
+// Pull candidate verification links from an email body as {href, text} pairs:
+// anchors first (the real CTAs), then any bare URLs in the text as a fallback.
+// Tracking pixels and unsubscribe/footer links are filtered out.
+function linksFrom(parts) {
+  const out = [];
+  let m;
+  ANCHOR_RE.lastIndex = 0;
+  while ((m = ANCHOR_RE.exec(parts.html)) !== null) {
+    out.push({ href: m[1], text: stripTags(m[2]) });
+  }
+  for (const u of String(parts.text).match(URL_RE) || []) out.push({ href: u, text: "" });
+  return out.filter((l) => l.href && !REJECT_LINK_RE.test(l.href));
 }
 
 // Poll the inbox until `extract(parts)` returns a truthy value or the deadline
@@ -202,9 +233,18 @@ async function cmdWaitLink(workspace, task) {
   const match = (getArg("match") || "").toLowerCase();
 
   const url = await pollInbox(encodeURIComponent(inbox_id), from, within, (p) => {
-    // Search raw html (hrefs) plus text; pick the first URL containing --match.
-    const urls = `${p.text}\n${p.html}`.match(URL_RE) || [];
-    return (match ? urls.find((u) => u.toLowerCase().includes(match)) : urls[0]) || null;
+    const links = linksFrom(p);
+    if (!links.length) return null;
+    // With --match, match against the href OR the visible link text (so
+    // `--match "sign in"` finds the CTA even when its href is a tracking
+    // redirect). Without it, take the first real link — emails lead with the
+    // CTA. browse open follows any tracking redirect to the real page.
+    const hit = match
+      ? links.find(
+          (l) => l.href.toLowerCase().includes(match) || l.text.toLowerCase().includes(match),
+        )
+      : links[0];
+    return hit ? hit.href : null;
   });
 
   if (url) return void console.log(url);
@@ -215,8 +255,17 @@ async function cmdLatest(workspace, task) {
   const { inbox_id } = readState(workspace, task);
   const enc = encodeURIComponent(inbox_id);
   const body = await agentMail("GET", `/inboxes/${enc}/messages?limit=1&include_spam=true`);
-  const [msg] = asMessages(body);
-  console.log(JSON.stringify(msg ?? null, null, 2));
+  const [summary] = asMessages(body);
+  if (!summary) return void console.log("null");
+  // The list summary has no text/html body — fetch the full message so the
+  // caller can actually read it (subject, from, text, html, links).
+  const full = summary.message_id
+    ? await agentMail(
+        "GET",
+        `/inboxes/${enc}/messages/${encodeURIComponent(summary.message_id)}`,
+      ).catch(() => summary)
+    : summary;
+  console.log(JSON.stringify(full, null, 2));
 }
 
 async function cmdRelease(workspace, task) {

@@ -174,6 +174,18 @@ function isAllowedCommand(executable, args) {
   return false;
 }
 
+// inbox.mjs wait-otp/wait-link block for up to --within seconds polling for an
+// email — longer than the default 30s exec cap. Give them their full window
+// plus headroom so the harness doesn't kill them mid-poll (the ETIMEDOUT bug).
+function execTimeoutFor(executable, args) {
+  const isInbox = executable === "node" && args[0] && path.resolve(args[0]) === INBOX_SCRIPT;
+  const isWait = isInbox && (args.includes("wait-otp") || args.includes("wait-link"));
+  if (!isWait) return EXEC_TIMEOUT_MS;
+  const i = args.indexOf("--within");
+  const within = i !== -1 ? parseInt(args[i + 1], 10) : 60;
+  return Math.max(EXEC_TIMEOUT_MS, (Number.isFinite(within) ? within : 60) * 1000 + 15_000);
+}
+
 function parseCommand(command) {
   const args = [];
   let current = "";
@@ -272,7 +284,7 @@ function executeCommand(command) {
   try {
     const output = execFileSync(executable, args, {
       encoding: "utf-8",
-      timeout: EXEC_TIMEOUT_MS,
+      timeout: execTimeoutFor(executable, args),
       stdio: ["pipe", "pipe", "pipe"],
       maxBuffer: 1024 * 1024,
     });
