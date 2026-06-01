@@ -1,103 +1,61 @@
 ---
 name: browsability
-description: "Score how usable a website is BY AN AI BROWSER AGENT — its Browsability Index. Measures how little infrastructure assistance an agent needs to operate the site (Access Resistance), whether the agent can perceive and drive the live DOM (Drivability — does each control survive the accessibility-tree prune, are there iframe/shadow-DOM/deep-DOM traps), and how many more steps the agent needs than a human (Agent tax). Grounded in what the open-source Stagehand framework treats as hard. Use when the user asks how browsable / agent-friendly / agent-ready a website or a specific web flow (signup, checkout, search) is for a BROWSER agent, to compare sites on browser-agent usability, or to produce a browsability report card with concrete fixes. Triggers: 'how browsable is <site>', 'is this site agent-friendly for a browser agent', 'grade this checkout/signup flow for agents', 'browser-agent friendliness', 'DOM friction', 'browsability of <url>'. NOT for SEO/AEO or content discoverability (a different layer), and NOT for docs/SDK onboarding DX (use the agent-experience skill for that)."
+description: "Assess how usable a website is BY AN AI BROWSER AGENT — its browsability. Look at how little infrastructure help the agent needs to get in (stealth/proxy/captcha), whether it can perceive and drive the live DOM (are controls labeled and reachable, are there iframe/shadow-DOM/deep-DOM traps), and how many extra steps it takes versus a human. Report what helps and what hurts, with concrete fixes — no numeric score. Use when the user asks how browsable / agent-friendly / agent-ready a website or a specific web flow (signup, checkout, search) is for a BROWSER agent, to compare sites on browser-agent usability, or to get a browsability report with fixes. Triggers: 'how browsable is <site>', 'is this site agent-friendly for a browser agent', 'check this checkout/signup flow for agents', 'browser-agent friendliness', 'DOM friction', 'browsability of <url>'. NOT for SEO/AEO or content discoverability (a different layer), and NOT for docs/SDK onboarding DX (use the agent-experience skill for that)."
 license: MIT
 metadata:
   author: browserbase
-  version: "0.1.0"
-allowed-tools: Bash Read Write Edit Glob Grep Agent
-compatibility: "Requires `bun` and the browse CLI (`npm install -g @browserbasehq/browse-cli`). Remote mode needs BROWSERBASE_API_KEY. The full agent-ladder pass additionally needs a model-driven reference agent (use the `browser` skill as the driver)."
+  version: "0.2.0"
+allowed-tools: Read Bash Glob Grep Agent
+compatibility: "Uses the browse CLI (`npm install -g @browserbasehq/browse-cli`) via the `browser` skill to look at and drive the site. Remote mode needs BROWSERBASE_API_KEY."
 ---
 
 # Browsability — how usable is a site for a browser agent?
 
-Score how well an AI **browser** agent can *operate* a website. The opinion: *browsability is how
-little help an agent needs to succeed, and how much harder the site is for an agent than for a human.*
-This is the operability layer — not discoverability, so ignore `llms.txt`, sitemaps, SEO/AEO.
+Judge how well an AI **browser** agent can *operate* a website. The idea is simple:
 
-**Before scoring, read `references/rubric.md`** — the full code-grounded rubric (axes, signals, the
-assistance ladder, the agent-vs-human delta, and remediation knowledge). The summary below is only the
-operating procedure.
+> **Browsability is how little help an agent needs to succeed — and how much harder the site is for
+> an agent than for a person.** A 10-click checkout that takes a human 10 clicks too is fine; a
+> 3-click task that takes the agent 10 because the buttons are unlabeled is not — those extra clicks
+> are the agent's problem, not the workflow's.
 
-## The score (0–100)
+This is the *operability* layer — driving the live UI. It is **not** discoverability, so ignore
+`llms.txt`, sitemaps, and SEO/AEO. It is also distinct from docs/SDK onboarding (that's the
+`agent-experience` skill).
 
-| Axis | Pts | Source |
-|---|---|---|
-| **A · Access Resistance** | 30 | lowest assistance rung that completes the task (agent ladder) |
-| **B1 · Reachability** | 25 | % of controls that survive the accessibility-tree prune (deterministic probe) |
-| **B3 · Structural traps** | 15 | cross-origin iframes, shadow DOM, DOM depth/size (deterministic probe) |
-| **C · Agent tax** | 20 | agent steps OVER the human baseline (the delta — not absolute click count) |
-| **D · Recoverability** | 10 | self-heal / site errors / blocking overlays / step ceiling (agent run) |
+There is **no scoring formula here.** Look at the site with your own eyes (and the agent's), use the
+checklist in `references/rubric.md` as a guide for what tends to matter, and decide what actually
+matters for *this* site. Then report what helps and what hurts.
 
-Score only counts for tasks a verifier confirms actually completed. **Agent-native affordance** (an
-API / deep-link / structured action path) is a *ceiling badge*, not a scored component — flag it, do
-not add it to the number; this rubric measures operability of the UI.
+## How to assess
 
-## Workflow
+1. **Actually try to use the site** with the `browser` skill. Open it, take a `browse snapshot`
+   (the accessibility tree — this is what an agent "sees"), and attempt a real task the site is for:
+   find the pricing, create an account, add to cart, submit the contact form. Notice where it's easy
+   and where you get stuck.
 
-### Step 1 — Drivability probe (always; deterministic, no model)
+2. **Notice how much help it took to get in.** If a vanilla session sails through, great — that's
+   maximally browsable. If you needed stealth, a proxy, or captcha-solving just to load or act, that
+   counts against the site. (`references/rubric.md` describes this assistance ladder.) Remember
+   `solveCaptchas` is **on by default** — if you want to know whether a site is hostile at the front
+   door, try it with captcha-solving off first.
 
-Run the probe on the target URL (a page, or the entry point of a flow):
+3. **Watch for the things that trip up browser agents** as you go — read `references/rubric.md` for
+   the full checklist, but in short: unlabeled / `<div>`-as-button controls, custom dropdowns,
+   iframes (especially cross-origin), shadow DOM, very deep or huge DOMs, blocking cookie/consent
+   walls, and flows that take the agent more steps than a person.
 
-```bash
-cd skills/browsability
-bun scripts/friction.ts <url> --out browsability-out
-```
+Use judgment over completeness — surface the few things that genuinely make or break this site for an
+agent, not an exhaustive audit.
 
-This loads the page through the browse CLI and reports **B1 reachability** + **B3 structural traps**
-straight from the live DOM (40 of 100 points). It needs no model and finishes in seconds. Use remote
-mode (`browse env remote`, needs `BROWSERBASE_API_KEY`) for bot-protected sites; local is fine
-otherwise. This alone is a useful friction profile and is the right answer for a quick assessment.
+## How to report
 
-### Step 2 — Agent ladder + tasks (for the full score)
+A simple **Helps / Hurts** table. Each "Hurts" row names the concrete fix. Cite what you observed.
 
-Derive a small set of **canonical tasks** for the site (informational / navigational / transactional —
-e.g. "find the price of the paid plan", "create an account", "submit the contact form"). For each
-task, run a reference browser agent across the **Access Resistance ladder** and record results:
+| ✅ Helps browsability | ⚠️ Hurts browsability |
+|---|---|
+| Native `<button>` / `<select>` with clear labels | Signup CTA is an unlabeled `<div>` → agent can't see it. *Fix: make it a `<button>` or add `aria-label`* |
+| Loads & acts fine in a vanilla session | Needs proxy + captcha-solving just to load. *Fix: ease bot-walls on agent-relevant flows* |
+| Main flow is same-origin | Checkout is a cross-origin iframe → fragile. *Fix: same-origin embed or a direct route* |
 
-- **rung 0** vanilla headless — captcha-solving **off** (`solveCaptchas:false`), no proxy, no fingerprint
-- **rung 1** default assist — captcha-solving on
-- **rung 2** proxy + realistic fingerprint
-- **rung 3** advanced stealth + persisted context
-- **rung 4** maximum assistance
-
-Stop climbing once a task succeeds; the lowest passing rung is its Access Resistance. Drive the agent
-with the `browser` skill (the browse CLI) or Stagehand, and judge each run's `success` with a verifier
-— do not trust the agent's self-report. Capture **real step counts** and a **`humanBaselineSteps`**
-estimate per task so Agent tax is computed as the delta. Record into `tasks.json`:
-
-```json
-{ "url": "https://example.com",
-  "tasks": [
-    { "name": "Create an account", "type": "transactional", "humanBaselineSteps": 4,
-      "runs": [ {"rung":0,"success":false,"steps":10,"model":"<model>","note":"signup CTA unlabeled"},
-                {"rung":2,"success":true,"steps":7,"model":"<model>","note":""} ] } ] }
-```
-
-If no model-driven agent is available, act as the reference agent using the `browser` skill: execute
-each task's browse steps, count the steps, and write the runs into `tasks.json` honestly (mark
-single-model). This produces a real, if single-model, result.
-
-### Step 3 — Composite score + report
-
-```bash
-bun scripts/score.ts --friction browsability-out/friction.json --tasks tasks.json --out browsability-out
-```
-
-Writes `browsability-out/browsability.json` with the 0–100 score, grade, and per-axis breakdown. When
-`tasks.json` is absent it reports a **Drivability-only** score (B1 + B3, 40 max) and marks A/C/D
-pending — still honest, just partial.
-
-### Step 4 — Report to the user
-
-Present a **profile, not just a number**: the grade, the per-axis breakdown, the lowest passing rung,
-and — most usefully — a **ranked remediation list** drawn from the rubric's remediation table (e.g.
-"signup CTA has no accessible name → add `aria-label`; estimated lift +X"). Cite the concrete signal
-each finding came from.
-
-## Notes & gotchas
-
-- `solveCaptchas` defaults to **on** in Browserbase — an honest rung-0 must explicitly disable it, or rungs 0 and 1 collapse and captcha-walled sites get over-credited.
-- The deterministic probe approximates "closed shadow DOM" via custom-element count with zero open shadow hosts; treat it as a hint and confirm during the agent run.
-- Keep the human baseline honest — Agent tax is the *delta*, so a genuinely long workflow (10 steps for humans too) must not be penalized as un-browsable.
-- The scripts call `browse stop` on exit; if a daemon hangs, `pkill -f "browse.*daemon"`.
+Optionally close with one plain-language line ("easy / moderate / hard for a browser agent, because…").
+Do not invent a number. In Slack contexts use mrkdwn (`*bold*`, `•` bullets), not tables.

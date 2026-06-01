@@ -1,153 +1,84 @@
-# The Browsability Rubric
+# What makes a site browsable for a browser agent
 
-A code-grounded, operational definition of how usable a website is **by an AI browser agent** —
-and how to score it. Grounded in what the open-source [Stagehand](https://github.com/browserbase/stagehand)
-browser-automation framework actually treats as hard, plus the public Browserbase session settings.
+A checklist of what tends to help or hurt an AI **browser** agent trying to operate a website.
+Grounded in what the open-source [Stagehand](https://github.com/browserbase/stagehand) framework
+treats as hard, plus the public Browserbase session settings.
 
-## The opinion, in one line
+**Use this as a guide, not a rule book.** There is no scoring formula. Look at the site, try the
+task, and decide what actually matters for *this* site — then report what helps and what hurts.
 
-**Browsability is how little help an agent needs to succeed** — and, more precisely, **how much
-harder the site is for an agent than for a motivated human.**
+## The idea
 
-It is *not* discoverability. Forget `llms.txt`, sitemaps, token efficiency, and SEO/AEO — those
-measure whether content can be *found and cited*. Browsability measures whether an agent can
-*operate* the live site: perceive the controls, drive the DOM, and complete a real task.
+**Browsability is how little help an agent needs to succeed, and how much harder the site is for an
+agent than for a person.** Only the *agent-specific* friction counts: a long workflow that's long for
+humans too isn't a browsability problem; a simple task made hard by unlabeled controls is. This is
+*operability* (driving the UI), not *discoverability* (being found/cited — that's SEO/AEO, out of
+scope).
 
-It is measured **operationally** — by running real agent tasks and reading harness + session
-telemetry (which controls survived the accessibility tree, how many steps a flow took, which errors
-fired, how much stealth/proxy assistance was needed) — not by linting static HTML.
-
-> **Scope note:** this rubric covers *UI operability* — driving a website in a browser. It is the
-> sibling of, not a substitute for, auditing docs/SDK onboarding experience.
-
-## The key reframe: score the agent-vs-human delta, not absolute effort
-
-A 10-click checkout that also takes a human 10 clicks is *perfectly browsable* — that's just the
-workflow. A 3-click task that takes the agent 10 because controls are unlabeled is *not browsable* —
-those extra 7 clicks are the **agent tax**.
-
-Scoring the **delta over the human baseline** mathematically subtracts out UX/design length (which
-costs humans and agents equally) and isolates exactly the agent-specific penalty. This resolves the
-"is click-count a UX problem or a browsability problem?" question: only the *excess* over the human
-path counts.
-
-Stagehand surfaces a piece of this directly — a native `<select>` is a **one-step** action; a custom
-dropdown must be clicked open, re-snapshotted, then selected — a **two-step** action. That second
-step *is* agent tax: incidental inflation, not essential workflow.
-
-## The scored axes (+ one ceiling badge)
-
-| Axis | What it measures | Weight | In score? |
-|---|---|---|---|
-| **A · Access Resistance** | How much infrastructure assistance the agent needs to operate at all (the ladder) | 30 | ✅ |
-| **B1 · Reachability** | Can the agent perceive the controls (survive the accessibility-tree prune) | 25 | ✅ |
-| **B3 · Structural traps** | iframes, shadow DOM, DOM depth/size | 15 | ✅ |
-| **C · Agent tax** | Steps *above the human baseline* (incidental inflation only) | 20 | ✅ |
-| **D · Recoverability** | What happens when something breaks (self-heal, site errors, blocking overlays, step ceiling) | 10 | ✅ |
-| — Essential path length | Inherent workflow steps (humans pay too) | — | ❌ separate "Agent UX" lens |
-| — Agent-native affordance | An API / deep-link / structured action path exists | — | ⭐ ceiling badge, not scored |
-
-Agent-native affordance (offering a non-UI path so an agent need not drive the browser at all) is
-noted as the *ceiling*, not a scored component — this rubric deliberately measures **operability of
-the UI**, the realistic last mile for the large share of the web that is UI-only.
-
-Gate everything on a **success verdict** per task (a verifier, not the agent's self-report): friction
-and tax scores only count for tasks confirmed to have actually completed.
+When you see extra steps, ask: *would a human also need this step?* If yes, it's the workflow (don't
+count it). If no — e.g. the agent had to click open a custom dropdown that a person reads at a glance
+— that's the agent tax, and it hurts browsability.
 
 ---
 
-## Axis A — Access Resistance (the assistance ladder)
+## 1. Getting in — how much help did the agent need?
 
-Browserbase exposes public session settings, each mitigating a specific site-side obstacle. Re-run
-the *same task* climbing the ladder; the **lowest rung at which it succeeds** is the site's Access
-Resistance. Lower = more browsable.
+Re-frame "how protected is this site" as a ladder of assistance. The less help needed, the more
+browsable. Browserbase exposes these public session settings; each one you have to switch on to make
+the task work is a mark against the site:
 
-| Public setting | Mitigates |
-|---|---|
-| `solveCaptchas` | CAPTCHA challenges |
-| `proxies` | IP blocks, rate limits, geo-gating (residential / geo-targeted) |
-| `fingerprint` | headless-browser fingerprint detection |
-| `advancedStealth` | advanced anti-bot detection |
-| `context` (persist) | re-auth / re-consent walls; session continuity |
+- `solveCaptchas` — CAPTCHA challenges (**on by default**, so test with it off to see front-door hostility)
+- `proxies` — IP blocks, rate limits, geo-gating
+- `fingerprint` — headless-browser fingerprint detection
+- `advancedStealth` — advanced anti-bot detection
+- `context` (persist) — re-auth / re-consent walls
 
-The ladder to re-run a task across:
+**Helps:** a plain vanilla headless session can load and act. **Hurts:** the task only works once you
+add stealth, a proxy, or captcha-solving — and the more of those it needs, the worse.
 
-- **L0 Vanilla headless** — captcha-solving **off**, no proxy, no fingerprint, fresh context. The agent looks like raw headless Chrome. *Passing here = maximally browsable.*
-- **L1 Default assist** — captcha-solving on, still no proxy/fingerprint.
-- **L2 Proxied + realistic fingerprint** — geo proxy + a realistic desktop fingerprint.
-- **L3 Advanced stealth + persisted context** — advanced anti-bot mitigation on; cookies persisted.
-- **L4 Maximum assistance** — top-tier anti-bot mitigation. *Needing this rung = barely browsable.*
+## 2. Seeing the controls — can the agent perceive what to click?
 
-> **Gotcha:** `solveCaptchas` defaults to **on** in Browserbase, so an honest rung-0 baseline must
-> explicitly turn it off — otherwise L0 and L1 collapse and captcha-walled sites get over-credited.
+Browser agents work off an **accessibility tree**, and a control is only visible to the agent if it
+has an accessible name, named children, or a real semantic role. An unlabeled `<div role="generic">`
+button is dropped before the model ever sees it — effectively invisible.
 
-**Score:** `A = 30 * (1 - minPassingRung / 4)`.
+- **Helps:** native `<button>`, `<a href>`, `<input>`, `<select>` with real text or labels; inputs tied to a `<label>`.
+- **Hurts:** icon-only buttons with no `aria-label`; `<div onclick>` "buttons"; inputs with no label; controls hidden inside closed shadow DOM.
 
----
+## 3. Structural traps
 
-## Axis B — Drivability (per-step technical difficulty)
+Hard walls that browser agents struggle with regardless of labeling:
 
-### B1 · Element reachability — can the agent even *see* the control?
+- **Cross-origin iframes** — separately-managed frames that can drop out mid-action; fragile.
+- **Shadow DOM** — closed roots are opaque to the agent.
+- **Very deep DOM (hundreds of levels)** — forces slower, shallower page reads.
+- **Very large DOM** — the accessibility snapshot can get truncated; elements past the cap vanish.
+- **Never-settling pages** — constant streaming/polling means the page never looks "done loading," so the agent waits out a timeout on every step.
+- **Virtualized / infinite lists** — no "scroll until found"; the agent has to scroll-and-look in a loop.
 
-Stagehand builds an accessibility tree and **prunes any node that lacks all three of**: an accessible
-name, named children, or a non-structural role. An unlabeled `<div role="generic">` button is removed
-*before the model ever sees it.* The survival rule, from the open-source accessibility snapshot:
+## 4. Extra steps the agent pays (but a human doesn't)
 
-```js
-// keep a node iff:
-const keep = !!(name && name.trim())        // it has an accessible name, OR
-          || !!(childIds && childIds.length) // it has named children, OR
-          || !isStructural(role);            // it has a real role (not generic/none/inlinetextbox)
-```
+- **Custom dropdowns vs native `<select>`** — a native select is one action; a custom dropdown makes the agent click to open, re-read the page, then pick — two+ actions. Multiply across a form and it adds up.
+- **Needless modals / multi-step wizards** that a human clicks through without thinking but the agent must navigate explicitly.
+- Count only the steps *beyond* what a person would need.
 
-- **Signal:** reachable-control ratio = interactive controls that survive the prune ÷ all interactive controls.
-- **Penalize:** icon-only buttons with no `aria-label`; `<div onclick>` controls; inputs with no associated `<label>`; closed-shadow custom components.
-- **Reward:** native semantic elements (`button`, `a[href]`, `input`, `select`) with text/labels — they always survive.
+## 5. When things break — can the agent recover?
 
-### B3 · Structural traps — the hard walls
-
-| Trap | Why it hurts an agent |
-|---|---|
-| Closed shadow DOM | roots closed before instrumentation are effectively invisible |
-| Cross-origin iframes | short-lived, separately-managed frames that can drop out mid-operation |
-| Deep DOM (>256 levels) | serialization stack limits force shallower, slower retries |
-| Never-settling network | streaming / sub-second polling never reaches "network idle" → timeout every step |
-| Virtualized lists | no automatic "scroll until found"; an observe→scroll→observe loop is required |
-| Very large DOM | the serialized tree is truncated; elements past the cap become invisible |
+- **Blocking overlays** — cookie/consent walls, login walls, paywalls that aren't dismissed automatically and sit on top of the flow.
+- **Unstable DOM** — elements that move or re-render between looking and clicking, forcing the agent to re-find them (a sign of a hostile, racey page).
+- **Slow / hanging navigation** — pages that exceed load timeouts.
 
 ---
 
-## Axis C — Agent tax (steps over the human baseline)
-
-For each verifier-confirmed task: `agentTax = agentSteps - humanBaselineSteps`. Where a human baseline
-is unavailable, approximate the incidental inflation from the **two-step ratio** (custom controls the
-framework must expand-then-act on) plus needless modal steps. Only the *excess* counts; essential
-workflow length is reported separately as "Agent UX," not scored as browsability.
-
----
-
-## Axis D — Recoverability — what happens when something breaks
-
-Stagehand's error taxonomy cleanly separates *site-caused* friction from agent-caused, and its
-self-heal path is the tell: on a stale selector (the DOM mutated under the agent) it re-snapshots and
-re-asks the model once. Frequent self-heal = an unstable, hostile DOM.
-
-- **Site-caused errors (penalize):** element-not-visible, selector-resolution failures, element-not-found, captcha timeouts, navigation timeouts.
-- **Blocking overlays (penalize):** cookie/consent walls, login walls, paywalls — not auto-dismissed; they eat steps or wall the flow entirely.
-- **Max-steps blowout:** agent loops have a default step budget; tasks that exhaust it score as failures.
-- **Signal:** self-heal count, site-caused-error count, overlay-encountered flag, whether the run hit the step ceiling.
-
----
-
-## Remediation knowledge (turn findings into fixes)
+## Turning findings into fixes
 
 | Finding | Fix |
 |---|---|
-| Low reachable-ratio | add `aria-label` to icon-only controls; use semantic `<button>` / `<a>` |
+| Unlabeled / `<div>`-as-button controls | use semantic `<button>` / `<a>`, or add `aria-label` |
 | Many custom dropdowns | use native `<select>` where possible |
-| Cross-origin iframes in the flow | same-origin embed, or a direct route |
+| Cross-origin iframe in the flow | same-origin embed, or a direct route |
 | Closed shadow DOM | open shadow roots, or expose semantic fallbacks |
 | Deep / very large DOM | flatten nesting, paginate, reduce node count |
-| High Access Resistance | reduce hostile bot-walls on agent-relevant flows |
-| High agent tax | collapse the funnel; remove needless modal steps |
-| (ceiling) UI-only | offer an API / deep-link / structured action path for agents |
+| Needs heavy stealth/proxy/captcha to work | reduce hostile bot-walls on agent-relevant flows |
+| More steps than a human needs | collapse the funnel; remove needless modal steps |
+| UI-only with no agent path | (ceiling) offer an API / deep-link for agents so they needn't drive the UI at all |
