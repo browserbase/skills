@@ -64,11 +64,9 @@ const BB_API_BASE =
 const BB_DASH_BASE =
   env === "dev" ? "https://www.dev.browserbase.com" : "https://www.browserbase.com";
 
-// Each API key is scoped to exactly one project, so we never ask the user for a
-// project ID — we omit projectId on session create (the API derives it from the
-// key) and read session.projectId back from the response for the later release.
-let projectId = null;
-
+// Each API key is scoped to exactly one project, so we never deal with project
+// IDs: the API derives the project from the key on session create, and the
+// REQUEST_RELEASE endpoint identifies the session by ID alone.
 const SECRET = randomUUID();
 const HEADER = "X-Tunnel-Auth";
 const COOKIE = "bb_tunnel_auth";
@@ -276,7 +274,7 @@ async function shutdown(signal, code = 0) {
       await fetch(`${BB_API_BASE}/v1/sessions/${session.id}`, {
         method: "POST",
         headers: { "Content-Type": "application/json", "x-bb-api-key": BB_API_KEY },
-        body: JSON.stringify({ status: "REQUEST_RELEASE", projectId }),
+        body: JSON.stringify({ status: "REQUEST_RELEASE" }),
         signal: AbortSignal.timeout(2500),
       });
       console.error("[shutdown] BB session released");
@@ -300,7 +298,7 @@ cf.on("exit", (code) => {
 
 // ─── Create Browserbase session ──────────────────────────────────────────────
 // No projectId sent — the API key is scoped to one project, so the API derives
-// it from the key. We read session.projectId back for the later release call.
+// it from the key.
 console.error(`[bb] creating session on ${BB_API_BASE}...`);
 const bbRes = await fetch(`${BB_API_BASE}/v1/sessions`, {
   method: "POST",
@@ -313,8 +311,7 @@ if (!bbRes.ok) {
   await shutdown("create-failed", 1);
 }
 session = await bbRes.json();
-projectId = session.projectId || null;
-console.error(`[bb] session: ${session.id} (project ${projectId})`);
+console.error(`[bb] session: ${session.id}`);
 
 // ─── Emit connection JSON on stdout ─────────────────────────────────────────
 // authUrl carries the secret as a query param. The first navigation authenticates
