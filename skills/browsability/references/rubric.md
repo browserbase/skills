@@ -36,6 +36,14 @@ the task work is a mark against the site:
 **Helps:** a plain vanilla headless session can load and act. **Hurts:** the task only works once you
 add stealth, a proxy, or captcha-solving — and the more of those it needs, the worse.
 
+**The remote-vs-local test (the strongest signal here).** Agents run on remote/cloud browsers, so
+that's the environment that counts. If a task **works on a local/residential browser but is blocked
+or errors on a remote one**, the site is gating cloud/automated browsers — that is a *major*
+browsability failure, because a real agent simply cannot use it. Flag it loudly; do not excuse it as
+"we just need a proxy." (Diagnostic tip: when a remote page comes back empty, check the final URL —
+`chrome-error://…` or a title that's only the bare domain means the navigation was *blocked/failed*,
+not that the page rendered empty. Confirm by loading the same URL locally.)
+
 ## 2. Seeing the controls — can the agent perceive what to click?
 
 Browser agents work off an **accessibility tree**, and a control is only visible to the agent if it

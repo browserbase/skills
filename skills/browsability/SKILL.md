@@ -22,6 +22,11 @@ This is the *operability* layer — driving the live UI. It is **not** discovera
 `llms.txt`, sitemaps, and SEO/AEO. It is also distinct from docs/SDK onboarding (that's the
 `agent-experience` skill).
 
+> **Agents run on remote/cloud browsers.** So the target environment is a *remote* browser, not your
+> local one. A site that works in a local/residential browser but **blocks or errors on a remote
+> browser is, by definition, not browsable** — an agent literally can't use it. Treat that gap as a
+> top finding, not a footnote.
+
 There is **no scoring formula here.** Look at the site with your own eyes (and the agent's), use the
 checklist in `references/rubric.md` as a guide for what tends to matter, and decide what actually
 matters for *this* site. Then report what helps and what hurts.
@@ -33,11 +38,18 @@ matters for *this* site. Then report what helps and what hurts.
    find the pricing, create an account, add to cart, submit the contact form. Notice where it's easy
    and where you get stuck.
 
-2. **Notice how much help it took to get in.** If a vanilla session sails through, great — that's
-   maximally browsable. If you needed stealth, a proxy, or captcha-solving just to load or act, that
-   counts against the site. (`references/rubric.md` describes this assistance ladder.) Remember
-   `solveCaptchas` is **on by default** — if you want to know whether a site is hostile at the front
-   door, try it with captcha-solving off first.
+2. **Test on a remote browser, and notice how much help it took to get in.** That's the environment
+   agents actually run in. If a vanilla remote session sails through, great — that's maximally
+   browsable. If you needed stealth, a proxy, or captcha-solving just to load or act, that counts
+   against the site. (`references/rubric.md` describes this assistance ladder.) Remember
+   `solveCaptchas` is **on by default** — to see if a site is hostile at the front door, try it with
+   captcha-solving off first.
+
+   **If a task fails on the remote browser, confirm with a local one.** If it works locally but is
+   blocked or errors out remotely, the site is gating cloud/automated browsers — **flag that as a
+   major browsability failure** (it's the whole point: an agent can't use the site). When something
+   comes back empty, always check the final URL — a `chrome-error://…` (or a title that's just the
+   bare domain) means the navigation *failed/was blocked*, not that the page rendered empty.
 
 3. **Watch for the things that trip up browser agents** as you go — read `references/rubric.md` for
    the full checklist, but in short: unlabeled / `<div>`-as-button controls, custom dropdowns,
