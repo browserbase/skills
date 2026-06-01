@@ -6,7 +6,7 @@ metadata:
   author: browserbase
   version: "0.2.0"
 allowed-tools: Read Bash Glob Grep Agent
-compatibility: "Uses the browse CLI (`npm install -g @browserbasehq/browse-cli`) via the `browser` skill to look at and drive the site. Remote mode needs BROWSERBASE_API_KEY."
+compatibility: "Uses the browse CLI (`npm install -g @browserbasehq/browse-cli`) via the `browse` skill to look at and drive the site. Remote mode needs BROWSERBASE_API_KEY."
 ---
 
 # Browsability — how usable is a site for a browser agent?
@@ -28,7 +28,7 @@ matters for *this* site. Then report what helps and what hurts.
 
 ## How to assess
 
-1. **Actually try to use the site** with the `browser` skill. Open it, take a `browse snapshot`
+1. **Actually try to use the site** with the `browse` skill. Open it, take a `browse snapshot`
    (the accessibility tree — this is what an agent "sees"), and attempt a real task the site is for:
    find the pricing, create an account, add to cart, submit the contact form. Notice where it's easy
    and where you get stuck.
