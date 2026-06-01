@@ -136,6 +136,7 @@ RUN_ID="run-$(printf '%03d' "$N")"
 TRACE_ROOT="./autobrowse/traces/<task-name>/$RUN_ID"
 mkdir -p "$TRACE_ROOT"
 export O11Y_ROOT="$TRACE_ROOT/.o11y"   # park browser-trace output inside the autobrowse run dir
+export O11Y_RUN_ID="$RUN_ID"           # tells the browse CLI which run dir to write descriptors.ndjson into
 
 # b. ATTACH BROWSER-TRACE — passive observer; runs in background
 node ${CLAUDE_SKILL_DIR}/../browser-trace/scripts/bb-capture.mjs "$sid" "$RUN_ID" &
@@ -160,7 +161,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/unify-trace.mjs \
 browse cloud sessions update "$sid" --status REQUEST_RELEASE
 ```
 
-This writes the inner-agent trace to `./autobrowse/traces/<task-name>/latest/` and the CDP bisect to `./autobrowse/traces/<task-name>/latest/.o11y/<run-id>/`.
+This writes the inner-agent trace to `./autobrowse/traces/<task-name>/latest/` and the CDP bisect to `./autobrowse/traces/<task-name>/latest/.o11y/<run-id>/`. The traced `browse` CLI also emits per-command rich node descriptors to `.o11y/<run-id>/cdp/descriptors.ndjson` (one JSON object per page-driving call: target tag/id/role/accessibleName/attributes/xpath/bounding-rect). The descriptors file feeds downstream codegen; it is **not** required for hypothesis formation — skip it when reading the trace.
 
 ### Read the trace
 
