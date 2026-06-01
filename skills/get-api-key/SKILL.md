@@ -120,7 +120,11 @@ Every dev-tool company publishes "how to create an API key" docs. Reading them f
 **Important — trust the live UI over docs when they disagree.** Docs go stale; vendors redesign nav; some steps describe an account context the current user doesn't have (e.g. "click Organization → Settings" when they only have a personal account). Docs give a roadmap, not selectors. When the live snapshot doesn't match the docs, snapshot and pick the closest equivalent.
 
 ### Phase 1 — Verify auth
+
+Phase 0 left the browser on the vendor's docs/search pages, so **navigate back to the dashboard before checking auth** — otherwise the host check below sees the docs URL and falsely reports "not authenticated".
+
 ```
+browse open <site-root-url>   # return to the target dashboard (skip only if Phase 0 was skipped and you never left it)
 browse get url
 ```
 - URL contains the dashboard host AND NOT `/sign-in`, `/login`, `/auth` → proceed.
