@@ -49,13 +49,26 @@ agent, not an exhaustive audit.
 
 ## How to report
 
-A simple **Helps / Hurts** table. Each "Hurts" row names the concrete fix. Cite what you observed.
+Use **two separate tables** — one for what helps, one for what hurts. Do **not** put them in one
+two-column table: a Helps row and a Hurts row are unrelated, so placing them side by side falsely
+implies they're connected.
 
-| ✅ Helps browsability | ⚠️ Hurts browsability |
+First, what helps:
+
+| ✅ Helps browsability |
+|---|
+| Native `<button>` / `<select>` with clear labels |
+| Loads & acts fine in a vanilla session |
+| Main flow is same-origin |
+
+Then, what hurts — each with its concrete fix:
+
+| ⚠️ Hurts browsability | Fix |
 |---|---|
-| Native `<button>` / `<select>` with clear labels | Signup CTA is an unlabeled `<div>` → agent can't see it. *Fix: make it a `<button>` or add `aria-label`* |
-| Loads & acts fine in a vanilla session | Needs proxy + captcha-solving just to load. *Fix: ease bot-walls on agent-relevant flows* |
-| Main flow is same-origin | Checkout is a cross-origin iframe → fragile. *Fix: same-origin embed or a direct route* |
+| Signup CTA is an unlabeled `<div>` → agent can't see it | make it a `<button>` or add `aria-label` |
+| Needs proxy + captcha-solving just to load | ease bot-walls on agent-relevant flows |
+| Checkout is a cross-origin iframe → fragile | same-origin embed, or a direct route |
 
-Optionally close with one plain-language line ("easy / moderate / hard for a browser agent, because…").
-Do not invent a number. In Slack contexts use mrkdwn (`*bold*`, `•` bullets), not tables.
+Cite what you observed. Optionally close with one plain-language line ("easy / moderate / hard for a
+browser agent, because…"). Do not invent a number. In Slack contexts use mrkdwn (`*bold*`, `•`
+bullets), not tables.
