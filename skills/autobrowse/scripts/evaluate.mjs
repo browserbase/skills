@@ -267,7 +267,24 @@ function parseCommand(command) {
   return { args };
 }
 
-function executeCommand(command) {
+// Force inbox.mjs onto the run's own workspace/task. Parallel sub-agents share
+// one workspace and are isolated only by --task, so a confused agent passing a
+// different --task could read or release a sibling task's inbox. Strip any
+// agent-supplied --workspace/--task and append the run's real ones.
+function forceInboxScope(args, runWorkspace, runTask) {
+  const out = [];
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === "--workspace" || args[i] === "--task") {
+      i++; // also skip the value
+      continue;
+    }
+    out.push(args[i]);
+  }
+  out.push("--workspace", runWorkspace, "--task", runTask);
+  return out;
+}
+
+function executeCommand(command, runWorkspace, runTask) {
   // Security: only allow the browse CLI and execute it without a shell so
   // metacharacters are treated as literal arguments instead of extra commands.
   const parsed = parseCommand(command);
@@ -275,9 +292,20 @@ function executeCommand(command) {
     return { output: parsed.error, error: true, duration_ms: 0 };
   }
 
-  const [executable, ...args] = parsed.args;
+  let [executable, ...args] = parsed.args;
   if (!isAllowedCommand(executable, args)) {
     return { output: `BLOCKED: only browse and inbox.mjs commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
+  }
+
+  // Pin inbox.mjs to this run's workspace/task (isolation — see forceInboxScope).
+  const isInbox = executable === "node" && args[0] && path.resolve(args[0]) === INBOX_SCRIPT;
+  if (isInbox && runWorkspace && runTask) {
+    const ti = args.indexOf("--task");
+    const supplied = ti !== -1 ? args[ti + 1] : undefined;
+    if (supplied && supplied !== runTask) {
+      console.error(`  [scope] inbox.mjs --task "${supplied}" overridden to "${runTask}" (isolation)`);
+    }
+    args = forceInboxScope(args, runWorkspace, runTask);
   }
 
   const start = Date.now();
@@ -294,6 +322,18 @@ function executeCommand(command) {
     const stdout = typeof err.stdout === "string" ? err.stdout : err.stdout?.toString("utf-8");
     const output = stderr || stdout || err.message || String(err);
     return { output: output.trim(), error: true, duration_ms: Date.now() - start };
+  }
+}
+
+// The task's throwaway-inbox address, if one was provisioned (written by
+// inbox.mjs create). Authoritative — wait-otp/wait-link poll exactly this
+// inbox — so it wins over the --inbox-email flag.
+function readInboxState(taskDir) {
+  try {
+    const { inbox_id } = JSON.parse(fs.readFileSync(path.join(taskDir, ".inbox.json"), "utf-8"));
+    return inbox_id || null;
+  } catch {
+    return null;
   }
 }
 
@@ -453,8 +493,25 @@ async function main() {
   fs.mkdirSync(path.join(traceDir, "screenshots"), { recursive: true });
 
   const strategy = fs.readFileSync(strategyFile, "utf-8");
-  const task = fs.readFileSync(taskFile, "utf-8");
-  const inboxEmail = getArg("inbox-email");
+  let task = fs.readFileSync(taskFile, "utf-8");
+
+  // Single source of truth for the inbox address: the task's .inbox.json (what
+  // wait-otp/wait-link actually poll) wins over --inbox-email. Warn on a
+  // mismatch so a stale flag can't show one address while mail is read from
+  // another.
+  const flagInbox = getArg("inbox-email");
+  const stateInbox = readInboxState(taskDir);
+  if (flagInbox && stateInbox && flagInbox !== stateInbox) {
+    console.error(
+      `WARNING: --inbox-email (${flagInbox}) differs from ${path.join(taskDir, ".inbox.json")} ` +
+        `(${stateInbox}); using the latter since wait-otp/wait-link poll it.`,
+    );
+  }
+  const inboxEmail = stateInbox ?? flagInbox;
+
+  // Substitute the {{inbox_email}} placeholder task authors may use.
+  if (inboxEmail) task = task.replace(/\{\{\s*inbox_email\s*\}\}/g, inboxEmail);
+
   const inboxSection = buildInboxSection(inboxEmail, workspace, taskName);
   const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv, inboxSection);
 
@@ -541,7 +598,7 @@ async function main() {
 
       console.error(`  [${turn}] exec: ${command.slice(0, 120)}`);
 
-      const { output, error, duration_ms } = executeCommand(command);
+      const { output, error, duration_ms } = executeCommand(command, workspace, taskName);
 
       if (error) {
         console.error(`  [${turn}] error: ${output.slice(0, 100)}`);

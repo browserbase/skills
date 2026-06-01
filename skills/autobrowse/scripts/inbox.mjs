@@ -137,6 +137,17 @@ async function sweepStaleInboxes() {
 
 async function cmdCreate(workspace, task) {
   const file = stateFile(workspace, task);
+  // Release any inbox this task already tracks before minting a new one.
+  // Sweep alone won't catch it (it's <1h old), and overwriting .inbox.json
+  // below would orphan it — leaked AND no longer reachable by `release`.
+  if (fs.existsSync(file)) {
+    try {
+      const { inbox_id: prev } = JSON.parse(fs.readFileSync(file, "utf-8"));
+      if (prev) await agentMail("DELETE", `/inboxes/${encodeURIComponent(prev)}`).catch(() => {});
+    } catch {
+      // unreadable state file — fall through; sweep is the backstop
+    }
+  }
   await sweepStaleInboxes();
   const username = `${INBOX_PREFIX}${randomBytes(5).toString("hex")}`;
   const inbox = await agentMail("POST", "/inboxes", {
