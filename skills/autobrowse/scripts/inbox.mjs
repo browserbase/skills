@@ -3,9 +3,9 @@
 /**
  * inbox.mjs — Throwaway email inbox for an autobrowse loop.
  *
- * Talks to the browse.sh inbox-provisioning endpoint, which proxies AgentMail
- * with a Browserbase-owned key. The agent never sees an AgentMail credential —
- * only the inbox address and these commands.
+ * Talks directly to AgentMail (https://api.agentmail.to/v0) using an
+ * AGENTMAIL_API_KEY from the environment. The inner agent never sees the key —
+ * it only ever receives the inbox address and shells out to these commands.
  *
  * Commands:
  *   create    --workspace <dir> --task <name>
@@ -15,21 +15,27 @@
  *   release   --workspace <dir> --task <name>
  *
  * Env:
- *   BROWSE_SH_URL             default https://browse.sh
- *   BROWSE_SH_WEBHOOK_SECRET  required — authenticates to the endpoint
+ *   AGENTMAIL_API_KEY  required — get a free key at https://agentmail.to.
+ *                      Browserbase deployments inject a pooled key; regular
+ *                      users provide their own.
  */
 
 import "dotenv/config";
 import * as fs from "node:fs";
 import * as path from "node:path";
+import { randomBytes } from "node:crypto";
 
-const BASE_URL = (process.env.BROWSE_SH_URL || "https://browse.sh").replace(/\/$/, "");
-const WEBHOOK_SECRET = process.env.BROWSE_SH_WEBHOOK_SECRET;
+const AGENTMAIL_BASE = "https://api.agentmail.to/v0";
 const POLL_INTERVAL_MS = 3000;
 const DEFAULT_OTP_RE = "\\b\\d{4,8}\\b";
 // URLs in HTML emails live inside href="..." — the char class stops at the
 // closing quote / angle bracket, so this captures the bare URL cleanly.
 const URL_RE = /https?:\/\/[^\s"'<>)]+/g;
+
+// Throwaway inboxes carry this local-part prefix so sweep-on-create only ever
+// reclaims our own inboxes — never a human/primary inbox on the same account.
+const INBOX_PREFIX = "ab-";
+const STALE_INBOX_MS = 60 * 60 * 1000; // reclaim abandoned inboxes older than 1h
 
 function getArg(name, fallback) {
   const idx = process.argv.indexOf(`--${name}`);
@@ -55,22 +61,29 @@ function readState(workspace, task) {
   return JSON.parse(fs.readFileSync(file, "utf-8"));
 }
 
-function endpointHeaders() {
-  if (!WEBHOOK_SECRET) {
-    die("BROWSE_SH_WEBHOOK_SECRET is not set — cannot reach the inbox endpoint");
+function apiKey() {
+  const key = process.env.AGENTMAIL_API_KEY;
+  if (!key) {
+    die(
+      "AGENTMAIL_API_KEY is not set — get a free key at https://agentmail.to " +
+        "and add it to your .env (Browserbase deployments inject a pooled key).",
+    );
   }
-  return { "Content-Type": "application/json", "x-webhook-secret": WEBHOOK_SECRET };
+  return key;
 }
 
-async function api(method, urlPath, { body } = {}) {
-  const res = await fetch(`${BASE_URL}${urlPath}`, {
+async function agentMail(method, apiPath, { body } = {}) {
+  const res = await fetch(`${AGENTMAIL_BASE}${apiPath}`, {
     method,
-    headers: endpointHeaders(),
+    headers: {
+      Authorization: `Bearer ${apiKey()}`,
+      "Content-Type": "application/json",
+    },
     body: body ? JSON.stringify(body) : undefined,
   });
   const json = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(`${method} ${urlPath} → ${res.status}: ${JSON.stringify(json)}`);
+    throw new Error(`${method} ${apiPath} → ${res.status}: ${JSON.stringify(json)}`);
   }
   return json;
 }
@@ -90,14 +103,45 @@ function senderOf(msg) {
   return String(msg.from ?? msg.sender ?? "").toLowerCase();
 }
 
+function localPart(inboxId) {
+  return String(inboxId || "").split("@")[0] ?? "";
+}
+
+// Delete throwaway inboxes that outlived a loop (e.g. it crashed before
+// releasing). Best-effort: never blocks minting a new inbox. Only touches
+// `ab-`-prefixed inboxes we can confidently date as stale.
+async function sweepStaleInboxes() {
+  try {
+    const body = await agentMail("GET", "/inboxes");
+    const inboxes = Array.isArray(body?.inboxes) ? body.inboxes : [];
+    const cutoff = Date.now() - STALE_INBOX_MS;
+    await Promise.all(
+      inboxes.map(async (inbox) => {
+        const id = String(inbox.inbox_id ?? inbox.email ?? "");
+        if (!id || !localPart(id).startsWith(INBOX_PREFIX)) return;
+        const created = inbox.created_at ? Date.parse(inbox.created_at) : NaN;
+        if (!Number.isFinite(created) || created > cutoff) return;
+        await agentMail("DELETE", `/inboxes/${encodeURIComponent(id)}`).catch(() => {});
+      }),
+    );
+  } catch {
+    // swallow — sweeping is a courtesy, not a correctness requirement
+  }
+}
+
 async function cmdCreate(workspace, task) {
   const file = stateFile(workspace, task);
-  const { email, inbox_id } = await api("POST", "/api/skills/inboxes");
-  if (!email || !inbox_id) die("endpoint returned no inbox", 1);
+  await sweepStaleInboxes();
+  const username = `${INBOX_PREFIX}${randomBytes(5).toString("hex")}`;
+  const inbox = await agentMail("POST", "/inboxes", {
+    body: { username, display_name: "Autobrowse" },
+  });
+  const inbox_id = inbox.inbox_id ?? inbox.email;
+  if (!inbox_id) die(`AgentMail returned no inbox_id: ${JSON.stringify(inbox)}`, 1);
   fs.mkdirSync(path.dirname(file), { recursive: true });
-  fs.writeFileSync(file, JSON.stringify({ email, inbox_id }, null, 2));
+  fs.writeFileSync(file, JSON.stringify({ email: inbox_id, inbox_id }, null, 2));
   // The agent reads stdout — print only the address.
-  console.log(email);
+  console.log(inbox_id);
 }
 
 function partsOf(msg) {
@@ -112,9 +156,9 @@ async function pollInbox(enc, from, within, extract) {
   while (Date.now() < deadline) {
     // include_spam — verification emails to a brand-new throwaway inbox
     // frequently get spam-flagged; we want everything that lands here.
-    const body = await api(
+    const body = await agentMail(
       "GET",
-      `/api/skills/inboxes/${enc}/messages?limit=20&include_spam=true`,
+      `/inboxes/${enc}/messages?limit=20&include_spam=true`,
     ).catch(() => null);
     const messages = asMessages(body);
     const matches = from ? messages.filter((m) => senderOf(m).includes(from)) : messages;
@@ -122,9 +166,9 @@ async function pollInbox(enc, from, within, extract) {
     for (const msg of matches) {
       let found = extract(partsOf(msg));
       if (!found && msg.message_id) {
-        const full = await api(
+        const full = await agentMail(
           "GET",
-          `/api/skills/inboxes/${enc}/messages?message_id=${encodeURIComponent(msg.message_id)}`,
+          `/inboxes/${enc}/messages/${encodeURIComponent(msg.message_id)}`,
         ).catch(() => null);
         if (full) found = extract(partsOf(full));
       }
@@ -170,7 +214,7 @@ async function cmdWaitLink(workspace, task) {
 async function cmdLatest(workspace, task) {
   const { inbox_id } = readState(workspace, task);
   const enc = encodeURIComponent(inbox_id);
-  const body = await api("GET", `/api/skills/inboxes/${enc}/messages?limit=1&include_spam=true`);
+  const body = await agentMail("GET", `/inboxes/${enc}/messages?limit=1&include_spam=true`);
   const [msg] = asMessages(body);
   console.log(JSON.stringify(msg ?? null, null, 2));
 }
@@ -181,9 +225,8 @@ async function cmdRelease(workspace, task) {
   try {
     const { inbox_id } = JSON.parse(fs.readFileSync(file, "utf-8"));
     if (inbox_id) {
-      await api("DELETE", `/api/skills/inboxes?inbox_id=${encodeURIComponent(inbox_id)}`).catch(
-        () => {},
-      );
+      // 404 → already gone; treat any failure as best-effort.
+      await agentMail("DELETE", `/inboxes/${encodeURIComponent(inbox_id)}`).catch(() => {});
     }
   } catch {
     // best-effort

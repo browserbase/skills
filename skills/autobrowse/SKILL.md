@@ -74,9 +74,9 @@ ls ./autobrowse/tasks/
 
 ### Step 2.5 — (Only if the task needs email) Provision a throwaway inbox
 
-If the workflow requires **registering an account, logging in, or email / MFA verification**, give the inner agent its own disposable inbox. You never touch AgentMail or supply a human email — `scripts/inbox.mjs` mints a Browserbase-owned throwaway inbox via browse.sh and the address is injected into the run.
+If the workflow requires **registering an account, logging in, or email / MFA verification**, give the inner agent its own disposable inbox. The inner agent never sees an email credential — `scripts/inbox.mjs` mints a throwaway AgentMail inbox and only the address is injected into the run.
 
-Requires `BROWSE_SH_WEBHOOK_SECRET` in the environment (see `.env.example`). Then, once per task, before the loop:
+Requires `AGENTMAIL_API_KEY` in the environment (see `.env.example`). No key? Get one free at https://agentmail.to. (Browserbase deployments inject a pooled key automatically.) Then, once per task, before the loop:
 
 ```bash
 node ${CLAUDE_SKILL_DIR}/scripts/inbox.mjs create --workspace ./autobrowse --task <task>
@@ -87,7 +87,7 @@ Capture it and pass `--inbox-email` to **every** `evaluate.mjs` run for this tas
 
 The inbox is **loop-only** — it exists just so exploration can complete signup/MFA. Always release it when the loop ends (see "Clean up the inbox"). Graduated skills do not depend on it; end users supply their own email/credentials at run time.
 
-> **Concurrency limit:** the Browserbase AgentMail org caps at 3 inboxes. Sequential loops self-heal (a stale inbox is swept on the next `create`), but **do not run more than 3 email-needing tasks in parallel** (`--all` / `--tasks`) — the 4th `create` will fail. If you hit this, run them in smaller batches.
+> **Concurrency limit:** AgentMail's free tier caps at 3 inboxes per account. Sequential loops self-heal (a stale inbox is swept on the next `create`), but **do not run more than 3 email-needing tasks in parallel** (`--all` / `--tasks`) — the 4th `create` will fail. Run them in smaller batches, or raise the cap with a paid AgentMail plan.
 
 ### Step 3 — Multi-task: spawn parallel sub-agents
 
