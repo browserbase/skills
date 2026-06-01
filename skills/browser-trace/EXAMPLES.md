@@ -220,4 +220,4 @@ jq -c 'select(.params.frameId == .params.loaderId or .params.frameId != null)
 jq '.proxyBytes' browserbase/session.json
 ```
 
-**Key idea**: `bb-capture.mjs <session-id>` (no `--new`) only adds an tracer; it never sends action commands. The production worker keeps running. `bb-finalize.mjs` *without* `--release` leaves the session alive when you're done.
+**Key idea**: `bb-capture.mjs <session-id>` (no `--new`) only adds a tracer; it never sends action commands. The production worker keeps running. `bb-finalize.mjs` *without* `--release` leaves the session alive when you're done.
