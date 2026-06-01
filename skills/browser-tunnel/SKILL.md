@@ -44,7 +44,7 @@ brew install cloudflared          # macOS
 export BROWSERBASE_API_KEY="..."       # from browserbase.com/settings
 ```
 
-The launcher uses your first Browserbase project automatically. Set `BROWSERBASE_PROJECT_ID` only if you want to pin a specific project.
+Your API key is scoped to a single project, so no project ID is needed.
 
 Node.js 18+ required (uses built-in `fetch`).
 
@@ -92,7 +92,7 @@ Always show the user the `dashboardUrl` so they can watch live.
 The secret can travel two ways. Pick based on your driver:
 
 - **`authUrl` (query param → cookie)** — open `https://host/?__tunnel=<secret>`. The proxy validates the query param on the first request and plants an `HttpOnly` cookie, so the browser then carries the secret on every subsequent request (page *and* subresources) automatically. This is what makes the **`browse` CLI** a clean one-liner. (Don't try `https://user:pass@host` — Chrome strips URL credentials on CDP navigation, so they never arrive.)
-- **`X-Tunnel-Auth` header via CDP** — for programmatic drivers (Playwright/Stagehand), inject the header with `Network.setExtraHTTPHeaders`. Don't use a framework helper like `page.setExtraHTTPHeaders()`: it only covers top-level navigations, so subresources will 401.
+- **`X-Tunnel-Auth` header via CDP** — for programmatic drivers (Stagehand/Playwright), inject the header with `Network.setExtraHTTPHeaders`. Don't use a framework helper like `page.setExtraHTTPHeaders()`: it only covers top-level navigations, so subresources will 401.
 
 ### Option A — `browse` CLI (recommended)
 
@@ -113,9 +113,31 @@ browse screenshot --session bb --path /tmp/local-on-bb.png
 
 > Use a fresh `--session` name (not the implicit `default`) to avoid "already running in cdp mode" if you have other browse sessions open.
 
-### Option B — Playwright
+### Option B — Stagehand
 
-Use when you need programmatic control. Inject the header via CDP before navigating, then go to the bare `tunnelUrl`.
+Use when you need programmatic control with Stagehand's AI actions. Inject the header via CDP before any `page.goto()`, then navigate to the bare `tunnelUrl` (or just `page.goto(authUrl)` and skip the header entirely).
+
+```javascript
+const stagehand = new Stagehand({
+  env: "BROWSERBASE",
+  browserbaseSessionID: sessionId,   // reuse the session created by the launcher
+});
+await stagehand.init();
+const page = stagehand.page;
+
+// Inject auth header on every request via CDP
+const client = await page.context().newCDPSession(page);
+await client.send("Network.setExtraHTTPHeaders", {
+  headers: { "X-Tunnel-Auth": secret },
+});
+
+await page.goto(tunnelUrl);
+await stagehand.act({ action: "click the login button" });
+```
+
+### Option C — Playwright
+
+Same CDP approach as Stagehand — inject the header before navigating, then go to the bare `tunnelUrl`.
 
 ```javascript
 import { chromium } from "playwright-core";
@@ -126,7 +148,6 @@ const browser = await chromium.connectOverCDP(connectUrl);
 const context = browser.contexts()[0];
 const page = context.pages()[0] || (await context.newPage());
 
-// Inject auth header on every request via CDP
 const client = await context.newCDPSession(page);
 await client.send("Network.enable");
 await client.send("Network.setExtraHTTPHeaders", {
@@ -140,28 +161,7 @@ await page.screenshot({ path: "/tmp/login.png", fullPage: true });
 await browser.close();
 ```
 
-> Playwright can also use `authUrl` directly (`page.goto(authUrl)`) and skip the CDP header — the `X-Tunnel-Auth` route is just the alternative if you'd rather not put creds in the URL.
-
-### Option C — Stagehand
-
-Same as Playwright — inject the header via CDP before any `page.goto()`, then navigate to `tunnelUrl` (or just `page.goto(authUrl)` and skip the header).
-
-```javascript
-const stagehand = new Stagehand({
-  env: "BROWSERBASE",
-  browserbaseSessionID: sessionId,   // reuse the session created by the launcher
-});
-await stagehand.init();
-const page = stagehand.page;
-
-const client = await page.context().newCDPSession(page);
-await client.send("Network.setExtraHTTPHeaders", {
-  headers: { "X-Tunnel-Auth": secret },
-});
-
-await page.goto(tunnelUrl);
-await stagehand.act({ action: "click the login button" });
-```
+> Either driver can also use `authUrl` directly (`page.goto(authUrl)`) and skip the CDP header — the `X-Tunnel-Auth` route is just the alternative if you'd rather not put creds in the URL.
 
 ## Step 3 — Clean up
 
@@ -231,7 +231,7 @@ echo "Replay: $DASHBOARD_URL"
 | Root HTML loads but JS/CSS 401 | You used a framework helper like `page.setExtraHTTPHeaders()` (top-level navs only) instead of `authUrl` or CDP `Network.setExtraHTTPHeaders` |
 | Tunnel URL takes 5-10s to be reachable from BB | Normal — cloudflared edge needs to register. Retry once on 502 |
 | Local dev server isn't reached | `curl http://localhost:<port>` first to confirm the dev server is actually up |
-| `BROWSERBASE_API_KEY not set` | `export BROWSERBASE_API_KEY=...` (project is auto-discovered; set `BROWSERBASE_PROJECT_ID` only to pin one) |
+| `BROWSERBASE_API_KEY not set` | `export BROWSERBASE_API_KEY=...` (the key is project-scoped — no project ID needed) |
 | WebSockets don't work | The proxy supports HTTP upgrade — make sure your client uses `wss://` (cloudflared quick tunnels are HTTPS-only) |
 | Launcher hangs at "starting quick tunnel" | Network or DNS issue reaching `trycloudflare.com`. `cloudflared tunnel --url http://example.com` to test cloudflared standalone |
 

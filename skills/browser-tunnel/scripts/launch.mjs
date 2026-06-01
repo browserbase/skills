@@ -10,8 +10,7 @@
  *   node launch.mjs --port 3000
  *   node launch.mjs --port 5173 --host 127.0.0.1 --env dev
  *
- * Required env: BROWSERBASE_API_KEY
- * Optional env: BROWSERBASE_PROJECT_ID (defaults to the first project on the account)
+ * Required env: BROWSERBASE_API_KEY (scoped to a single project; no project ID needed)
  *
  * Output (stdout, single JSON line then "---READY---" sentinel):
  *   {
@@ -21,7 +20,6 @@
  *     "headerName":  "X-Tunnel-Auth",
  *     "sessionId":   "...",
  *     "connectUrl":  "wss://connect.browserbase.com/...",
- *     "debugUrl":    "https://...",
  *     "dashboardUrl":"https://www.browserbase.com/sessions/..."
  *   }
  *   ---READY---
@@ -66,12 +64,10 @@ const BB_API_BASE =
 const BB_DASH_BASE =
   env === "dev" ? "https://www.dev.browserbase.com" : "https://www.browserbase.com";
 
-// Project ID is optional. Each API key is scoped to exactly one project, so the
-// Browserbase API resolves it from the key when projectId is omitted. Set
-// BROWSERBASE_PROJECT_ID only to pin a specific project. (Don't guess from
-// GET /v1/projects — that lists every project the account can see, and the
-// wrong one returns "Unauthorized Project ID".)
-let BB_PROJECT_ID = process.env.BROWSERBASE_PROJECT_ID || null;
+// Each API key is scoped to exactly one project, so we never ask the user for a
+// project ID — we omit projectId on session create (the API derives it from the
+// key) and read session.projectId back from the response for the later release.
+let projectId = null;
 
 const SECRET = randomUUID();
 const HEADER = "X-Tunnel-Auth";
@@ -231,36 +227,94 @@ const tunnelUrl = await new Promise((resolve, reject) => {
     buf += chunk.toString();
     const m = buf.match(/https:\/\/[a-z0-9-]+\.trycloudflare\.com/);
     if (m) {
-      cf.stdout.off("data", onChunk);
-      cf.stderr.off("data", onChunk);
+      cleanup();
       resolve(m[0]);
     }
   };
+  const onExit = (code) =>
+    reject(new Error(`cloudflared exited (code ${code}) before URL was found`));
+  const timer = setTimeout(() => {
+    cleanup();
+    reject(new Error("timed out waiting for cloudflared URL"));
+  }, 30_000);
+  function cleanup() {
+    clearTimeout(timer);
+    cf.stdout.off("data", onChunk);
+    cf.stderr.off("data", onChunk);
+    cf.off("exit", onExit);
+  }
   cf.stdout.on("data", onChunk);
   cf.stderr.on("data", onChunk);
-  cf.on("exit", (code) => reject(new Error(`cloudflared exited (code ${code}) before URL was found`)));
-  setTimeout(() => reject(new Error("timed out waiting for cloudflared URL")), 30_000);
+  cf.on("exit", onExit);
 });
 console.error(`[cloudflared] tunnel URL: ${tunnelUrl}`);
 
+// ─── Cleanup on exit ─────────────────────────────────────────────────────────
+// Defined and wired up *before* session creation so that a cloudflared crash or
+// a Ctrl-C during that window still tears everything down. `session` may still
+// be null at that point — the release call is guarded accordingly.
+let session = null;
+let shuttingDown = false;
+async function shutdown(signal, code = 0) {
+  if (shuttingDown) return;
+  shuttingDown = true;
+  console.error(`\n[shutdown] received ${signal}, cleaning up...`);
+
+  // Local cleanup first — these are instant and must happen even if the BB API
+  // is slow or unreachable, so nothing lingers after Ctrl-C.
+  cf.kill("SIGINT");
+  proxy.close();
+
+  // Hard safety net: never let a hanging release request keep us alive.
+  const hardExit = setTimeout(() => process.exit(code), 3000);
+  hardExit.unref?.();
+
+  // Release the BB session if we got far enough to create one. Time-boxed so a
+  // slow API can't block the (already-done) local cleanup.
+  if (session?.id) {
+    try {
+      await fetch(`${BB_API_BASE}/v1/sessions/${session.id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-bb-api-key": BB_API_KEY },
+        body: JSON.stringify({ status: "REQUEST_RELEASE", projectId }),
+        signal: AbortSignal.timeout(2500),
+      });
+      console.error("[shutdown] BB session released");
+    } catch (e) {
+      console.error("[shutdown] release error:", e.message);
+    }
+  }
+  clearTimeout(hardExit);
+  process.exit(code);
+}
+process.on("SIGINT", () => shutdown("SIGINT"));
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+// A cloudflared exit means the tunnel is dead — tear everything down. Registered
+// here (not after session creation) so an exit during the create window, when
+// the tunnel-URL promise's own exit listener has already been removed, still
+// triggers cleanup instead of silently emitting a dead tunnel URL.
+cf.on("exit", (code) => {
+  console.error(`[cloudflared] exited with code ${code}`);
+  if (!shuttingDown) shutdown("cloudflared-exit");
+});
+
 // ─── Create Browserbase session ──────────────────────────────────────────────
+// No projectId sent — the API key is scoped to one project, so the API derives
+// it from the key. We read session.projectId back for the later release call.
 console.error(`[bb] creating session on ${BB_API_BASE}...`);
 const bbRes = await fetch(`${BB_API_BASE}/v1/sessions`, {
   method: "POST",
   headers: { "Content-Type": "application/json", "x-bb-api-key": BB_API_KEY },
-  body: JSON.stringify(BB_PROJECT_ID ? { projectId: BB_PROJECT_ID } : {}),
+  body: JSON.stringify({}),
 });
 if (!bbRes.ok) {
   const text = await bbRes.text();
   console.error(`[bb] failed to create session: ${bbRes.status} ${text}`);
-  cf.kill("SIGINT");
-  proxy.close();
-  process.exit(1);
+  await shutdown("create-failed", 1);
 }
-const session = await bbRes.json();
-// Resolve the actual project the API assigned (from the key) for later release.
-BB_PROJECT_ID = session.projectId || BB_PROJECT_ID;
-console.error(`[bb] session: ${session.id} (project ${BB_PROJECT_ID})`);
+session = await bbRes.json();
+projectId = session.projectId || null;
+console.error(`[bb] session: ${session.id} (project ${projectId})`);
 
 // ─── Emit connection JSON on stdout ─────────────────────────────────────────
 // authUrl carries the secret as a query param. The first navigation authenticates
@@ -275,7 +329,6 @@ const output = {
   headerName: HEADER,
   sessionId: session.id,
   connectUrl: session.connectUrl,
-  debugUrl: session.seleniumRemoteUrl || null,
   dashboardUrl: `${BB_DASH_BASE}/sessions/${session.id}`,
   localPort: port,
   proxyPort,
@@ -283,40 +336,5 @@ const output = {
 process.stdout.write(JSON.stringify(output) + "\n");
 process.stdout.write("---READY---\n");
 
-// ─── Cleanup on exit ─────────────────────────────────────────────────────────
-let shuttingDown = false;
-async function shutdown(signal) {
-  if (shuttingDown) return;
-  shuttingDown = true;
-  console.error(`\n[shutdown] received ${signal}, cleaning up...`);
-
-  // Local cleanup first — these are instant and must happen even if the BB API
-  // is slow or unreachable, so nothing lingers after Ctrl-C.
-  cf.kill("SIGINT");
-  proxy.close();
-
-  // Hard safety net: never let a hanging release request keep us alive.
-  const hardExit = setTimeout(() => process.exit(0), 3000);
-  hardExit.unref?.();
-
-  // Time-box the release so a slow API can't block the (already-done) cleanup.
-  try {
-    await fetch(`${BB_API_BASE}/v1/sessions/${session.id}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", "x-bb-api-key": BB_API_KEY },
-      body: JSON.stringify({ status: "REQUEST_RELEASE", projectId: BB_PROJECT_ID }),
-      signal: AbortSignal.timeout(2500),
-    });
-    console.error("[shutdown] BB session released");
-  } catch (e) {
-    console.error("[shutdown] release error:", e.message);
-  }
-  clearTimeout(hardExit);
-  process.exit(0);
-}
-process.on("SIGINT", () => shutdown("SIGINT"));
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-cf.on("exit", (code) => {
-  console.error(`[cloudflared] exited with code ${code}`);
-  if (!shuttingDown) shutdown("cloudflared-exit");
-});
+// The process now stays alive on the open proxy/cloudflared handles until a
+// signal (or a cloudflared exit) triggers shutdown(), wired up above.
