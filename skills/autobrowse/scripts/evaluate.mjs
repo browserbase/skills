@@ -271,6 +271,27 @@ function executeCommand(command) {
   }
 }
 
+// evaluate.mjs leaves the browser session running by default so a caller can
+// attach (e.g. browser-trace bisect in the browse.sh pipeline). But when WE
+// created the session — no caller-managed session attached via BROWSE_SESSION
+// or --session — nothing else will clean it up, and the inner agent only
+// *might* run `browse stop` (LLMs routinely skip the trailing cleanup step).
+// So tear down the daemon ourselves: killing it drops the CDP connection, and
+// our own `browse open` runs without --keep-alive, so the remote session ends.
+function ownsSession() {
+  return !process.env.BROWSE_SESSION && !getArg("session");
+}
+
+function teardownOwnedSession() {
+  if (!ownsSession()) return;
+  try {
+    execFileSync("browse", ["stop"], { timeout: 15_000, stdio: "ignore" });
+    console.error("Stopped browser session (evaluate.mjs owned it).");
+  } catch {
+    // best-effort — never fail the run over cleanup
+  }
+}
+
 function buildSystemPrompt(strategy, traceDir, browseEnv) {
   const openFlag = browseEnv === "remote" ? "--remote" : "--local";
   const envDesc = browseEnv === "remote"
@@ -610,10 +631,12 @@ async function main() {
     tokens_out: totalOutputTokens,
     trace_dir: traceDir,
   };
+  teardownOwnedSession();
   console.log(JSON.stringify(result));
 }
 
 main().catch((err) => {
   console.error("Fatal error:", err);
+  teardownOwnedSession();
   process.exit(1);
 });
