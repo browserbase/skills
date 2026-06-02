@@ -48,7 +48,7 @@ const TOOLS = [
       "  browse get url/title/text  — Get page info\n" +
       "  browse mouse drag <x1> <y1> <x2> <y2> — Drag (for sliders)\n" +
       "  browse back/reload/stop    — Navigation/session control\n\n" +
-      "If a throwaway inbox was provisioned for this task (see the Agent Inbox section, when present), you may also run `node <path>/scripts/inbox.mjs wait-otp|latest ...` through this tool to read verification emails.\n\n" +
+      "If a throwaway inbox was provisioned for this task (see the Agent Inbox section, when present), you may also run the inbox-provider commands shown there through this tool to read verification emails.\n\n" +
       "Critical: Always `browse snapshot` after every action — refs invalidate on DOM changes.",
     input_schema: {
       type: "object",
@@ -82,8 +82,10 @@ Options:
   --env local|remote   Browser environment (default: local)
   --model <model>      Claude model for the inner agent (default: ${DEFAULT_MODEL})
   --run-number N       Force a specific run number (default: auto-increment)
-  --inbox-email <addr> Throwaway inbox address for signup/login/MFA tasks
-                       (provision it first via scripts/inbox.mjs create)
+  --inbox-cmd <path>   Optional inbox-provider command for email tasks (see the
+                       provider contract in this file). Or set AUTOBROWSE_INBOX_CMD.
+  --inbox-email <addr> Inbox address for the run (usually resolved from the
+                       provider's .inbox.json; this flag is a fallback)
   --help               Show this help message
 
 Environment variables:
@@ -162,24 +164,48 @@ function getNextRunNumber(tracesDir) {
 }
 
 const ALLOWED_COMMAND = "browse";
-// Absolute path to the throwaway-inbox helper. The agent may shell out to it
-// (e.g. `node <abs>/scripts/inbox.mjs wait-otp ...`) when a task involves
-// signup/login/MFA and an inbox was provisioned for the run.
-const INBOX_SCRIPT = path.join(SKILL_DIR, "scripts", "inbox.mjs");
+
+// ── Optional inbox provider ─────────────────────────────────────────
+//
+// For tasks that need email (signup / login / MFA), the agent can read
+// verification mail by shelling out to an OPTIONAL, externally-supplied
+// "inbox provider" command. autobrowse ships no provider and assumes no
+// specific email vendor — point it at one with `--inbox-cmd <path>` (or
+// AUTOBROWSE_INBOX_CMD). When unset (the default), there is no inbox feature.
+//
+// PROVIDER CONTRACT — a provider is any executable script implementing:
+//   create    --workspace <dir> --task <name>
+//             → mints an inbox; writes <workspace>/tasks/<task>/.inbox.json =
+//               { "email": "...", "inbox_id": "..." }; prints the address.
+//   wait-otp  --workspace <dir> --task <name> --from <s> --within <sec> [--regex <re>]
+//             → prints the extracted code on stdout; exits non-zero (2) on timeout.
+//   wait-link --workspace <dir> --task <name> --from <s> --within <sec> [--match <substr>]
+//             → prints the verification URL on stdout; exits non-zero (2) on timeout.
+//   latest    --workspace <dir> --task <name>  → prints the newest message as JSON.
+//   release   --workspace <dir> --task <name>  → deletes the inbox and .inbox.json.
+// The `.inbox.json` { email, inbox_id } schema is the only cross-boundary data
+// contract: this harness reads it to resolve the address and to scope the agent.
+const INBOX_CMD = (() => {
+  const c = getArg("inbox-cmd", process.env.AUTOBROWSE_INBOX_CMD);
+  return c ? path.resolve(c) : null;
+})();
+
+function isInboxCmd(executable, args) {
+  return Boolean(INBOX_CMD) && executable === "node" && args[0] && path.resolve(args[0]) === INBOX_CMD;
+}
 
 function isAllowedCommand(executable, args) {
   if (executable === ALLOWED_COMMAND) return true;
-  // node <abs-path-to-inbox.mjs> ...
-  if (executable === "node" && args[0] && path.resolve(args[0]) === INBOX_SCRIPT) return true;
+  // node <abs-path-to-configured-inbox-provider> ...
+  if (isInboxCmd(executable, args)) return true;
   return false;
 }
 
-// inbox.mjs wait-otp/wait-link block for up to --within seconds polling for an
+// Provider wait-otp/wait-link block for up to --within seconds polling for an
 // email — longer than the default 30s exec cap. Give them their full window
 // plus headroom so the harness doesn't kill them mid-poll (the ETIMEDOUT bug).
 function execTimeoutFor(executable, args) {
-  const isInbox = executable === "node" && args[0] && path.resolve(args[0]) === INBOX_SCRIPT;
-  const isWait = isInbox && (args.includes("wait-otp") || args.includes("wait-link"));
+  const isWait = isInboxCmd(executable, args) && (args.includes("wait-otp") || args.includes("wait-link"));
   if (!isWait) return EXEC_TIMEOUT_MS;
   const i = args.indexOf("--within");
   const within = i !== -1 ? parseInt(args[i + 1], 10) : 60;
@@ -267,10 +293,10 @@ function parseCommand(command) {
   return { args };
 }
 
-// Force inbox.mjs onto the run's own workspace/task. Parallel sub-agents share
-// one workspace and are isolated only by --task, so a confused agent passing a
-// different --task could read or release a sibling task's inbox. Strip any
-// agent-supplied --workspace/--task and append the run's real ones.
+// Force the inbox provider onto the run's own workspace/task. Parallel
+// sub-agents share one workspace and are isolated only by --task, so a confused
+// agent passing a different --task could read or release a sibling task's inbox.
+// Strip any agent-supplied --workspace/--task and append the run's real ones.
 function forceInboxScope(args, runWorkspace, runTask) {
   const out = [];
   for (let i = 0; i < args.length; i++) {
@@ -294,16 +320,16 @@ function executeCommand(command, runWorkspace, runTask) {
 
   let [executable, ...args] = parsed.args;
   if (!isAllowedCommand(executable, args)) {
-    return { output: `BLOCKED: only browse and inbox.mjs commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
+    return { output: `BLOCKED: only browse${INBOX_CMD ? " and the configured inbox provider" : ""} commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
   }
 
-  // Pin inbox.mjs to this run's workspace/task (isolation — see forceInboxScope).
-  const isInbox = executable === "node" && args[0] && path.resolve(args[0]) === INBOX_SCRIPT;
+  // Pin the inbox provider to this run's workspace/task (isolation — see forceInboxScope).
+  const isInbox = isInboxCmd(executable, args);
   if (isInbox && runWorkspace && runTask) {
     const ti = args.indexOf("--task");
     const supplied = ti !== -1 ? args[ti + 1] : undefined;
     if (supplied && supplied !== runTask) {
-      console.error(`  [scope] inbox.mjs --task "${supplied}" overridden to "${runTask}" (isolation)`);
+      console.error(`  [scope] inbox provider --task "${supplied}" overridden to "${runTask}" (isolation)`);
     }
     args = forceInboxScope(args, runWorkspace, runTask);
   }
@@ -325,8 +351,8 @@ function executeCommand(command, runWorkspace, runTask) {
   }
 }
 
-// The task's throwaway-inbox address, if one was provisioned (written by
-// inbox.mjs create). Authoritative — wait-otp/wait-link poll exactly this
+// The task's throwaway-inbox address, if one was provisioned (the provider's
+// `create` writes it). Authoritative — wait-otp/wait-link poll exactly this
 // inbox — so it wins over the --inbox-email flag.
 function readInboxState(taskDir) {
   try {
@@ -338,7 +364,7 @@ function readInboxState(taskDir) {
 }
 
 function buildInboxSection(inboxEmail, workspace, taskName) {
-  if (!inboxEmail) return "";
+  if (!inboxEmail || !INBOX_CMD) return "";
   return `
 # Agent Inbox
 
@@ -349,18 +375,18 @@ You have been provisioned a throwaway email inbox for this task:
 Use this address for any signup, login, or MFA / email-verification step — type it into email fields exactly as shown. To read mail that arrives (verification links, one-time codes), shell out via the execute tool:
 
 - Wait for an OTP / verification code:
-  \`node ${INBOX_SCRIPT} wait-otp --workspace ${workspace} --task ${taskName} --from <sender-domain> --within 60\`
+  \`node ${INBOX_CMD} wait-otp --workspace ${workspace} --task ${taskName} --from <sender-domain> --within 60\`
   Prints just the extracted code on stdout (or fails after the timeout). Use the sending domain you expect, e.g. \`--from stripe.com\`. Default matches a 4–8 digit code; pass \`--regex "<pattern>"\` for alphanumeric codes.
 
 - Wait for a verification / magic link, then open it:
-  \`node ${INBOX_SCRIPT} wait-link --workspace ${workspace} --task ${taskName} --from <sender-domain> --within 60\`
-  Prints just the first URL found (optionally filter with \`--match <substr>\`, e.g. \`--match verify\`). Then \`browse open <that-url>\` to complete verification.
+  \`node ${INBOX_CMD} wait-link --workspace ${workspace} --task ${taskName} --from <sender-domain> --within 60\`
+  Prints just the verification URL found (optionally filter with \`--match <substr>\`, e.g. \`--match verify\`). Then \`browse open <that-url>\` to complete verification.
 
 - Read the most recent message raw (fallback if the helpers above miss):
-  \`node ${INBOX_SCRIPT} latest --workspace ${workspace} --task ${taskName}\`
+  \`node ${INBOX_CMD} latest --workspace ${workspace} --task ${taskName}\`
   Prints the newest message as JSON (from, subject, text, html).
 
-Do not call AgentMail or any other email API directly — only the commands above.
+Use only the commands above to read email — do not call any email API directly.
 `;
 }
 
