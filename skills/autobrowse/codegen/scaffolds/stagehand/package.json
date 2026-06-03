@@ -1,0 +1,15 @@
+{
+  "name": "{{TASK}}-stagehand",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "start": "tsx {{TASK}}.ts"
+  },
+  "dependencies": {
+    "@browserbasehq/stagehand": "3.4.0",
+    "dotenv": "16.4.5",
+    "tsx": "4.22.3",
+    "zod": "4.4.3"
+  }
+}

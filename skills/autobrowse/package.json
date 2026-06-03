@@ -4,7 +4,8 @@
   "description": "Self-improving browser agent via skill learning — autoresearch pattern + Browse CLI + Anthropic API",
   "type": "module",
   "scripts": {
-    "evaluate": "node scripts/evaluate.mjs"
+    "evaluate": "node scripts/evaluate.mjs",
+    "codegen": "node scripts/codegen.mjs"
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.39.0",

@@ -223,6 +223,50 @@ Read the new summary. Did it pass? Make clear progress?
 - **Pass or progress** → keep, next iteration
 - **No progress or regression** → revert strategy.md to the previous version and try a different hypothesis
 
+### Generate a runnable script (optional)
+
+Once the task has converged, you can produce a deterministic, runnable script
+in one or more frameworks via `scripts/codegen.mjs`. This is one shot of an
+LLM call per framework, cached by content hash, with optional verify-against-
+fresh-session and rewrite-on-failure.
+
+```bash
+node ${CLAUDE_SKILL_DIR}/scripts/codegen.mjs \
+  --task <name> \
+  --workspace ./autobrowse \
+  --frameworks playwright,stagehand \
+  --verify
+```
+
+Each framework gets its own subdirectory under `tasks/<name>/<framework>/`
+with the emitted script and a self-contained scaffold (`package.json`,
+`tsconfig.json`). The directory is runnable standalone with
+`cd tasks/<name>/playwright && npm install && npx tsx <name>.ts` — the only
+runtime requirement is `BROWSERBASE_API_KEY` (plus `ANTHROPIC_API_KEY` for
+the Stagehand target).
+
+Builtin frameworks: `playwright`, `stagehand`. Add a custom framework with
+`--prompt-template <path> --frameworks custom` (and provide your own runner
+or pass `--no-verify`).
+
+Common flags:
+
+| Flag | Purpose |
+|---|---|
+| `--frameworks a,b,...` | Comma-separated; default `playwright` |
+| `--verify` / `--no-verify` | Run the produced script against a fresh BB session; default `--verify` |
+| `--max-retries N` | Rewrite-on-verify-failure cap; default 2 |
+| `--cache-only` | Error if cache miss (CI-friendly) |
+| `--force` | Bust the cache |
+| `--dry-run` | Estimate prompt size + cost; don't call the LLM |
+| `--run <id>` | Force a specific `run-NNN` (default: latest passing) |
+
+Output is one JSON line per framework on stdout. Non-zero exit if any
+selected framework's final state is `passed: false`.
+
+See `references/playwright-cdp-bridge.md` for the canonical
+`connectOverCDP` patterns the emitted scripts follow.
+
 ### After all iterations — publish if ready
 
 If the task passed on 2+ of the last 3 iterations **or has reached the max iteration limit**, install it as a Claude Code skill. **Do not just copy strategy.md** — the skill must be self-contained and useful to someone who has never seen this codebase. If graduating at max iterations without a clean pass, note the known failure point but still document everything learned.
