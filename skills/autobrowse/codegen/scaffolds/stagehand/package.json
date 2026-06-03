@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "tsx {{TASK}}.ts"
+    "start": "tsx {{SCRIPT}}"
   },
   "dependencies": {
     "@browserbasehq/stagehand": "{{STAGEHAND_VERSION}}",

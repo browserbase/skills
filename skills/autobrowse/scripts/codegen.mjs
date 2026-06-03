@@ -315,14 +315,19 @@ function templateInterpolate(content, vars) {
   );
 }
 
-function dropScaffold(scaffoldDir, outDir, taskName) {
+function dropScaffold(scaffoldDir, outDir, taskName, scriptBasename) {
   if (!fs.existsSync(scaffoldDir)) return;
+  // Two distinct template vars: TASK is the slug (used in package name),
+  // SCRIPT is the actual filename (used in the start script). They diverge
+  // in --out mode where files are named <framework>.ts but TASK is the
+  // task slug — without SCRIPT, `npm start` would invoke a missing file.
+  const vars = { TASK: taskName, SCRIPT: scriptBasename, ...SCAFFOLD_VERSIONS };
   for (const entry of fs.readdirSync(scaffoldDir)) {
     const src = path.join(scaffoldDir, entry);
     const dst = path.join(outDir, entry);
     if (fs.existsSync(dst)) continue; // never overwrite a user's file
     const content = fs.readFileSync(src, "utf-8");
-    fs.writeFileSync(dst, templateInterpolate(content, { TASK: taskName, ...SCAFFOLD_VERSIONS }));
+    fs.writeFileSync(dst, templateInterpolate(content, vars));
   }
 }
 
@@ -410,7 +415,7 @@ async function generateOne(framework) {
   }
 
   fs.writeFileSync(scriptPath, code);
-  dropScaffold(cfg.scaffoldDir, outDir, TASK);
+  dropScaffold(cfg.scaffoldDir, outDir, TASK, scriptBasename);
 
   if (!VERIFY) {
     return { framework, passed: true, scriptPath, cached: !!cached, verify_skipped: true, cost_usd: cost };
