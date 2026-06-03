@@ -50,7 +50,7 @@ import crypto from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.resolve(__dirname, "..");
-const PROMPT_TEMPLATE_VERSION = "2"; // bump to invalidate cache after prompt edits
+const PROMPT_TEMPLATE_VERSION = "1"; // bump to invalidate cache after prompt edits
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 8192;
