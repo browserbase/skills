@@ -257,22 +257,26 @@ async function main() {
     }
 
     // 5. Convergence check — Playwright passed in 2 of last 3 iterations?
-    const last3 = history.slice(-3);
-    const passes = last3.filter((h) => h.pwPassed).length;
-    if (passes >= 2 && history.length >= 2) {
+    if (graduationReached(history)) {
+      const last3 = history.slice(-3);
+      const passes = last3.filter((h) => h.pwPassed).length;
       log(`🎓 GRADUATED: Playwright passed in ${passes} of last ${last3.length} iterations`);
       break;
     }
   }
 
   // ── Write report ─────────────────────────────────────────────────
+  // Graduation is the strict "last-3" criterion, not raw pass count — two
+  // successes separated by many failures don't graduate. Use the same rule
+  // here as inside the loop to keep report / flag / exit code aligned.
+  const graduated = graduationReached(history);
   const passedCount = history.filter((h) => h.pwPassed).length;
   const lines = [
     `# autobrowse loop report — ${TASK}`,
     ``,
     `**Total iterations:** ${history.length}`,
     `**Playwright passes:** ${passedCount}`,
-    `**Final status:** ${passedCount >= 2 ? "✅ graduated" : "❌ did not converge"}`,
+    `**Final status:** ${graduated ? "✅ graduated" : "❌ did not converge"}`,
     ``,
     `## Per-iteration`,
     ``,
@@ -293,13 +297,23 @@ async function main() {
     task: TASK,
     iterations: history.length,
     pw_passes: passedCount,
-    graduated: passedCount >= 2,
+    graduated,
     history,
     report: reportPath,
     script: passedCount >= 1 ? playwrightScript : null,
   }, null, 2));
 
-  process.exit(passedCount >= 2 ? 0 : 2);
+  process.exit(graduated ? 0 : 2);
+}
+
+// Graduation = Playwright passed in ≥2 of the last 3 iterations, with at
+// least 2 iterations on the record. Single source of truth for the
+// mid-loop break, the report's "Final status", the JSON `graduated`
+// field, and the process exit code.
+function graduationReached(history) {
+  if (history.length < 2) return false;
+  const last3 = history.slice(-3);
+  return last3.filter((h) => h.pwPassed).length >= 2;
 }
 
 main().catch((err) => {
