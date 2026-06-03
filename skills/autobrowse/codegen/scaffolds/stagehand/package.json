@@ -7,9 +7,9 @@
     "start": "tsx {{TASK}}.ts"
   },
   "dependencies": {
-    "@browserbasehq/stagehand": "3.4.0",
-    "dotenv": "16.4.5",
-    "tsx": "4.22.3",
-    "zod": "4.4.3"
+    "@browserbasehq/stagehand": "{{STAGEHAND_VERSION}}",
+    "dotenv": "{{DOTENV_VERSION}}",
+    "tsx": "{{TSX_VERSION}}",
+    "zod": "{{ZOD_VERSION}}"
   }
 }

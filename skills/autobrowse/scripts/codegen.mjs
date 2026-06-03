@@ -50,7 +50,7 @@ import crypto from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.resolve(__dirname, "..");
-const PROMPT_TEMPLATE_VERSION = "1"; // bump to invalidate cache after prompt edits
+const PROMPT_TEMPLATE_VERSION = "2"; // bump to invalidate cache after prompt edits or scaffold/runner contract changes
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
 const DEFAULT_MAX_TOKENS = 8192;
@@ -125,7 +125,15 @@ for (const [label, file] of [["task.md", taskFile]]) {
 }
 
 function pickRun() {
-  if (FORCED_RUN) return FORCED_RUN;
+  if (FORCED_RUN) {
+    // --run was passed; still confirm the directory exists. Without this we'd
+    // happily call codegen with empty trace/events/descriptors and the LLM
+    // would invent a script from just task.md + strategy.md, while logs
+    // still report the forced run id as if it were a real input.
+    const forcedDir = path.join(tracesDir, FORCED_RUN);
+    if (!fs.existsSync(forcedDir)) return null;
+    return FORCED_RUN;
+  }
   if (!fs.existsSync(tracesDir)) return null;
   const runs = fs.readdirSync(tracesDir)
     .filter((d) => /^run-\d+$/.test(d))
@@ -142,7 +150,11 @@ function pickRun() {
 
 const RUN_ID = pickRun();
 if (!RUN_ID) {
-  console.error(`ERROR: no passing run found under ${tracesDir}. Pass --run <id> to force, or run autobrowse first.`);
+  if (FORCED_RUN) {
+    console.error(`ERROR: --run ${FORCED_RUN} not found at ${path.join(tracesDir, FORCED_RUN)}.`);
+  } else {
+    console.error(`ERROR: no passing run found under ${tracesDir}. Pass --run <id> to force, or run autobrowse first.`);
+  }
   process.exit(1);
 }
 const runDir = path.join(tracesDir, RUN_ID);
@@ -275,6 +287,27 @@ async function callLlm(systemPrompt, userMessage) {
 
 // ── Scaffold + write output ───────────────────────────────────────
 
+// Scaffold version pins. Each framework's scaffold/package.json references
+// these via {{PLAYWRIGHT_VERSION}} / {{STAGEHAND_VERSION}} / etc. so callers
+// can canary a new release without forking — set the corresponding env var.
+// Loose semver guard rejects shell-injection shapes before they hit npm.
+const VERSION_RE = /^\d+\.\d+\.\d+(?:-[A-Za-z0-9.-]+)?$/;
+function resolveVersion(envName, fallback) {
+  const raw = process.env[envName];
+  if (!raw) return fallback;
+  if (!VERSION_RE.test(raw)) {
+    throw new Error(`${envName}="${raw}" is not a valid X.Y.Z[-tag] version`);
+  }
+  return raw;
+}
+const SCAFFOLD_VERSIONS = {
+  PLAYWRIGHT_VERSION: resolveVersion("PLAYWRIGHT_VERSION", "1.50.0"),
+  STAGEHAND_VERSION: resolveVersion("STAGEHAND_VERSION", "3.4.0"),
+  TSX_VERSION: resolveVersion("TSX_VERSION", "4.22.3"),
+  ZOD_VERSION: resolveVersion("ZOD_VERSION", "4.4.3"),
+  DOTENV_VERSION: resolveVersion("DOTENV_VERSION", "16.4.5"),
+};
+
 function templateInterpolate(content, vars) {
   return Object.entries(vars).reduce(
     (acc, [k, v]) => acc.replaceAll(`{{${k}}}`, v),
@@ -289,7 +322,7 @@ function dropScaffold(scaffoldDir, outDir, taskName) {
     const dst = path.join(outDir, entry);
     if (fs.existsSync(dst)) continue; // never overwrite a user's file
     const content = fs.readFileSync(src, "utf-8");
-    fs.writeFileSync(dst, templateInterpolate(content, { TASK: taskName }));
+    fs.writeFileSync(dst, templateInterpolate(content, { TASK: taskName, ...SCAFFOLD_VERSIONS }));
   }
 }
 
@@ -298,7 +331,7 @@ function dropScaffold(scaffoldDir, outDir, taskName) {
 function verify(framework, outDir, scriptBasename) {
   const { runnerPath } = frameworkConfig(framework);
   if (!fs.existsSync(runnerPath)) {
-    return { passed: false, error: `no runner for framework "${framework}" at ${runnerPath}`, ranner_missing: true };
+    return { passed: false, error: `no runner for framework "${framework}" at ${runnerPath}`, runner_missing: true };
   }
   const res = spawnSync("node", [runnerPath, "--out-dir", outDir, "--script", scriptBasename], {
     encoding: "utf-8",
@@ -357,7 +390,12 @@ async function generateOne(framework) {
     return { framework, dryRun: true, prompt_bytes: bytes, estimated_cost_usd: Number(estCost.toFixed(4)) };
   }
 
-  let code, cost = 0, attempts = 0;
+  // `attempts` counts emitted-script-versions. Cached and uncached both start
+  // at 1 (the script-on-disk is one version, whether the LLM just wrote it or
+  // we restored it from cache). The retry loop below then increments per
+  // rewrite, bounded by --max-retries. Initializing to 0 on a cache hit gave
+  // cached runs one extra rewrite vs uncached — caught by Bugbot.
+  let code, cost = 0, attempts = 1;
   if (cached) {
     code = cached;
   } else {
@@ -369,7 +407,6 @@ async function generateOne(framework) {
     code = c;
     cost += k;
     writeCache(key, code);
-    attempts = 1;
   }
 
   fs.writeFileSync(scriptPath, code);
@@ -382,7 +419,7 @@ async function generateOne(framework) {
   // Verify loop with rewrite-on-failure
   let lastVerify = verify(framework, outDir, scriptBasename);
   while (!lastVerify.passed && attempts < MAX_RETRIES + 1) {
-    if (lastVerify.ranner_missing) break;
+    if (lastVerify.runner_missing) break;
     attempts++;
     const previousCode = code;
     const failureContext =
@@ -403,14 +440,14 @@ async function generateOne(framework) {
     cost += k;
     fs.writeFileSync(scriptPath, code);
     writeCache(key, code); // overwrite cache with the latest attempt
-    lastVerify = verify(framework, outDir, TASK);
+    lastVerify = verify(framework, outDir, scriptBasename);
   }
 
   return {
     framework,
     passed: lastVerify.passed,
     scriptPath,
-    cached: !!cached && attempts === 0,
+    cached: !!cached && cost === 0,
     verify_attempts: attempts,
     last_error: lastVerify.passed ? null : (lastVerify.error || lastVerify.stderr?.slice(-200) || null),
     cost_usd: Number(cost.toFixed(4)),

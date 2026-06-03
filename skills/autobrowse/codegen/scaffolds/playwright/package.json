@@ -7,9 +7,9 @@
     "start": "tsx {{TASK}}.ts"
   },
   "dependencies": {
-    "dotenv": "16.4.5",
-    "playwright": "1.50.0",
-    "tsx": "4.22.3",
-    "zod": "4.4.3"
+    "dotenv": "{{DOTENV_VERSION}}",
+    "playwright": "{{PLAYWRIGHT_VERSION}}",
+    "tsx": "{{TSX_VERSION}}",
+    "zod": "{{ZOD_VERSION}}"
   }
 }
