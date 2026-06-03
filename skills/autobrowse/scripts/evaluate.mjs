@@ -190,14 +190,21 @@ const INBOX_CMD = (() => {
   return c ? path.resolve(c) : null;
 })();
 
+// The inner agent may only READ its inbox via the provider. create/release are
+// orchestrator-only (run outside this harness) — letting the agent call them
+// mid-run lets it kill its own live inbox (`release`) or rewrite .inbox.json
+// (`create`) so the polled inbox no longer matches the address baked into its
+// prompt. Sibling-task isolation is handled separately by forceInboxScope.
+const INBOX_READ_SUBCOMMANDS = new Set(["wait-otp", "wait-link", "latest"]);
+
 function isInboxCmd(executable, args) {
   return Boolean(INBOX_CMD) && executable === "node" && args[0] && path.resolve(args[0]) === INBOX_CMD;
 }
 
 function isAllowedCommand(executable, args) {
   if (executable === ALLOWED_COMMAND) return true;
-  // node <abs-path-to-configured-inbox-provider> ...
-  if (isInboxCmd(executable, args)) return true;
+  // node <provider> <read-subcommand> ... — read subcommands only.
+  if (isInboxCmd(executable, args) && INBOX_READ_SUBCOMMANDS.has(args[1])) return true;
   return false;
 }
 
@@ -356,8 +363,10 @@ function executeCommand(command, runWorkspace, runTask) {
 // inbox — so it wins over the --inbox-email flag.
 function readInboxState(taskDir) {
   try {
-    const { inbox_id } = JSON.parse(fs.readFileSync(path.join(taskDir, ".inbox.json"), "utf-8"));
-    return inbox_id || null;
+    const { email, inbox_id } = JSON.parse(fs.readFileSync(path.join(taskDir, ".inbox.json"), "utf-8"));
+    // `email` is the address per the provider contract; `inbox_id` is the API
+    // identifier. Prefer email (fall back for providers that set only one).
+    return email || inbox_id || null;
   } catch {
     return null;
   }
@@ -376,7 +385,7 @@ Use this address for any signup, login, or MFA / email-verification step — typ
 
 - Wait for an OTP / verification code:
   \`node ${INBOX_CMD} wait-otp --workspace ${workspace} --task ${taskName} --from <sender-domain> --within 60\`
-  Prints just the extracted code on stdout (or fails after the timeout). Use the sending domain you expect, e.g. \`--from stripe.com\`. Default matches a 4–8 digit code; pass \`--regex "<pattern>"\` for alphanumeric codes.
+  Prints just the extracted code on stdout (or fails after the timeout). Use the sending domain you expect, e.g. \`--from stripe.com\`. Uses the provider's default code match; pass \`--regex "<pattern>"\` to override (e.g. for alphanumeric codes).
 
 - Wait for a verification / magic link, then open it:
   \`node ${INBOX_CMD} wait-link --workspace ${workspace} --task ${taskName} --from <sender-domain> --within 60\`
