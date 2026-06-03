@@ -26,7 +26,7 @@ Recon + extract are deterministic single-process scripts run by the main agent. 
 
 **HARD TOOL-CALL CAP: 1 tool call per company.** The only allowed call is `extract_page.mjs` on the company homepage. NO follow-up searches, NO sitemap discovery, NO secondary fetches. If the homepage returns thin content, write `Unknown` and cap the score at 3 — that is the correct behavior, not a failure.
 
-**ENFORCEMENT** — at the start of every Bash call, prepend a comment like `# bb call N/1` so the cap is visible in tool output. If a subagent emits more than `K` calls for a batch of `K` companies, the main agent's compile step will detect the over-budget run from the call log and flag it.
+**ENFORCEMENT** — at the start of every Bash call, prepend a comment like `# browse call N/1` so the cap is visible in tool output. If a subagent emits more than `K` calls for a batch of `K` companies, the main agent's compile step will detect the over-budget run from the call log and flag it.
 
 **Subagent prompt template** — substitute the curly-brace placeholders before dispatching:
 
@@ -52,8 +52,8 @@ TOOL RULES — CRITICAL, FOLLOW EXACTLY:
 2. The ONLY allowed extraction call is:
      node {SKILL_DIR}/scripts/extract_page.mjs "<homepage_url>" --max-chars 2000
 3. HARD TOOL-CALL CAP: ONE call per company. If a homepage returns FETCH_OK: false with empty BODY (e.g. the guessed URL 404s), write product_description: "Unknown — homepage content not accessible" and cap icp_fit_score at 3. DO NOT attempt a second call to "save" the company.
-4. ENFORCEMENT — at the start of EVERY Bash call, prepend a comment like `# bb call N/{TOTAL}` where N counts up and TOTAL is the number of companies in your batch. Example for a 10-company batch:
-     # bb call 1/10
+4. ENFORCEMENT — at the start of EVERY Bash call, prepend a comment like `# browse call N/{TOTAL}` where N counts up and TOTAL is the number of companies in your batch. Example for a 10-company batch:
+     # browse call 1/10
      node {SKILL_DIR}/scripts/extract_page.mjs "https://openai.com" --max-chars 2000
 5. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep — ALL BANNED. Use ONLY Bash.
 6. NEVER use ~ or $HOME — full literal paths only.
@@ -70,9 +70,9 @@ ICP SCORING RUBRIC (event-aware):
 
 OUTPUT — write ALL company files in a SINGLE Bash call using chained heredocs:
 
-# bb call 1/{TOTAL}
+# browse call 1/{TOTAL}
 node {SKILL_DIR}/scripts/extract_page.mjs "{url1}" --max-chars 2000 && \
-# bb call 2/{TOTAL}
+# browse call 2/{TOTAL}
 node {SKILL_DIR}/scripts/extract_page.mjs "{url2}" --max-chars 2000 && \
 ... && \
 cat << 'COMPANY_MD' > {OUTPUT_DIR}/companies/{slug1}.md
@@ -109,10 +109,10 @@ Do NOT return raw homepage content or per-company reasoning to the main conversa
 
 **HARD TOOL-CALL CAP: 5 tool calls per company.** Budget breakdown:
 - 1 call: `extract_page.mjs` on the homepage
-- 2-3 calls: `bb search` for sub-questions (Priority 1 + selected Priority 2)
+- 2-3 calls: `browse cloud search` for sub-questions (Priority 1 + selected Priority 2)
 - 1-2 calls: `extract_page.mjs` on the most relevant search results (case study / blog / careers)
 
-**ENFORCEMENT** — at the start of every Bash call, prepend `# bb call N/{TOTAL}` where TOTAL is `5 × batch_size`. A 5-company batch caps at 25 total tool calls. The main agent's compile step monitors this from the call log.
+**ENFORCEMENT** — at the start of every Bash call, prepend `# browse call N/{TOTAL}` where TOTAL is `5 × batch_size`. A 5-company batch caps at 25 total tool calls. The main agent's compile step monitors this from the call log.
 
 **Subagent prompt template**:
 
@@ -132,16 +132,16 @@ COMPANIES TO RESEARCH (one per line, slug|website format):
 
 TOOL RULES — CRITICAL:
 1. You may ONLY use the Bash tool. No exceptions.
-2. All searches:  bb search "..." --num-results 10
+2. All searches:  browse cloud search "..." --num-results 10
 3. All page extractions:  node {SKILL_DIR}/scripts/extract_page.mjs "URL" --max-chars 3000
-   (handles JSON envelope, meta tags, JS-render fallback to bb browse)
-   DO NOT hand-roll a `bb fetch | sed` pipeline. Use raw `bb fetch` only for sitemap.xml / llms.txt.
+   (uses `--output` to avoid the stdout JSON envelope, preserves meta tags, and falls back to browse get markdown when needed)
+   DO NOT hand-roll a `browse cloud fetch | sed` pipeline. Use raw `browse cloud fetch` only for sitemap.xml / llms.txt.
 4. HARD TOOL-CALL CAP: 5 calls per company. Budget:
      1× extract_page on homepage
-     2-3× bb search on sub-questions
+     2-3× browse cloud search on sub-questions
      1-2× extract_page on the best search result
    DO NOT exceed 5 calls per company. If you've burned the budget, synthesize from what you have.
-5. ENFORCEMENT — at the start of EVERY Bash call, prepend a comment like `# bb call N/5 (company: {slug})`. Reset N to 1 for each company in the batch.
+5. ENFORCEMENT — at the start of EVERY Bash call, prepend a comment like `# browse call N/5 (company: {slug})`. Reset N to 1 for each company in the batch.
 6. BATCH all writes: write ALL deep-research files in a SINGLE Bash call using chained heredocs.
 7. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep — ALL BANNED.
 8. NEVER use ~ or $HOME — full literal paths.
@@ -161,11 +161,11 @@ Decompose into 2-3 sub-questions. Always include "What does {company} do?" (Prio
   - "Has {company} raised funding, launched products, or expanded recently?"
 
 Phase B — Research Loop:
-1. # bb call 1/5 — extract_page on homepage
-2. # bb call 2/5 — bb search for Priority 1 sub-question
-3. # bb call 3/5 — bb search for event-context sub-question
-4. # bb call 4/5 — extract_page on the most relevant search result
-5. # bb call 5/5 — (optional) one more search OR fetch if budget remains
+1. # browse call 1/5 — extract_page on homepage
+2. # browse call 2/5 — browse cloud search for Priority 1 sub-question
+3. # browse call 3/5 — browse cloud search for event-context sub-question
+4. # browse call 4/5 — extract_page on the most relevant search result
+5. # browse call 5/5 — (optional) one more search OR fetch if budget remains
 Accumulate findings: factual statement + source URL + confidence level (high/medium/low).
 
 Phase C — Synthesize:
@@ -217,19 +217,19 @@ Report back ONLY: "Deep research batch: {researched}/{total} companies, {finding
 ## Person Enrichment
 
 **HARD TOOL-CALL CAP: 4 tool calls per person.** Lanes:
-1. `bb search "{name} {company} linkedin"` — always (deep + deeper)
-2. `bb search "{name} podcast OR talk OR blog 2026"` — deep + deeper
-3. `bb search "{name} github"` — deeper only
-4. `bb search "{name} site:x.com OR site:twitter.com"` — deeper only
+1. `browse cloud search "{name} {company} linkedin"` — always (deep + deeper)
+2. `browse cloud search "{name} podcast OR talk OR blog 2026"` — deep + deeper
+3. `browse cloud search "{name} github"` — deeper only
+4. `browse cloud search "{name} site:x.com OR site:twitter.com"` — deeper only, best-effort
 
 Deep mode: lanes 1-2 (max 2 calls/person). Deeper mode: lanes 1-4 (max 4 calls/person).
 
-**ENFORCEMENT** — every Bash call prepends `# bb call N/{LANES} (person: {slug})`, where LANES is 2 (deep) or 4 (deeper). Reset N to 1 for each person.
+**ENFORCEMENT** — every Bash call prepends `# browse call N/{LANES} (person: {slug})`, where LANES is 2 (deep) or 4 (deeper). Reset N to 1 for each person.
 
 **Subagent prompt template**:
 
 ```
-You are a person-enrichment subagent for the event-prospecting skill. For each person in your batch, run 2-4 bb searches to harvest LinkedIn + recent activity + GitHub + X presence, generate a hook + DM opener, and write {OUTPUT_DIR}/people/{slug}.md.
+You are a person-enrichment subagent for the event-prospecting skill. For each person in your batch, run 2-4 browse cloud searches to harvest LinkedIn + recent activity + GitHub + X presence, generate a hook + DM opener, and write {OUTPUT_DIR}/people/{slug}.md.
 
 CONTEXT:
 - User's company: {USER_COMPANY}
@@ -249,42 +249,42 @@ The `image` field is the speaker's headshot URL extracted from the event site (m
 
 TOOL RULES — CRITICAL:
 1. You may ONLY use the Bash tool. No exceptions.
-2. All searches:  bb search "..." --num-results 5
+2. All searches:  browse cloud search "..." --num-results 5
 3. HARD TOOL-CALL CAP per person:
      deep mode:    2 calls (lanes 1 + 2)
      deeper mode:  4 calls (lanes 1 + 2 + 3 + 4)
    DO NOT exceed the cap. If a lane fails (no useful result), DO NOT compensate by running a fifth call.
-4. ENFORCEMENT — at the start of EVERY Bash call, prepend a comment like `# bb call N/{LANES} (person: {slug})`. Reset N to 1 for each person in the batch.
+4. ENFORCEMENT — at the start of EVERY Bash call, prepend a comment like `# browse call N/{LANES} (person: {slug})`. Reset N to 1 for each person in the batch.
 5. BATCH all writes: write ALL people files in a SINGLE Bash call using chained heredocs.
 6. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep — ALL BANNED.
 7. NEVER use ~ or $HOME — full literal paths.
 
 ANTI-HALLUCINATION RULES:
-- A person's `hook` MUST quote or paraphrase a SPECIFIC finding from a bb search result. NEVER infer from "they look senior" or "their company is AI-y".
+- A person's `hook` MUST quote or paraphrase a SPECIFIC finding from a browse cloud search result. NEVER infer from "they look senior" or "their company is AI-y".
 - If lanes 2-4 yield no public signal in the last 6 months, fall back to event-context (their talk title from the bio field). Event-context is always available and beats a fabricated hook.
 - The DM opener MUST reference the hook verbatim. If the hook is event-context, name the talk title. Do NOT name a podcast or blog post the person didn't actually appear in.
 
 LANE PROMPTS (run only the lanes for your DEPTH):
 
 Lane 1 (always):
-  # bb call 1/{LANES} (person: {slug})
-  bb search "\"{name}\" \"{company}\" linkedin" --num-results 5
+  # browse call 1/{LANES} (person: {slug})
+  browse cloud search "\"{name}\" \"{company}\" linkedin" --num-results 5
   → harvest LinkedIn URL + verify current title
 
 Lane 2 (deep + deeper):
-  # bb call 2/{LANES} (person: {slug})
-  bb search "\"{name}\" podcast OR talk OR blog 2026" --num-results 5
+  # browse call 2/{LANES} (person: {slug})
+  browse cloud search "\"{name}\" podcast OR talk OR blog 2026" --num-results 5
   → harvest most-recent activity. If a podcast/blog/talk URL appears, that's a candidate hook.
 
 Lane 3 (deeper only):
-  # bb call 3/{LANES} (person: {slug})
-  bb search "\"{name}\" github" --num-results 5
+  # browse call 3/{LANES} (person: {slug})
+  browse cloud search "\"{name}\" github" --num-results 5
   → harvest github.com/{handle} URL if present
 
 Lane 4 (deeper only):
-  # bb call 4/{LANES} (person: {slug})
-  bb search "\"{name}\" site:x.com OR site:twitter.com" --num-results 5
-  → harvest x.com/{handle} URL + most recent post topic if shown
+  # browse call 4/{LANES} (person: {slug})
+  browse cloud search "\"{name}\" site:x.com OR site:twitter.com" --num-results 5
+  → attempt to find x.com/{handle} URL + most recent post topic; leave null if no direct profile appears
 
 HOOK SOURCE PRIORITY (run sequentially, stop at first hit):
 1. Recent activity (lane 2): podcast title / blog headline / talk title from the last 6 months. THIS IS THE BEST HOOK — concrete, dated, public.

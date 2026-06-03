@@ -123,17 +123,17 @@ browse wait load
 # Mobile (iPhone SE)
 browse viewport 375 812
 browse wait timeout 1000
-browse screenshot /tmp/mobile.png --full-page
+browse screenshot --path /tmp/mobile.png --full-page
 
 # Tablet (iPad)
 browse viewport 768 1024
 browse wait timeout 1000
-browse screenshot /tmp/tablet.png --full-page
+browse screenshot --path /tmp/tablet.png --full-page
 
 # Desktop
 browse viewport 1440 900
 browse wait timeout 1000
-browse screenshot /tmp/desktop.png --full-page
+browse screenshot --path /tmp/desktop.png --full-page
 ```
 
 After capturing, read each screenshot with the Read tool and evaluate:
@@ -183,7 +183,7 @@ Navigate to a page/section with no data and screenshot it:
 ```bash
 browse open "TARGET_URL"  # e.g., /sessions with no sessions
 browse wait load
-browse screenshot /tmp/empty-state.png --full-page
+browse screenshot --path /tmp/empty-state.png --full-page
 browse snapshot  # check if there's helpful text/CTA
 ```
 

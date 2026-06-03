@@ -32,13 +32,13 @@ if (!target) {
 let sessionJson;
 if (target === '--new') {
   const timeout = String(process.env.BB_SESSION_TIMEOUT || '600');
-  const r = runCmd('bb', ['sessions', 'create', '--keep-alive', '--timeout', timeout]);
-  if (!r.ok) { console.error(r.stderr || 'bb sessions create failed'); process.exit(1); }
+  const r = runCmd('browse', ['cloud', 'sessions', 'create', '--keep-alive', '--timeout', timeout]);
+  if (!r.ok) { console.error(r.stderr || 'browse cloud sessions create failed'); process.exit(1); }
   sessionJson = JSON.parse(r.stdout);
   console.log(`Created Browserbase session: ${sessionJson.id}`);
 } else {
-  const r = runCmd('bb', ['sessions', 'get', target]);
-  if (!r.ok) { console.error(r.stderr || 'bb sessions get failed'); process.exit(1); }
+  const r = runCmd('browse', ['cloud', 'sessions', 'get', target]);
+  if (!r.ok) { console.error(r.stderr || 'browse cloud sessions get failed'); process.exit(1); }
   sessionJson = JSON.parse(r.stdout);
   if (sessionJson.status !== 'RUNNING') {
     console.error(`Session ${target} is not RUNNING (status=${sessionJson.status}). Recreate with --keep-alive.`);
@@ -50,7 +50,7 @@ const sessionId = sessionJson.id;
 const connectUrl = sessionJson.connectUrl;
 
 let debugJson = null;
-const dbg = runCmd('bb', ['sessions', 'debug', sessionId]);
+const dbg = runCmd('browse', ['cloud', 'sessions', 'debug', sessionId]);
 if (dbg.ok) {
   try { debugJson = JSON.parse(dbg.stdout); } catch {}
 }

@@ -91,17 +91,17 @@ function extractFromNextData(paths) {
       image: pickImage(s),
     }));
   })()`;
-  // Don't JSON.parse goto's output — `browse goto` can emit non-JSON banners,
+  // Don't JSON.parse open's output — `browse open` can emit non-JSON banners,
   // and we don't use the return value. The matching `extractFromMarkdown` path
   // ignores it the same way.
-  browse('goto', recon.url);
+  browse('open', recon.url);
   browse('wait', 'timeout', '2000');
   const evalRes = JSON.parse(browse('eval', js));
   return evalRes.result || [];
 }
 
 function extractFromMarkdown() {
-  browse('goto', recon.url);
+  browse('open', recon.url);
   browse('wait', 'timeout', '2500');
   const md = JSON.parse(browse('get', 'markdown')).markdown || '';
   // Naive: find blocks of "#### {Name}\n\n{Role}\n\n{Company}\n\n[LinkedIn]({url})"

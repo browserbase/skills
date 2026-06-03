@@ -16,7 +16,7 @@ description: |
   "ai engineer summit prospects", "event prospecting",
   "scrape conference speakers", "who should I meet at".
 license: MIT
-compatibility: Requires bb CLI (@browserbasehq/cli) and BROWSERBASE_API_KEY env var. Also requires browse CLI (@browserbasehq/browse-cli) for JS-heavy pages.
+compatibility: Requires browse CLI (`npm install -g browse`) and BROWSERBASE_API_KEY env var. The same `browse` binary covers both API commands and JS-rendered page fallback.
 allowed-tools: Bash Agent AskUserQuestion
 metadata:
   author: browserbase
@@ -27,15 +27,15 @@ metadata:
 
 Take a conference URL → get a ranked list of people the AE should talk to, with a "why reach out" rationale per person.
 
-**Required**: `BROWSERBASE_API_KEY` env var, `bb` CLI installed (`@browserbasehq/cli`), and `browse` CLI installed (`@browserbasehq/browse-cli`) for JS-heavy speaker pages (most modern event sites).
+**Required**: `BROWSERBASE_API_KEY` env var and the `browse` CLI installed (`npm install -g browse`). Use `browse cloud ...` for API calls and `browse open` / `browse get markdown` for JS-heavy speaker pages.
 
 **Path rules**: Always use the full literal path in all Bash commands — NOT `~` or `$HOME` (both trigger "shell expansion syntax" approval prompts). Resolve the home directory once and use it everywhere. When constructing subagent prompts, replace `{SKILL_DIR}` with the full literal path (typically `/Users/jay/skills/skills/event-prospecting`).
 
 **Output directory**: All event prospecting output goes to `~/Desktop/{event_slug}_prospects_{YYYY-MM-DD-HHMM}/`. Final deliverable is `index.html` (people grouped by company, ranked by company ICP), with `companies.html` and `people.html` (filterable) as alternate views, plus `results.csv` for cold-outbound import.
 
 **CRITICAL — Tool restrictions (applies to main agent AND all subagents)**:
-- All web searches: use `bb search`. NEVER use WebSearch.
-- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `bb fetch`, parses title + meta tags + visible body text, and automatically falls back to `bb browse` when the page is JS-rendered or over 1MB. NEVER hand-roll a `bb fetch | sed` pipeline. NEVER use WebFetch.
+- All web searches: use `browse cloud search`. NEVER use WebSearch.
+- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `browse cloud fetch --output`, parses title + meta tags + visible body text, and automatically falls back to `browse get markdown` when fetch fails or returns thin JS-rendered content. NEVER hand-roll a `browse cloud fetch | sed` pipeline. NEVER use WebFetch.
 - All research output: subagents write **one markdown file per company OR per person** to `{OUTPUT_DIR}/companies/{slug}.md` or `{OUTPUT_DIR}/people/{slug}.md` using bash heredoc. NEVER use the Write tool or `python3 -c`. See `references/example-research.md` for both file formats.
 - Report compilation: use `node {SKILL_DIR}/scripts/compile_report.mjs {OUTPUT_DIR} --open`.
 - **Subagents must use ONLY the Bash tool. No other tools allowed.**
@@ -45,7 +45,7 @@ Take a conference URL → get a ranked list of people the AE should talk to, wit
 - NEVER infer `product_description`, `industry`, or a person's `role_reason` from a site's fonts, framework, design system, or typography. These are cosmetic and say nothing about what the company sells or what the person does.
 - NEVER let the user's own ICP leak into a target's description. If you don't know what the target does, write `Unknown` — do not pattern-match them onto the ICP.
 - `product_description` MUST quote or paraphrase a specific phrase from `extract_page.mjs` output. If none of TITLE/META/OG/HEADINGS/BODY yield a recognizable product statement, write `Unknown — homepage content not accessible` and cap `icp_fit_score` at 3.
-- A person's `hook` MUST quote or paraphrase a specific finding from a `bb search` result (podcast title, blog headline, GitHub repo, talk abstract). If no public signal exists in the last 6 months, fall back to event-context (their talk title at this event).
+- A person's `hook` MUST quote or paraphrase a specific finding from a `browse cloud search` result (podcast title, blog headline, GitHub repo, talk abstract). If no public signal exists in the last 6 months, fall back to event-context (their talk title at this event).
 
 **CRITICAL — Minimize permission prompts**:
 - Subagents MUST batch ALL file writes into a SINGLE Bash call using chained heredocs. One Bash call = one permission prompt.
@@ -171,7 +171,7 @@ Expected: roughly 0.4-0.6× the speaker count (most events have ~2 speakers per 
 
 **Fast pass — one tool call per company, no deep research.** Score every company in `seed_companies.txt` against the user's ICP and write a thin triage stub to `companies/{slug}.md`. Companies with `icp_fit_score >= --icp-threshold` (default 6) advance to Step 7's deep research; the rest stay as triage stubs.
 
-**Dispatch pattern**: split `seed_companies.txt` into batches of ~10 and fan out N subagents in a SINGLE Agent batch (multiple Agent tool calls in one message). Each subagent runs the prompt from `references/workflow.md` → "ICP Triage" section. Hard cap: **1 tool call per company** (just `extract_page.mjs` on the homepage), enforced via the `# bb call N/1` comment pattern.
+**Dispatch pattern**: split `seed_companies.txt` into batches of ~10 and fan out N subagents in a SINGLE Agent batch (multiple Agent tool calls in one message). Each subagent runs the prompt from `references/workflow.md` → "ICP Triage" section. Hard cap: **1 tool call per company** (just `extract_page.mjs` on the homepage), enforced via the `# browse call N/1` comment pattern.
 
 ```bash
 # Build batch files: each batch line is "name|guessed_homepage|slug".
@@ -179,7 +179,7 @@ Expected: roughly 0.4-0.6× the speaker count (most events have ~2 speakers per 
 # https://{slug-without-spaces}.com as the canonical homepage. The triage subagent
 # is allowed to write product_description: "Unknown — homepage content not accessible"
 # and cap score at 3 if the guessed URL 404s — that's the documented fallback in
-# workflow.md (rule 3 of the ICP Triage prompt). Burning a real bb search to
+# workflow.md (rule 3 of the ICP Triage prompt). Burning a real browse cloud search to
 # discover the URL would bust the 1-call-per-company HARD CAP.
 node -e '
 const fs = require("fs");
@@ -206,7 +206,7 @@ Then in a single message, dispatch one Agent call per batch (up to 6 in parallel
 - `{USER_COMPANY}`, `{USER_PRODUCT}`, `{ICP_DESCRIPTION}` → from the loaded profile
 - `{EVENT_NAME}` → `recon.json` `.title`
 - `{COMPANY_LIST}` → contents of the batch file (e.g. `cat {OUTPUT_DIR}/_batch_triage_aa`)
-- `{TOTAL}` → number of lines in this batch (substitute into `# bb call N/{TOTAL}`)
+- `{TOTAL}` → number of lines in this batch (substitute into `# browse call N/{TOTAL}`)
 
 **Agent dispatch (skeleton, repeat per batch in one message)**:
 
@@ -299,10 +299,10 @@ grep -l "triage_only: false" {OUTPUT_DIR}/companies/*.md | wc -l
 
 Per person: harvest LinkedIn URL, recent activity (podcast / blog / talk / GitHub / X), and write `people/{slug}.md`. Hard cap: **4 tool calls per person**, three lanes:
 
-1. `bb search "{name} {company} linkedin"` (always)
-2. `bb search "{name} podcast OR talk OR blog 2026"` (deep+)
-3. `bb search "{name} github"` (deeper)
-4. `bb search "{name} site:x.com OR site:twitter.com"` (deeper)
+1. `browse cloud search "{name} {company} linkedin"` (always)
+2. `browse cloud search "{name} podcast OR talk OR blog 2026"` (deep+)
+3. `browse cloud search "{name} github"` (deeper)
+4. `browse cloud search "{name} site:x.com OR site:twitter.com"` (deeper, best-effort)
 
 Quick mode: skip Step 8 entirely. Deep mode: lanes 1-2. Deeper mode: lanes 1-4.
 
@@ -385,7 +385,7 @@ Then in a single message, dispatch one Agent call per batch (up to 6 per message
 - `{SKILL_DIR}`, `{OUTPUT_DIR}`, `{DEPTH}` (`deep` | `deeper`)
 - `{USER_COMPANY}`, `{USER_PRODUCT}`, `{ICP_DESCRIPTION}`
 - `{EVENT_NAME}` (from `recon.json` `.title`)
-- `{LANES}` → `2` for deep mode, `4` for deeper mode (substituted into `# bb call N/{LANES}`)
+- `{LANES}` → `2` for deep mode, `4` for deeper mode (substituted into `# browse call N/{LANES}`)
 - `{PEOPLE_BATCH}` → contents of `_batch_people_aa` (each line a JSON record from `people.jsonl`)
 
 **Agent dispatch (skeleton, repeat per batch in one message)**:

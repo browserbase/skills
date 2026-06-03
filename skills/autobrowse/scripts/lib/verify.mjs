@@ -6,6 +6,8 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 
+import { extractTrailingJsonObject } from "./pick-run.mjs";
+
 export function verifyGenerated(outDir, scriptFilename) {
   const log = (msg) => console.error(`[verify] ${msg}`);
   log(`running npm install (silent) in ${outDir}…`);
@@ -33,14 +35,10 @@ export function verifyGenerated(outDir, scriptFilename) {
   });
   fs.writeFileSync(runLogPath, `STDOUT:\n${run.stdout ?? ""}\n\nSTDERR:\n${run.stderr ?? ""}\n`);
 
-  let parsed = null;
-  try {
-    const stdout = run.stdout ?? "";
-    const lastBrace = stdout.lastIndexOf("{");
-    if (lastBrace >= 0) parsed = JSON.parse(stdout.slice(lastBrace));
-  } catch {
-    /* leave null */
-  }
+  // Brace-balanced trailing-JSON extraction — robust to pretty-printed
+  // (multi-line, nested) script output, unlike `lastIndexOf("{")` which
+  // locks onto the deepest inner `{`.
+  const parsed = extractTrailingJsonObject(run.stdout ?? "");
 
   const passed = run.status === 0 && parsed?.success === true;
   log(passed ? `✅ verification passed` : `❌ verification failed (exit=${run.status}) — see ${runLogPath}`);

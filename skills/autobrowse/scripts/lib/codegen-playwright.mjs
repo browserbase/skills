@@ -336,7 +336,6 @@ Begin the code now:`;
 // comments. Good enough to catch LLM truncation, not a parser.
 function checkBalance(code) {
   let depth = { "{": 0, "[": 0, "(": 0 };
-  const open = { "{": "}", "[": "]", "(": ")" };
   let inStr = null;
   let inLineComment = false;
   let inBlockComment = false;
@@ -473,25 +472,6 @@ async function selectWithFallback(loc: Locator, value: string): Promise<void> {
   }
 }
 
-/**
- * Fill a text input via React's tracked-value setter. Bypasses keystroke-by-
- * keystroke event handling (autosuggests that intercept space, autocompletes
- * that drop characters, etc.). Always prefer this over .fill()/.type() on
- * React-controlled forms.
- */
-async function reactFill(page: Page, labelPattern: RegExp | string, value: string): Promise<void> {
-  await page.getByLabel(labelPattern).first().click();
-  await page.evaluate((v) => {
-    const el = document.activeElement as HTMLInputElement | null;
-    if (!el) throw new Error("No active element to fill");
-    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")?.set;
-    if (!setter) throw new Error("No value setter on HTMLInputElement");
-    setter.call(el, v);
-    el.dispatchEvent(new Event("input", { bubbles: true }));
-    el.dispatchEvent(new Event("change", { bubbles: true }));
-  }, value);
-}
-
 /** Click a link with auto-fallback to direct navigation. SPA links on state-agency
  *  portals frequently have onClick handlers that preventDefault and route via
  *  client-state (often gated behind tour/onboarding overlays). When the link
@@ -510,20 +490,6 @@ async function clickLinkWithFallback(page: Page, loc: Locator): Promise<void> {
   // SPAs often finish loading client content well after the load event fires; wait
   // for the network to actually settle before returning.
   await page.waitForLoadState("networkidle").catch(() => {});
-}
-
-/** Click "Next Step" (or other named button) via find-by-text in page context;
- *  avoids the race where getByRole resolves to a stale element between SPA wizard steps. */
-async function clickButtonByText(page: Page, text: string, waitAfterMs = 1500): Promise<void> {
-  await page.evaluate((t) => {
-    const btn = Array.from(document.querySelectorAll("button")).find(
-      (b) => (b.textContent || "").trim() === t,
-    );
-    if (!btn) throw new Error(\`Button "\${t}" not found in DOM\`);
-    (btn as HTMLElement).click();
-  }, text);
-  await page.waitForLoadState("load");
-  await page.waitForTimeout(waitAfterMs);
 }
 
 // ───────────────────────────────────────────────────────────────────

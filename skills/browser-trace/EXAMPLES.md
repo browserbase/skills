@@ -15,10 +15,10 @@ The recipes below use raw `jq` on the bisected files so you can see exactly what
 node scripts/start-capture.mjs 9222 form-bug
 
 # Reproduce the bug.
-browse env local 9222
-browse open https://example.com/signup
+browse open https://example.com/signup --cdp 9222
 browse fill 'input[name=email]' 'user@example.com'
 browse fill 'input[name=password]' 'hunter2'
+browse snapshot
 browse click @0-7   # Submit button ref from `browse snapshot`
 
 node scripts/stop-capture.mjs form-bug
@@ -59,8 +59,7 @@ If the POST is missing entirely, the click handler is broken — open `dom/<late
 
 ```bash
 node scripts/start-capture.mjs 9222 audit
-browse env local 9222
-browse open https://your-site.example
+browse open https://your-site.example --cdp 9222
 # ...interact with the page...
 node scripts/stop-capture.mjs audit
 node scripts/bisect-cdp.mjs audit
@@ -92,8 +91,7 @@ jq -c 'select(.params.response.status >= 400 and .params.response.status < 600)
 
 ```bash
 node scripts/start-capture.mjs 9222 hang
-browse env local 9222
-browse open https://example.com/checkout
+browse open https://example.com/checkout --cdp 9222
 browse click @0-12   # Continue button
 sleep 30             # let the hang play out
 node scripts/stop-capture.mjs hang
@@ -128,24 +126,26 @@ The pending-requests query is the smoking gun: if a fetch never finishes, the pa
 **User says**: "Production logs say `TypeError: Cannot read properties of undefined (reading 'foo')` on `/dashboard`. I can't reproduce locally."
 
 ```bash
-# Use Browserbase remote so the run uses the same Chromium build / stealth as prod.
+# Use Browserbase remote so the run uses the same Browserbase Identity / Verified browser setup as prod.
 export BROWSERBASE_API_KEY=...
-SESSION=$(bb sessions create --keep-alive --timeout 600)
+SESSION=$(browse cloud sessions create --keep-alive --timeout 600)
 SID=$(echo "$SESSION" | jq -r .id)
 URL=$(echo "$SESSION" | jq -r .connectUrl)
 
-browse --connect "$SID" open https://app.example.com/dashboard
+BROWSE_NAME=prod-repro-browser
+browse open https://app.example.com/dashboard --cdp "$URL" --session "$BROWSE_NAME"
 node scripts/start-capture.mjs "$URL" prod-repro
 
-# Drive whatever flow is suspected.
-browse --connect "$SID" click @0-5
-browse --connect "$SID" type 'search query'
-browse --connect "$SID" press Enter
+# Drive whatever flow is suspected. The daemon caches the remote target,
+# so subsequent commands only need --session to pick the right daemon.
+browse click @0-5 --session "$BROWSE_NAME"
+browse type 'search query' --session "$BROWSE_NAME"
+browse press Enter --session "$BROWSE_NAME"
 sleep 5
 
 node scripts/stop-capture.mjs prod-repro
 node scripts/bisect-cdp.mjs prod-repro
-bb sessions update "$SID" --status REQUEST_RELEASE
+browse cloud sessions update "$SID" --status REQUEST_RELEASE
 ```
 
 Queries:
@@ -181,7 +181,7 @@ The stack frame points at the prod JS file + line; the screenshot shows what the
 export BROWSERBASE_API_KEY=...
 
 # Find running sessions (no --status flag, so filter client-side).
-bb sessions list | jq -r '.[] | select(.status == "RUNNING") | "\(.id)\t\(.region)\t\(.startedAt)"'
+browse cloud sessions list | jq -r '.[] | select(.status == "RUNNING") | "\(.id)\t\(.region)\t\(.startedAt)"'
 
 # Attach the tracer to the session you care about.
 SID=<session-id-from-above>

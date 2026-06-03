@@ -39,9 +39,9 @@ This is the most important research in the pipeline. Every downstream decision d
 
 ### Page Discovery
 Discover site pages dynamically — do NOT hardcode paths like `/about` or `/customers`:
-1. Fetch `bb fetch --allow-redirects "{company website}/sitemap.xml"` — primary source, has ALL pages
+1. Fetch `browse cloud fetch --allow-redirects "{company website}/sitemap.xml"` — primary source, has ALL pages
 2. Scan sitemap URLs for keywords: `customer`, `case-stud`, `pricing`, `about`, `use-case`, `blog`, `docs`, `industry`, `solution`
-3. Optionally fetch `bb fetch --allow-redirects "{company website}/llms.txt"` for page descriptions
+3. Optionally fetch `browse cloud fetch --allow-redirects "{company website}/llms.txt"` for page descriptions
 4. Pick the 3-5 most relevant URLs from the sitemap and fetch those
 5. Sitemap is the source of truth. llms.txt is bonus context but often incomplete.
 
@@ -244,7 +244,7 @@ Identical to company-research's target research. The ICP-fit companies (typicall
 
 **Hard cap: 5 tool calls per company.** Budget breakdown for deep mode:
 - 1 call: `extract_page.mjs` on the homepage (re-extract; the triage version was scraped down to a 1-liner)
-- 2-3 calls: `bb search` for sub-questions from Priority 1 + 2 (product, tech stack, growth signals)
+- 2-3 calls: `browse cloud search` for sub-questions from Priority 1 + 2 (product, tech stack, growth signals)
 - 1-2 calls: `extract_page.mjs` on the most relevant search results (case study, blog post, careers page)
 
 Event-context tweaks the sub-questions. Instead of generic "What does {company} do?", the subagent asks "What is {company} doing with browser automation that's relevant to **Stripe Sessions' agent track**?" — the event name and any track/topic info from `recon.json` is woven into Priority 2 sub-questions.
@@ -254,10 +254,10 @@ The deep-research subagent OVERWRITES the triage stub with the richer file (fron
 ## Person Enrichment (Step 8 — speakers at ICP fits only)
 
 Per person at an ICP-fit company:
-- `bb search "{name} {company} linkedin"` — verify role + harvest LinkedIn URL (always)
-- `bb search "{name} podcast OR talk OR blog 2026"` — last 6 months for hooks (deep+)
-- `bb search "{name} github"` — open-source signal (deeper)
-- `bb search "{name} site:x.com OR site:twitter.com"` — recent posts (deeper)
+- `browse cloud search "{name} {company} linkedin"` — verify role + harvest LinkedIn URL (always)
+- `browse cloud search "{name} podcast OR talk OR blog 2026"` — last 6 months for hooks (deep+)
+- `browse cloud search "{name} github"` — open-source signal (deeper)
+- `browse cloud search "{name} site:x.com OR site:twitter.com"` — best-effort recent posts (deeper)
 
 **Hard cap: 4 tool calls per person.** Deep mode runs lanes 1-2 (max 2 calls). Deeper mode runs lanes 1-4 (max 4 calls). Quick mode skips Step 8 entirely.
 

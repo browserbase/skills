@@ -45,3 +45,35 @@ export function pickRun(tracesDir, forcedRunId) {
   if (forcedRunId) return forcedRunId;
   return listRuns(tracesDir).find((r) => isPassing(tracesDir, r)) ?? null;
 }
+
+// Find the last balanced { … } block at the end of `text`. Used to parse a
+// generated script's final JSON status. Walks backward from the last `}` and
+// brace-balances to its matching `{`, ignoring braces inside JSON strings.
+// Robust to pretty-printed (multi-line, nested) output — unlike `lastIndexOf
+// ("{")`, which locks onto the deepest inner `{` for nested objects.
+export function extractTrailingJsonObject(text) {
+  if (!text) return null;
+  const end = text.lastIndexOf("}");
+  if (end < 0) return null;
+  let depth = 0;
+  let inString = false;
+  let escape = false;
+  for (let i = end; i >= 0; i--) {
+    const ch = text[i];
+    if (escape) { escape = false; continue; }
+    if (inString) {
+      if (ch === "\\") { escape = true; continue; }
+      if (ch === '"') inString = false;
+      continue;
+    }
+    if (ch === '"') { inString = true; continue; }
+    if (ch === "}") depth++;
+    else if (ch === "{") {
+      depth--;
+      if (depth === 0) {
+        try { return JSON.parse(text.slice(i, end + 1)); } catch { return null; }
+      }
+    }
+  }
+  return null;
+}

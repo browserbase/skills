@@ -4,7 +4,7 @@
 
 File: `/tmp/company_discovery_batch_{N}.json`
 
-`bb search --output` writes a JSON object (NOT a flat array):
+`browse cloud search --output` writes a JSON object (NOT a flat array):
 
 ```json
 {
@@ -48,7 +48,7 @@ Each research subagent writes one markdown file per company. See `references/exa
 
 ## Extracting Page Content
 
-Use `extract_page.mjs` for all homepage/product-page content extraction. It fetches via `bb fetch`, parses title + meta + visible body text, and falls back to `bb browse` automatically when the page is JS-rendered or too large for fetch:
+Use `extract_page.mjs` for all homepage/product-page content extraction. It fetches via `browse cloud fetch --output`, parses title + meta + visible body text, and falls back to `browse get markdown` automatically when fetch fails or returns thin JS-rendered content:
 
 ```bash
 node {SKILL_DIR}/scripts/extract_page.mjs "https://example.com" --max-chars 3000
@@ -69,9 +69,9 @@ BODY:
 <cleaned visible text, max N chars>
 ```
 
-**Why not a raw `bb fetch | sed` pipeline?** `bb fetch` returns a JSON envelope with the HTML embedded as an escaped string — a naive sed pipeline strips `<>` from the JSON wrapper too and destroys the content. It also strips `<meta>` tags, which on Framer/Next.js SPAs are often the only readable content. `extract_page.mjs` handles both correctly.
+**Why not a raw `browse cloud fetch | sed` pipeline?** Without `--output`, `browse cloud fetch` returns a JSON envelope with the HTML embedded as an escaped string. A naive sed pipeline strips `<>` from the wrapper and content, and it removes `<meta>` tags, which on Framer/Next.js SPAs are often the only readable content. `extract_page.mjs` uses `--output` to parse raw HTML directly.
 
-**When to use raw `bb fetch`**: Only for small structured files where you want the JSON envelope intact — e.g. `sitemap.xml`, `robots.txt`, `llms.txt`. For any HTML page you'd feed to a model, use `extract_page.mjs`.
+**When to use raw `browse cloud fetch`**: Only for small structured files where you want the JSON envelope intact — e.g. `sitemap.xml`, `robots.txt`, `llms.txt`. For any HTML page you'd feed to a model, use `extract_page.mjs`.
 
 ## Verifying content is real (not hallucinated)
 
@@ -99,9 +99,9 @@ TOOL RULES — CRITICAL, FOLLOW EXACTLY:
 TASK:
 Run ALL of the following searches in ONE Bash command:
 
-bb search "{query1}" --num-results 25 --output /tmp/company_discovery_batch_{N1}.json && \
-bb search "{query2}" --num-results 25 --output /tmp/company_discovery_batch_{N2}.json && \
-bb search "{query3}" --num-results 25 --output /tmp/company_discovery_batch_{N3}.json && \
+browse cloud search "{query1}" --num-results 25 --output /tmp/company_discovery_batch_{N1}.json && \
+browse cloud search "{query2}" --num-results 25 --output /tmp/company_discovery_batch_{N2}.json && \
+browse cloud search "{query3}" --num-results 25 --output /tmp/company_discovery_batch_{N3}.json && \
 echo "Discovery complete"
 
 After the command completes, report back ONLY the count of results found per batch.
@@ -125,11 +125,11 @@ URLS TO PROCESS:
 
 TOOL RULES — CRITICAL, FOLLOW EXACTLY:
 1. You may ONLY use the Bash tool. No exceptions.
-2. All searches: Bash → bb search "..." --num-results 10
+2. All searches: Bash → browse cloud search "..." --num-results 10
 3. All homepage/product-page content extraction:
    Bash → node {SKILL_DIR}/scripts/extract_page.mjs "URL" --max-chars 3000
-   This returns structured TITLE / META_DESCRIPTION / OG_DESCRIPTION / HEADINGS / BODY and auto-falls back to bb browse for JS-rendered or >1MB pages.
-   DO NOT hand-roll a `bb fetch | sed` pipeline — it silently strips meta tags and doesn't parse the JSON envelope. Use `bb fetch` raw only for sitemap.xml, robots.txt, llms.txt.
+   This returns structured TITLE / META_DESCRIPTION / OG_DESCRIPTION / HEADINGS / BODY and auto-falls back to browse get markdown when fetch fails or returns thin JS-rendered content.
+   DO NOT hand-roll a `browse cloud fetch | sed` pipeline — it strips meta tags and doesn't parse the stdout JSON envelope. Use `browse cloud fetch` raw only for sitemap.xml, robots.txt, llms.txt.
 4. BATCH all file writes: Write ALL markdown files in a SINGLE Bash call using chained heredocs (one permission prompt, not one per file).
 5. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep — ALL BANNED.
    If you use ANY banned tool, the entire run fails. Use ONLY Bash.
@@ -147,11 +147,11 @@ Decompose what you need to know into sub-questions based on ICP and enrichment f
 
 Phase B — Research Loop:
 For each sub-question (or just the homepage in quick mode):
-1. Run bb search with relevant query
+1. Run browse cloud search with relevant query
 2. Pick 1-2 most relevant URLs from results
 3. Extract page content: node {SKILL_DIR}/scripts/extract_page.mjs "URL" --max-chars 3000
-   (auto-handles the JSON envelope, meta tags, and the bb browse fallback)
-4. Smart page discovery: use `bb fetch --allow-redirects` on /sitemap.xml or /llms.txt to find relevant URLs — these are small XML/text files where the raw JSON envelope is fine. For the actual HTML pages you discover, use extract_page.mjs.
+   (uses `--output` to avoid the stdout JSON envelope, preserves meta tags, and falls back to browse get markdown when needed)
+4. Smart page discovery: use `browse cloud fetch --allow-redirects` on /sitemap.xml or /llms.txt to find relevant URLs — these are small XML/text files where the raw JSON envelope is fine. For the actual HTML pages you discover, use extract_page.mjs.
 5. Extract findings: factual statements with source, confidence level
 6. Accumulate findings, move to next sub-question
 7. Respect step budget: quick=2-3 calls, deep=5-8, deeper=10-15
@@ -235,7 +235,7 @@ deeper: research_subagents = ceil(expected_urls / 3)
 ### Error Handling
 - If a subagent fails, log the error and continue with remaining batches
 - If >50% of subagents fail in a wave, pause and inform the user
-- `extract_page.mjs` already handles the bb fetch → bb browse fallback internally. If it still returns FETCH_OK: false with empty BODY, skip the company and mark product_description as Unknown (do not guess).
+- `extract_page.mjs` already handles the browse cloud fetch → browse get markdown fallback internally. If it still returns FETCH_OK: false with empty BODY, skip the company and mark product_description as Unknown (do not guess).
 
 ## Report + CSV Compilation
 

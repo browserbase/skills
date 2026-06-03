@@ -29,8 +29,7 @@ import * as path from "node:path";
 import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { distillFailure, appendToStrategy } from "./lib/distill-failure.mjs";
-import { pickRun } from "./lib/pick-run.mjs";
-import { extractFinalJson, readSummary } from "./lib/pick-run.mjs";
+import { extractFinalJson, extractTrailingJsonObject, readSummary } from "./lib/pick-run.mjs";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.resolve(__dirname, "..");
@@ -153,10 +152,17 @@ function runExport(runId) {
     "--run", runId,
     "--no-verify", // we run the verification ourselves below so we can capture/distill output
   ];
+  // Capture export.mjs's stdout instead of letting it inherit — export.mjs
+  // writes its own JSON report to stdout under --no-verify, and loop.mjs
+  // emits its own structured JSON at the very end. Mixing them would break
+  // any consumer that JSON.parses our stdout. Tail the export's stdout into
+  // stderr (which the user does see) so the inner progress isn't invisible.
   const result = spawnSync("node", args, {
-    stdio: ["ignore", "inherit", "inherit"],
+    stdio: ["ignore", "pipe", "inherit"],
+    encoding: "utf-8",
     env: process.env,
   });
+  if (result.stdout) process.stderr.write(`[export] ${result.stdout.trim()}\n`);
   return result.status === 0;
 }
 
@@ -180,14 +186,14 @@ function runPlaywright() {
   });
   const stdout = run.stdout ?? "";
   const stderr = run.stderr ?? "";
-  // Parse the last JSON line for success
-  let parsed = null;
-  try {
-    const lastBrace = stdout.lastIndexOf("{");
-    if (lastBrace >= 0) parsed = JSON.parse(stdout.slice(lastBrace));
-  } catch {
-    /* leave null */
-  }
+  // Parse the script's final JSON result. The emitted Playwright script
+  // uses JSON.stringify(result, null, 2), so the output is pretty-printed
+  // across multiple lines and the trailing `}` is what we want to anchor
+  // on. Walk back from the LAST `}` and brace-balance to its matching `{`
+  // — works for both flat (chess.com-style) and nested (mountainproject-
+  // style) output schemas. Fall back to the prior heuristic only if
+  // balancing fails.
+  const parsed = extractTrailingJsonObject(stdout);
   const passed = run.status === 0 && parsed?.success === true;
   return { passed, exitCode: run.status, stdout, stderr, parsed };
 }

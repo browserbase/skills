@@ -11,11 +11,13 @@ Technical reference for the capture pipeline, the bisect mapping, and the jq rec
         │                                    │
         ▼                                    ▼
     drives page                browse cdp <target>     (firehose → raw.ndjson)
-                               browse --ws <target> screenshot     (sampler → screenshots/)
-                               browse --ws <target> get html body  (sampler → dom/)
+                               browse screenshot --cdp <target> --path <file>  (sampler → screenshots/)
+                               browse get html body --cdp <target>             (sampler → dom/)
 ```
 
 CDP allows multiple concurrent clients on the same target. The tracer enables only read-only domains and never sends action commands like `Input.dispatch*` or `Runtime.evaluate`, so it cannot perturb the run.
+
+Sampler commands pass `--cdp <target>` because they run from the trace helper process and need to attach to the traced target directly. Normal follow-up commands in a browse daemon session do not need to repeat `--cdp` after the first `browse open ... --cdp <target>`. If the default daemon may already be active in another mode, use a named `--session` for sampler or automation commands.
 
 ## Scripts
 
@@ -71,9 +73,9 @@ Invoked by `start-capture.mjs`; not meant to be called directly. Loops at the co
 
 ### `bb-capture.mjs --new|<session-id> [run-id] [interval-sec]`
 
-Browserbase wrapper around `start-capture.mjs`. With `--new`, runs `bb sessions create --keep-alive` and starts the tracer. With an existing session id, fetches its `connectUrl` via `bb sessions get` and asserts the session is `RUNNING` before attaching.
+Browserbase wrapper around `start-capture.mjs`. With `--new`, runs `browse cloud sessions create --keep-alive` and starts the tracer. With an existing session id, fetches its `connectUrl` via `browse cloud sessions get` and asserts the session is `RUNNING` before attaching.
 
-Stamps the run's `manifest.json` with a `browserbase` object containing `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, and the `debugger_url` from `bb sessions debug`.
+Stamps the run's `manifest.json` with a `browserbase` object containing `session_id`, `project_id`, `region`, `started_at`, `expires_at`, `keep_alive`, and the `debugger_url` from `browse cloud sessions debug`.
 
 Reads `BROWSERBASE_API_KEY`. `BB_SESSION_TIMEOUT` (default `600`) controls the timeout passed to `--new` sessions.
 
@@ -81,11 +83,11 @@ Reads `BROWSERBASE_API_KEY`. `BB_SESSION_TIMEOUT` (default `600`) controls the t
 
 Pulls platform-side artifacts after the tracer has stopped:
 
-- **`browserbase/session.json`** — `bb sessions get` snapshot. Always written; contains the post-run `proxyBytes`, `status`, `endedAt`.
-- **`browserbase/logs.json`** — `bb sessions logs` output. Often `[]`. The CDP firehose is authoritative; this is a side channel for cases where Browserbase happened to record server-side log entries.
+- **`browserbase/session.json`** — `browse cloud sessions get` snapshot. Always written; contains the post-run `proxyBytes`, `status`, `endedAt`.
+- **`browserbase/logs.json`** — `browse cloud sessions logs` output. Often `[]`. The CDP firehose is authoritative; this is a side channel for cases where Browserbase happened to record server-side log entries.
 - **`browserbase/downloads.zip`** — only kept when there's real content (size > 22 bytes — an empty Browserbase downloads zip is exactly the EOCD record).
 
-`--release` calls `bb sessions update --status REQUEST_RELEASE` to end the session. Skip it when attaching to a session you don't own (e.g. one a production worker is using).
+`--release` calls `browse cloud sessions update --status REQUEST_RELEASE` to end the session. Skip it when attaching to a session you don't own (e.g. one a production worker is using).
 
 ## Bisect map
 
@@ -239,21 +241,21 @@ for m in .o11y/*/manifest.json; do
 done
 ```
 
-### When to use `bb sessions debug` vs the tracer
+### When to use `browse cloud sessions debug` vs the tracer
 
 They're complementary:
 
 - **tracer (this skill)** captures the firehose to disk — durable, searchable, scriptable. Use for postmortem and automated checks.
-- **`bb sessions debug` URL** is an interactive Chrome DevTools view served by Browserbase, scoped to one running session. Use when you want to *watch* a live run, single-step through requests, or inspect the live DOM by hand.
+- **`browse cloud sessions debug` URL** is an interactive Chrome DevTools view served by Browserbase, scoped to one running session. Use when you want to *watch* a live run, single-step through requests, or inspect the live DOM by hand.
 
 You can do both simultaneously: `bb-capture.mjs --new` prints the debugger URL when it starts, and stamps it in the manifest for later.
 
 ### Notes on Browserbase data sources
 
-- `bb sessions logs` is best-effort; in practice it's frequently empty even with `--log-session` on. Don't build queries on top of it; treat anything that lands there as a bonus.
-- `bb sessions recording` (rrweb session replay) is deprecated — neither helper fetches it. Use the screenshots + DOM dumps in `screenshots/` and `dom/`.
-- `bb sessions list` doesn't accept a `--status` filter; pipe through jq (`select(.status == "RUNNING")`).
-- The Browserbase proxy charges per byte. `bb sessions get` returns running `proxyBytes`; the tracer's network buckets give you per-host detail to attribute it.
+- `browse cloud sessions logs` is best-effort; in practice it's frequently empty even with `--log-session` on. Don't build queries on top of it; treat anything that lands there as a bonus.
+- Session replay artifact fetching is deprecated — neither helper fetches it. Use the screenshots + DOM dumps in `screenshots/` and `dom/`.
+- `browse cloud sessions list` doesn't accept a `--status` filter; pipe through jq (`select(.status == "RUNNING")`).
+- The Browserbase proxy charges per byte. `browse cloud sessions get` returns running `proxyBytes`; the tracer's network buckets give you per-host detail to attribute it.
 
 ## Per-page drill-down
 
@@ -313,7 +315,7 @@ tail -f .o11y/<run-id>/cdp/raw.ndjson | jq -c '{m:.method, u:.params.request.url
 | ------------------ | -------------------------------------- | ------------------------------------------------------------ |
 | `O11Y_ROOT`        | `.o11y`                                | base directory under which `<run-id>/` is created             |
 | `O11Y_DOMAINS`     | `Network Console Runtime Log Page`     | space-separated CDP domains for the firehose                 |
-| `BROWSERBASE_API_KEY` | —                                   | required for `bb sessions create` / `bb sessions get`         |
+| `BROWSERBASE_API_KEY` | —                                   | required for `browse cloud sessions create` / `browse cloud sessions get`         |
 
 The interval-second arg to `start-capture.mjs` controls only the sampler. The firehose is always streamed in real time.
 
@@ -321,10 +323,10 @@ The interval-second arg to `start-capture.mjs` controls only the sampler. The fi
 
 | Symptom                                        | Likely cause                                                  | Fix                                                          |
 | ---------------------------------------------- | ------------------------------------------------------------- | ------------------------------------------------------------ |
-| `browse cdp exited immediately`                | unreachable target / completed Browserbase session             | verify port is listening (`curl http://localhost:9222/json/version`) or session is `RUNNING` (`bb sessions get`) |
-| `error: unknown command 'cdp'`                 | stable browse-cli (≤ 0.5.0) lacks the command                 | `npm install -g @browserbasehq/browse-cli@alpha`              |
-| Browserbase session ends as soon as tracer connects | tracer was the only client; no automation attached          | create with `--keep-alive`, attach `browse --connect` first   |
-| `index.jsonl` shows `"url": ""`                 | one-shot `browse --ws ... get url` failed (transient)         | benign; happens during navigation transitions                 |
-| Screenshots empty / huge / inconsistent sizes  | viewport not set                                              | `browse --ws <target> viewport 1920 1080` once before capture |
+| `browse cdp exited immediately`                | unreachable target / completed Browserbase session             | verify port is listening (`curl http://localhost:9222/json/version`) or session is `RUNNING` (`browse cloud sessions get`) |
+| `error: unknown command 'cdp'`                 | older browse build lacks the command                          | `npm install -g browse@latest` (or the alpha tag if needed)   |
+| Browserbase session ends as soon as tracer connects | tracer was the only client; no automation attached          | create with `--keep-alive`, attach automation with `browse open --cdp <connectUrl> --session <name>` first   |
+| `index.jsonl` shows `"url": ""`                 | sampler `browse get url` failed transiently                   | benign; happens during navigation transitions                 |
+| Screenshots empty / huge / inconsistent sizes  | viewport not set                                              | `browse viewport 1920 1080 --cdp <target>` once before capture |
 | `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" bash start-capture.mjs ...` |
 | Loop process leaks after crash                  | `stop-capture.mjs` not run                                     | `pkill -f snapshot-loop.mjs`; PID files in `<run-dir>` are stale  |

@@ -13,7 +13,7 @@
 
 ## Detection Priority
 
-`recon.mjs` probes the event URL once via `browse goto` + `browse eval`, then chooses the first matching platform from this list:
+`recon.mjs` probes the event URL once via `browse open` + `browse eval`, then chooses the first matching platform from this list:
 
 1. **Next.js / `__NEXT_DATA__`** — `document.getElementById('__NEXT_DATA__')` returns a `<script>` tag.
 2. **Sessionize** — `<meta name="generator">` content matches `/sessionize/i`.
@@ -154,7 +154,7 @@ Eventbrite emits standard `Event` JSON-LD on every public event page. Speakers a
 
 **Known gotchas**
 
-- Eventbrite event pages are heavy — `bb fetch` may return >1MB and trigger the size guard. Use `browse get markdown` instead.
+- Eventbrite event pages can be heavy. If `browse cloud fetch` fails or returns thin content, use `browse get markdown` instead.
 - Most Eventbrite events do NOT publish a speaker list at all. This platform is low-yield for prospecting.
 
 ---

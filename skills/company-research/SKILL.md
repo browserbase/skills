@@ -12,7 +12,7 @@ description: |
   "company research", "find prospects", "ICP research", "target companies",
   "who should we sell to", "market research", "lead research", "prospect list".
 license: MIT
-compatibility: Requires bb CLI (@browserbasehq/cli) and BROWSERBASE_API_KEY env var
+compatibility: Requires browse CLI (`npm install -g browse`) and BROWSERBASE_API_KEY env var
 allowed-tools: Bash Agent
 metadata:
   author: browserbase
@@ -23,11 +23,11 @@ metadata:
 
 Discover and deeply research companies to sell to. Uses Browserbase Search API for discovery and a Plan→Research→Synthesize pattern for deep enrichment — outputting a scored research report and CSV.
 
-**Required**: `BROWSERBASE_API_KEY` env var and `bb` CLI installed.
+**Required**: `BROWSERBASE_API_KEY` env var and `browse` CLI installed.
 
-**First-run setup**: On the first run you'll be prompted to approve `bb fetch`, `bb search`, `cat`, `mkdir`, `sed`, etc. Select **"Yes, and don't ask again for: bb fetch:\*"** (or equivalent) for each to auto-approve for the session. To permanently approve, add these to your `~/.claude/settings.json` under `permissions.allow`:
+**First-run setup**: On the first run you'll be prompted to approve `browse cloud fetch`, `browse cloud search`, `cat`, `mkdir`, `sed`, etc. Select **"Yes, and don't ask again for: browse cloud fetch:\*"** (or equivalent) for each to auto-approve for the session. To permanently approve, add these to your `~/.claude/settings.json` under `permissions.allow`:
 ```json
-"Bash(bb:*)", "Bash(bunx:*)", "Bash(bun:*)", "Bash(node:*)",
+"Bash(browse:*)", "Bash(bunx:*)", "Bash(bun:*)", "Bash(node:*)",
 "Bash(cat:*)", "Bash(mkdir:*)", "Bash(sed:*)", "Bash(head:*)", "Bash(tr:*)", "Bash(rm:*)"
 ```
 
@@ -36,8 +36,8 @@ Discover and deeply research companies to sell to. Uses Browserbase Search API f
 **Output directory**: All research output goes to `~/Desktop/{company_slug}_research_{YYYY-MM-DD}/`. This directory contains one `.md` file per researched company plus a final `.csv`. The user gets both the scored spreadsheet and the full research files on their Desktop.
 
 **CRITICAL — Tool restrictions (applies to main agent AND all subagents)**:
-- All web searches: use `bb search`. NEVER use WebSearch.
-- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `bb fetch`, parses title + meta tags + visible body text, and automatically falls back to `bb browse` when the page is JS-rendered or over 1MB. NEVER hand-roll a `bb fetch | sed` pipeline — it silently strips meta tags and doesn't handle the JSON envelope. NEVER use WebFetch.
+- All web searches: use `browse cloud search`. NEVER use WebSearch.
+- All page content extraction: use `node {SKILL_DIR}/scripts/extract_page.mjs "<url>"`. This script fetches via `browse cloud fetch --output`, parses title + meta tags + visible body text, and automatically falls back to `browse get markdown` when fetch fails or returns thin JS-rendered content. NEVER hand-roll a `browse cloud fetch | sed` pipeline — it strips meta tags and doesn't parse the stdout JSON envelope. NEVER use WebFetch.
 - All research output: subagents write **one markdown file per company** to `{OUTPUT_DIR}/{company-slug}.md` using bash heredoc. NEVER use the Write tool or `python3 -c`. See `references/example-research.md` for the file format.
 - Report + CSV compilation: use `node {SKILL_DIR}/scripts/compile_report.mjs {OUTPUT_DIR} --open` — generates HTML report and CSV in one step, opens overview in browser.
 - URL deduplication: use `node {SKILL_DIR}/scripts/list_urls.mjs /tmp` after discovery.
@@ -97,13 +97,13 @@ This is the most important step. The quality of everything downstream depends on
    See `references/research-patterns.md` for sub-question templates and research methodology.
 
    **Key research steps:**
-   - Search: `bb search "{company name}" --num-results 10`
+   - Search: `browse cloud search "{company name}" --num-results 10`
    - Fetch homepage: `node {SKILL_DIR}/scripts/extract_page.mjs "{company website}"`
    - **Discover site pages via sitemap** (do NOT hardcode paths like `/about` or `/customers`):
-     1. `bb fetch --allow-redirects "{company website}/sitemap.xml"` — sitemap is small, raw `bb fetch` is fine
+     1. `browse cloud fetch --allow-redirects "{company website}/sitemap.xml"` — sitemap is small, raw `browse cloud fetch` is fine
      2. Scan for URLs with keywords: `customer`, `case-stud`, `pricing`, `about`, `use-case`, `industry`, `solution`
      3. Optionally also fetch `/llms.txt` for page descriptions
-     4. Pick 3-5 most relevant URLs and extract with `extract_page.mjs` (NOT raw `bb fetch`)
+     4. Pick 3-5 most relevant URLs and extract with `extract_page.mjs` (NOT raw `browse cloud fetch`)
    - Search for external context and competitors
    - Accumulate findings with confidence levels
 
@@ -142,7 +142,7 @@ Generate search queries with these patterns:
 **Process**:
 1. Launch ALL discovery subagents at once (up to ~6 per message). Each runs its queries in a SINGLE Bash call:
    ```bash
-   bb search "{query}" --num-results 25 --output /tmp/company_discovery_batch_{N}.json
+   browse cloud search "{query}" --num-results 25 --output /tmp/company_discovery_batch_{N}.json
    ```
 2. After all waves complete, deduplicate: `node {SKILL_DIR}/scripts/list_urls.mjs /tmp`
 3. **Filter the URL list** — remove:

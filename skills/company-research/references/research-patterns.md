@@ -21,9 +21,9 @@ This is the most important research in the pipeline. Every downstream decision d
 
 ### Page Discovery
 Discover site pages dynamically — do NOT hardcode paths like `/about` or `/customers`:
-1. Fetch `bb fetch --allow-redirects "{company website}/sitemap.xml"` — primary source, has ALL pages
+1. Fetch `browse cloud fetch --allow-redirects "{company website}/sitemap.xml"` — primary source, has ALL pages
 2. Scan sitemap URLs for keywords: `customer`, `case-stud`, `pricing`, `about`, `use-case`, `blog`, `docs`, `industry`, `solution`
-3. Optionally fetch `bb fetch --allow-redirects "{company website}/llms.txt"` for page descriptions
+3. Optionally fetch `browse cloud fetch --allow-redirects "{company website}/llms.txt"` for page descriptions
 4. Pick the 3-5 most relevant URLs from the sitemap and fetch those
 5. Sitemap is the source of truth. llms.txt is bonus context but often incomplete.
 

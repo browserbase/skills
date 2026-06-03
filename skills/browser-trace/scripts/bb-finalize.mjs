@@ -6,7 +6,7 @@
 // Usage:
 //   node scripts/bb-finalize.mjs <run-id> [--release]
 //
-//   --release  send `bb sessions update --status REQUEST_RELEASE` after
+//   --release  send `browse cloud sessions update --status REQUEST_RELEASE` after
 //              finalizing (use only when this run owns the session).
 
 import fs from 'node:fs';
@@ -45,18 +45,18 @@ ensureDir(bbDir);
 
 // Final session metadata — proxyBytes, status, ended_at all settle here.
 {
-  const r = runCmd('bb', ['sessions', 'get', sessionId]);
+  const r = runCmd('browse', ['cloud', 'sessions', 'get', sessionId]);
   if (r.ok) {
     fs.writeFileSync(path.join(bbDir, 'session.json'), r.stdout);
     console.log('wrote session.json');
   } else {
-    console.error('warn: bb sessions get failed');
+    console.error('warn: browse cloud sessions get failed');
   }
 }
 
 // Server-side logs. Often empty — the firehose in cdp/raw.ndjson is the source of truth.
 {
-  const r = runCmd('bb', ['sessions', 'logs', sessionId]);
+  const r = runCmd('browse', ['cloud', 'sessions', 'logs', sessionId]);
   if (r.ok) {
     fs.writeFileSync(path.join(bbDir, 'logs.json'), r.stdout);
     let n = '?';
@@ -69,7 +69,7 @@ ensureDir(bbDir);
 // content is always larger.
 {
   const out = path.join(bbDir, 'downloads.zip');
-  const r = runCmd('bb', ['sessions', 'downloads', 'get', sessionId, '--output', out]);
+  const r = runCmd('browse', ['cloud', 'sessions', 'downloads', 'get', sessionId, '--output', out]);
   if (r.ok && fs.existsSync(out)) {
     const size = fs.statSync(out).size;
     if (size <= 22) {
@@ -84,12 +84,12 @@ ensureDir(bbDir);
 }
 
 if (release) {
-  const r = runCmd('bb', ['sessions', 'update', sessionId, '--status', 'REQUEST_RELEASE']);
+  const r = runCmd('browse', ['cloud', 'sessions', 'update', sessionId, '--status', 'REQUEST_RELEASE']);
   if (r.ok) console.log(`released session ${sessionId}`);
 
   // Re-snapshot session.json so it reflects the final COMPLETED state with
   // settled proxyBytes and endedAt instead of the pre-release values.
-  const r2 = runCmd('bb', ['sessions', 'get', sessionId]);
+  const r2 = runCmd('browse', ['cloud', 'sessions', 'get', sessionId]);
   if (r2.ok) {
     fs.writeFileSync(path.join(bbDir, 'session.json'), r2.stdout);
     console.log('refreshed session.json (post-release)');
