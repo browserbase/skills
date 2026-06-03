@@ -295,12 +295,12 @@ function dropScaffold(scaffoldDir, outDir, taskName) {
 
 // ── Verify ────────────────────────────────────────────────────────
 
-function verify(framework, outDir, taskName) {
+function verify(framework, outDir, scriptBasename) {
   const { runnerPath } = frameworkConfig(framework);
   if (!fs.existsSync(runnerPath)) {
     return { passed: false, error: `no runner for framework "${framework}" at ${runnerPath}`, ranner_missing: true };
   }
-  const res = spawnSync("node", [runnerPath, "--out-dir", outDir, "--task", taskName], {
+  const res = spawnSync("node", [runnerPath, "--out-dir", outDir, "--script", scriptBasename], {
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
@@ -330,11 +330,18 @@ async function generateOne(framework) {
     ? fs.readFileSync(path.join(REFERENCES_DIR, "playwright-cdp-bridge.md"), "utf-8")
     : "";
 
-  const outDir = OUT_OVERRIDE
-    ? path.resolve(OUT_OVERRIDE)
-    : path.join(taskDir, framework);
+  // Filename + outDir convention:
+  //  - default mode (--out unset): per-framework subdir, file named after the
+  //    task, so the dir feels like a standalone project — e.g.
+  //    tasks/<task>/playwright/<task>.ts  with its own package.json.
+  //  - --out mode: caller is flattening into someone else's tree (e.g.
+  //    browse.sh's /tmp/skill/{domain}/{task}/), so we use the framework
+  //    name as the filename — playwright.ts + stagehand.ts in the same dir,
+  //    no collision.
+  const outDir = OUT_OVERRIDE ? path.resolve(OUT_OVERRIDE) : path.join(taskDir, framework);
+  const scriptBasename = OUT_OVERRIDE ? `${framework}.${cfg.ext}` : `${TASK}.${cfg.ext}`;
   fs.mkdirSync(outDir, { recursive: true });
-  const scriptPath = path.join(outDir, `${TASK}.${cfg.ext}`);
+  const scriptPath = path.join(outDir, scriptBasename);
 
   // Cache lookup
   const key = cacheKey(framework, promptTemplate);
@@ -373,7 +380,7 @@ async function generateOne(framework) {
   }
 
   // Verify loop with rewrite-on-failure
-  let lastVerify = verify(framework, outDir, TASK);
+  let lastVerify = verify(framework, outDir, scriptBasename);
   while (!lastVerify.passed && attempts < MAX_RETRIES + 1) {
     if (lastVerify.ranner_missing) break;
     attempts++;

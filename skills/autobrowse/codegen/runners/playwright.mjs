@@ -8,9 +8,9 @@
  * result line.
  *
  * Contract:
- *   - Reads --out-dir <path>  (the scaffolded output dir)
- *   - Reads --task <name>     (used to find <task>.ts)
- *   - Spawns `npx tsx <task>.ts` with PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
+ *   - Reads --out-dir <path>      (the scaffolded output dir)
+ *   - Reads --script <basename>   (file inside --out-dir to run, e.g. acme.ts)
+ *   - Spawns `npx tsx <basename>` with PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1
  *   - SCREENSHOT_DIR is set so the script can call snap() into a per-run dir
  *   - Returns: prints a single JSON line {"passed":boolean, ...} on stdout
  *
@@ -28,14 +28,14 @@ function getArg(name) {
 }
 
 const OUT_DIR = getArg("out-dir");
-const TASK = getArg("task");
+const SCRIPT = getArg("script");
 
-if (!OUT_DIR || !TASK) {
-  console.log(JSON.stringify({ passed: false, error: "runner missing --out-dir or --task" }));
+if (!OUT_DIR || !SCRIPT) {
+  console.log(JSON.stringify({ passed: false, error: "runner missing --out-dir or --script" }));
   process.exit(2);
 }
 
-const scriptPath = path.join(OUT_DIR, `${TASK}.ts`);
+const scriptPath = path.join(OUT_DIR, SCRIPT);
 if (!fs.existsSync(scriptPath)) {
   console.log(JSON.stringify({ passed: false, error: `script not found at ${scriptPath}` }));
   process.exit(2);
@@ -63,7 +63,7 @@ const screenshotDir = path.join(OUT_DIR, "screenshots", `verify-${Date.now()}`);
 fs.mkdirSync(screenshotDir, { recursive: true });
 
 process.stderr.write(`[runner.playwright] running ${scriptPath}\n`);
-const run = spawnSync("npx", ["tsx", `${TASK}.ts`], {
+const run = spawnSync("npx", ["tsx", SCRIPT], {
   cwd: OUT_DIR,
   encoding: "utf-8",
   stdio: ["ignore", "pipe", "pipe"],

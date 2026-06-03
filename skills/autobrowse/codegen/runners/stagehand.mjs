@@ -21,14 +21,14 @@ function getArg(name) {
 }
 
 const OUT_DIR = getArg("out-dir");
-const TASK = getArg("task");
+const SCRIPT = getArg("script");
 
-if (!OUT_DIR || !TASK) {
-  console.log(JSON.stringify({ passed: false, error: "runner missing --out-dir or --task" }));
+if (!OUT_DIR || !SCRIPT) {
+  console.log(JSON.stringify({ passed: false, error: "runner missing --out-dir or --script" }));
   process.exit(2);
 }
 
-const scriptPath = path.join(OUT_DIR, `${TASK}.ts`);
+const scriptPath = path.join(OUT_DIR, SCRIPT);
 if (!fs.existsSync(scriptPath)) {
   console.log(JSON.stringify({ passed: false, error: `script not found at ${scriptPath}` }));
   process.exit(2);
@@ -56,7 +56,7 @@ const screenshotDir = path.join(OUT_DIR, "screenshots", `verify-${Date.now()}`);
 fs.mkdirSync(screenshotDir, { recursive: true });
 
 process.stderr.write(`[runner.stagehand] running ${scriptPath}\n`);
-const run = spawnSync("npx", ["tsx", `${TASK}.ts`], {
+const run = spawnSync("npx", ["tsx", SCRIPT], {
   cwd: OUT_DIR,
   encoding: "utf-8",
   stdio: ["ignore", "pipe", "pipe"],
