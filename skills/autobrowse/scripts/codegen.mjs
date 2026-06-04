@@ -325,9 +325,32 @@ function dropScaffold(scaffoldDir, outDir, taskName, scriptBasename) {
   for (const entry of fs.readdirSync(scaffoldDir)) {
     const src = path.join(scaffoldDir, entry);
     const dst = path.join(outDir, entry);
+    const content = templateInterpolate(fs.readFileSync(src, "utf-8"), vars);
+    // Special-case package.json: when --out is shared across frameworks (e.g.
+    // browse.sh passes one dir for playwright+stagehand), the first framework
+    // writes its package.json and the second must MERGE its dependencies in,
+    // not skip. Otherwise the second framework's `node_modules` lacks its own
+    // runtime deps (e.g. @browserbasehq/stagehand) and verify can never pass.
+    if (entry === "package.json" && fs.existsSync(dst)) {
+      try {
+        const existing = JSON.parse(fs.readFileSync(dst, "utf-8"));
+        const incoming = JSON.parse(content);
+        existing.dependencies = {
+          ...(existing.dependencies || {}),
+          ...(incoming.dependencies || {}),
+        };
+        existing.devDependencies = {
+          ...(existing.devDependencies || {}),
+          ...(incoming.devDependencies || {}),
+        };
+        fs.writeFileSync(dst, JSON.stringify(existing, null, 2) + "\n");
+        continue;
+      } catch {
+        // Fall through to never-overwrite policy if either side is malformed.
+      }
+    }
     if (fs.existsSync(dst)) continue; // never overwrite a user's file
-    const content = fs.readFileSync(src, "utf-8");
-    fs.writeFileSync(dst, templateInterpolate(content, vars));
+    fs.writeFileSync(dst, content);
   }
 }
 

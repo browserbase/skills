@@ -9,6 +9,7 @@
 
 import * as fs from "node:fs";
 import * as path from "node:path";
+import * as crypto from "node:crypto";
 import { spawnSync } from "node:child_process";
 
 export function getArg(name) {
@@ -51,8 +52,21 @@ export function runTsxTarget(opts) {
     if (err) emitAndExit({ passed: false, error: err });
   }
 
-  // Install deps once per outDir (the scaffold's package.json pins versions).
-  if (!fs.existsSync(path.join(outDir, "node_modules"))) {
+  // Install deps when package.json changes. Gating purely on node_modules
+  // existing is wrong when two frameworks share an --out dir: framework #2's
+  // dropScaffold merges its deps into the existing package.json, but the
+  // node_modules from framework #1's install is still missing them. We hash
+  // package.json and compare against a stamp under node_modules/ to detect
+  // that and re-install.
+  const pkgPath = path.join(outDir, "package.json");
+  const stampPath = path.join(outDir, "node_modules", ".codegen-pkg-hash");
+  const pkgHash = fs.existsSync(pkgPath)
+    ? crypto.createHash("sha256").update(fs.readFileSync(pkgPath)).digest("hex")
+    : null;
+  const stampedHash = fs.existsSync(stampPath)
+    ? fs.readFileSync(stampPath, "utf-8").trim()
+    : null;
+  if (pkgHash && pkgHash !== stampedHash) {
     process.stderr.write(`[runner.${label}] installing deps in ${outDir}\n`);
     const install = spawnSync("npm", ["install", "--silent", "--no-audit", "--no-fund"], {
       cwd: outDir,
@@ -63,6 +77,10 @@ export function runTsxTarget(opts) {
     if (install.status !== 0) {
       emitAndExit({ passed: false, error: `npm install exited ${install.status}` });
     }
+    try {
+      fs.mkdirSync(path.dirname(stampPath), { recursive: true });
+      fs.writeFileSync(stampPath, pkgHash);
+    } catch {}
   }
 
   // Per-run screenshot dir, exposed to the script via SCREENSHOT_DIR so its
