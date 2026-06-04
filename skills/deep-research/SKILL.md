@@ -68,7 +68,7 @@ For each sub-question:
 
 1. Run 2-3 search query variations. Use parallel tool calls when the host supports them.
 2. Fetch the top 3-5 relevant unique URLs. Prefer primary sources, official docs, filings, company pages, reputable reporting, and recent material.
-3. If fetch output is thin or blocked, fall back to a full Browserbase browser session.
+3. If fetch output is thin, blocked, or flagged as dynamic/client-rendered, fall back to a full Browserbase browser session before using that source.
 4. Record self-contained factual findings as soon as they are supported by a source.
 5. Reformulate and search again when the first result set is weak.
 
@@ -123,11 +123,14 @@ Fetch is best for static HTML, JSON, PDFs, documents, status checks, and redirec
 
 Fall back to browser mode when fetch returns:
 
+- Browserbase Fetch metadata, warnings, or response text that says the page is dynamic, JavaScript-rendered, or client-rendered
 - HTTP 403, 429, bot-detection, or CAPTCHA pages
 - Empty or very short visible text from a page that should have content
 - SPA shells such as empty root, app, __next, or __nuxt containers
 - Noscript warnings that say JavaScript is required
 - Content that likely depends on interaction, scrolling, login, or client-side rendering
+
+When a dynamic-content signal appears, do not cite the fetch output as complete evidence. Open the same URL in browser mode, wait for the rendered state, extract visible text or markdown, and cite the browser-derived content instead.
 
 ### Browser Fallback
 
