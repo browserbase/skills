@@ -68,10 +68,16 @@ export function runTsxTarget(opts) {
     : null;
   if (pkgHash && pkgHash !== stampedHash) {
     process.stderr.write(`[runner.${label}] installing deps in ${outDir}\n`);
+    // Always set PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 here, regardless of which
+    // runner we are. In shared --out mode, framework #2 (e.g. stagehand) gets
+    // playwright merged into its package.json by dropScaffold, so even runners
+    // that don't list playwright in installEnv would still trigger its
+    // postinstall and try to fetch hundreds of MB of chromium — exhausting
+    // the 3min install budget. We never need bundled browsers (always CDP).
     const install = spawnSync("npm", ["install", "--silent", "--no-audit", "--no-fund"], {
       cwd: outDir,
       stdio: ["ignore", "inherit", "inherit"],
-      env: { ...process.env, ...installEnv },
+      env: { ...process.env, PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD: "1", ...installEnv },
       timeout: 3 * 60 * 1000,
     });
     if (install.status !== 0) {
