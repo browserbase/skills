@@ -33,6 +33,8 @@ Use this mapping. If the host exposes explicit Browserbase tools, use those tool
 - Page retrieval: Browserbase Fetch, bb fetch, browse cloud fetch, or the Browserbase Fetch HTTP API
 - Browser fallback: Browserbase browser/session tool, or browse open --remote plus browse snapshot, browse get, and screenshots
 
+For browser-mode work, use the repository's browser skill as the operational reference. If the browser skill is available in the host, invoke it for navigation, page-state inspection, interactions, screenshots, remote Browserbase mode, CAPTCHA/bot-detection handling, and session cleanup. If the host does not auto-load skills, read `skills/browser/SKILL.md` before complex browser fallback work.
+
 ## Depth
 
 Select depth from the user request. If unspecified, use deep for broad research and quick for narrow fact-finding.
@@ -136,6 +138,14 @@ When a dynamic-content signal appears, do not cite the fetch output as complete 
 
 Use a remote Browserbase session for pages that require JavaScript rendering, anti-bot handling, CAPTCHA solving, residential proxies, or inspection.
 
+Follow the browser skill's workflow for the browser mechanics:
+
+1. Open the page in remote Browserbase mode for protected or JavaScript-heavy pages.
+2. Use `browse snapshot` first to understand rendered page structure and interactive state.
+3. Extract evidence with `browse get markdown "body"` or `browse get text "body"` after the rendered state is stable.
+4. Use screenshots only when visual layout, images, charts, or anti-bot state matter.
+5. Stop the browser session after research unless a later source needs the same session.
+
     mkdir -p .deep-research/screenshots
     browse open "https://example.com/dashboard-or-js-page" --remote --wait networkidle
     browse get title
@@ -151,7 +161,7 @@ If the installed browse version does not accept mode flags on open, select the e
     browse get markdown "body"
     browse stop
 
-Use browse snapshot to understand page structure. Use screenshots only when visual layout, images, charts, or anti-bot state matter. Always browse stop after browser research unless a later step needs the same session.
+If browser mode still renders an auth wall, block page, security challenge, or content-free shell, record that as a source gap rather than citing the page for substantive claims.
 
 ## Finding Ledger
 
