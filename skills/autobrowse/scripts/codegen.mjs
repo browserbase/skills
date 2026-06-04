@@ -448,6 +448,11 @@ async function generateOne(framework) {
   let lastVerify = verify(framework, outDir, scriptBasename);
   while (!lastVerify.passed && attempts < MAX_RETRIES + 1) {
     if (lastVerify.runner_missing) break;
+    // --cache-only forbids ANY LLM call, including the rewrite path. Without
+    // this guard a cached script that fails verify would still burn quota
+    // through the rewrite loop, contradicting the documented "no LLM call"
+    // CI behavior.
+    if (CACHE_ONLY) break;
     attempts++;
     const previousCode = code;
     const failureContext =
