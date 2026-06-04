@@ -13,6 +13,7 @@ This plugin includes the following skills (see `skills/` for details):
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `browse` CLI |
 | [site-debugger](skills/site-debugger/SKILL.md) | Diagnose and fix failing browser automations — analyzes bot detection, selectors, timing, auth, and captchas, then generates a tested site playbook |
 | [browser-trace](skills/browser-trace/SKILL.md) | Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets |
+| [deep-research](skills/deep-research/SKILL.md) | Turn any agent into a Browserbase-backed deep research agent that plans sub-questions, searches, fetches, uses browser fallback, records findings, and writes cited reports |
 | [safe-browser](skills/safe-browser/SKILL.md) | Build local Claude Agent SDK browser agents whose only browser capability is a CDP-gated `safe_browser` tool with domain allowlist enforcement |
 | [bb-usage](skills/bb-usage/SKILL.md) | Show Browserbase usage stats, session analytics, and cost forecasts in a terminal dashboard |
 | [cookie-sync](skills/cookie-sync/SKILL.md) | Sync cookies from local Chrome to a Browserbase persistent context so the browse CLI can access authenticated sites |
@@ -59,6 +60,7 @@ Once installed, you can ask Claude to browse or use the Browserbase CLI:
 - *"Use `browse` to list my Browserbase projects and show the output as JSON"*
 - *"Initialize a new Browserbase Function with `browse functions init` and explain the next commands"*
 - *"Use safe-browser to build a Hacker News scraper that only stays on the main site"*
+- *"Use deep-research to compare cloud browser providers and give me a cited report"*
 
 Claude will handle the rest.
 
