@@ -361,11 +361,15 @@ function verify(framework, outDir, scriptBasename) {
   if (!fs.existsSync(runnerPath)) {
     return { passed: false, error: `no runner for framework "${framework}" at ${runnerPath}`, runner_missing: true };
   }
+  // The parent timeout must exceed the runner's worst case: tsx-runner allows
+  // up to 3min for npm install + 5min for the tsx run = 8min, plus slack for
+  // process startup and the trailing-JSON parse. 10min keeps us safely above
+  // that so a healthy slow run isn't killed mid-flight.
   const res = spawnSync("node", [runnerPath, "--out-dir", outDir, "--script", scriptBasename], {
     encoding: "utf-8",
     stdio: ["ignore", "pipe", "pipe"],
     env: process.env,
-    timeout: 5 * 60 * 1000,
+    timeout: 10 * 60 * 1000,
   });
   const stdout = res.stdout || "";
   const stderr = res.stderr || "";
