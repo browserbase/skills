@@ -72,7 +72,7 @@
     {
       "name": "deep-research",
       "source": "./",
-      "description": "Turn any agent into a Browserbase-backed deep research agent. Use when the user asks for exhaustive web research, cited reports, market research, competitor analysis, due diligence, or complex questions that require planning, web search, page fetches, browser fallback, and source-grounded synthesis.",
+      "description": "Turn any agent into a Browserbase-backed deep research agent. Use when the user asks for exhaustive web research, cited markdown/PDF reports, market research, competitor analysis, due diligence, or complex questions that require planning, web search, page fetches, browser fallback, and source-grounded synthesis.",
       "version": "0.0.1",
       "author": {
         "name": "Browserbase"
