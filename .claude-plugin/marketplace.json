@@ -70,6 +70,21 @@
       ]
     },
     {
+      "name": "deep-research",
+      "source": "./",
+      "description": "Turn any agent into a Browserbase-backed deep research agent. Use when the user asks for exhaustive web research, cited markdown/PDF reports, market research, competitor analysis, due diligence, or complex questions that require planning, web search, page fetches, browser fallback, and source-grounded synthesis.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "research",
+      "keywords": ["deep-research", "research", "web-research", "citations", "search", "fetch", "browserbase", "reports"],
+      "strict": false,
+      "skills": [
+        "./skills/deep-research"
+      ]
+    },
+    {
       "name": "safe-browser",
       "source": "./",
       "description": "Build local constrained-browser agents with a safe_browser tool that owns CDP, enforces a domain allowlist with Fetch interception, and lets a runtime Claude Agent SDK agent complete browsing tasks without raw browser, shell, or CDP access.",
