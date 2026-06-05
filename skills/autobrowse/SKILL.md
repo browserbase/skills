@@ -225,47 +225,43 @@ Read the new summary. Did it pass? Make clear progress?
 
 ### Generate a runnable script (optional)
 
-Once the task has converged, you can produce a deterministic, runnable script
-in one or more frameworks via `scripts/codegen.mjs`. This is one shot of an
-LLM call per framework, cached by content hash, with optional verify-against-
-fresh-session and rewrite-on-failure.
+Once the task has converged, you can produce a runnable script in one or
+more frameworks (Playwright, Stagehand) directly using your own `Write` and
+`Bash` tools — autobrowse no longer ships a separate `codegen.mjs`
+sub-process. The framework-specific specs live as reference docs you read
+on demand:
 
-```bash
-node ${CLAUDE_SKILL_DIR}/scripts/codegen.mjs \
-  --task <name> \
-  --workspace ./autobrowse \
-  --frameworks playwright,stagehand \
-  --verify
-```
+- `references/codegen/playwright.md` — script shape, scaffold, verify
+  contract, locator priorities, HTTP-only variant
+- `references/codegen/stagehand.md` — Stagehand v3 constructor, `act` /
+  `extract` patterns, when NOT to ship Stagehand
+- `references/playwright-cdp-bridge.md` — canonical `connectOverCDP`
+  create-session / release dance
 
-Each framework gets its own subdirectory under `tasks/<name>/<framework>/`
-with the emitted script and a self-contained scaffold (`package.json`,
-`tsconfig.json`). The directory is runnable standalone with
-`cd tasks/<name>/playwright && npm install && npx tsx <name>.ts` — the only
-runtime requirement is `BROWSERBASE_API_KEY` (plus `ANTHROPIC_API_KEY` for
-the Stagehand target).
+The loop is:
 
-Builtin frameworks: `playwright`, `stagehand`. Add a custom framework with
-`--prompt-template <path> --frameworks custom` (and provide your own runner
-or pass `--no-verify`).
+1. `Read` the converged trace at
+   `./autobrowse/traces/<task>/latest/{trace.json,unified-events.jsonl}`,
+   the task's `strategy.md`, and the framework reference doc.
+2. `Write` `<framework>.ts` into the output directory (e.g.
+   `tasks/<task>/<framework>/<task>.ts` or a flattened upload root).
+3. `Write` the scaffold's `package.json` + `tsconfig.json` per the
+   reference. When multiple frameworks share an output directory, merge
+   the `dependencies` across frameworks into a single `package.json`.
+4. `Bash` `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --silent --no-audit --no-fund`
+   then `npx tsx <framework>.ts` against a fresh Browserbase session.
+5. Parse the trailing `{"success":boolean,...}` JSON line from stdout. If
+   it failed, read the stderr tail and iterate — up to ~3 attempts is
+   reasonable. If still failing, delete the broken script so it isn't
+   uploaded (the upload glob ships whatever's on disk).
 
-Common flags:
-
-| Flag | Purpose |
-|---|---|
-| `--frameworks a,b,...` | Comma-separated; default `playwright` |
-| `--verify` / `--no-verify` | Run the produced script against a fresh BB session; default `--verify` |
-| `--max-retries N` | Rewrite-on-verify-failure cap; default 2 |
-| `--cache-only` | Error if cache miss (CI-friendly) |
-| `--force` | Bust the cache |
-| `--dry-run` | Estimate prompt size + cost; don't call the LLM |
-| `--run <id>` | Force a specific `run-NNN` (default: latest passing) |
-
-Output is one JSON line per framework on stdout. Non-zero exit if any
-selected framework's final state is `passed: false`.
-
-See `references/playwright-cdp-bridge.md` for the canonical
-`connectOverCDP` patterns the emitted scripts follow.
+The agent does this directly because it already has the context, the
+tools, and the judgment for "this stderr means …, try X". A sub-process
+LLM call (the old `codegen.mjs`) couldn't see why a script was failing
+beyond the stderr tail, and tended to bleed natural-language preamble
+into the `.ts` file via the completion API's message channel — both
+problems disappear when the outer agent writes the file through the
+`Write` tool's structured argument.
 
 ### After all iterations — publish if ready
 
