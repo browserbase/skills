@@ -240,16 +240,38 @@ on demand:
 
 The loop is:
 
+Pick an **output directory** for each run and keep all of step 2-4 inside
+it. The two common shapes:
+
+- **Per-framework subdir** (standalone autobrowse use, no host): one
+  directory per framework, scripts named after the task —
+  `tasks/<task>/playwright/<task>.ts`, `tasks/<task>/stagehand/<task>.ts`.
+  Each subdir gets its own `package.json` + `node_modules`.
+- **Flattened upload root** (what browse.sh's skill-generator uses): all
+  frameworks share one output dir at the upload root, scripts named after
+  the framework — `/tmp/skill/{domain}/{task}/playwright.ts`,
+  `.../stagehand.ts`. One merged `package.json` covers both.
+
+Step 4's verify command and step 7's "delete broken script" path must
+match step 2's filename. Pick one shape per task and stick with it.
+
+The loop is:
+
 1. `Read` the converged trace at
-   `./autobrowse/traces/<task>/latest/{trace.json,unified-events.jsonl}`,
-   the task's `strategy.md`, and the framework reference doc.
-2. `Write` `<framework>.ts` into the output directory (e.g.
-   `tasks/<task>/<framework>/<task>.ts` or a flattened upload root).
+   `./autobrowse/traces/<task>/run-NNN/{trace.json,unified-events.jsonl}`
+   (zero-padded run number — autobrowse also maintains a `latest` symlink
+   to the most recent run if you'd rather use that), the task's
+   `strategy.md` at `./autobrowse/tasks/<task>/strategy.md`, and the
+   framework reference doc at `references/codegen/<framework>.md`.
+2. `Write` the script into the output directory you picked:
+   `<output-dir>/<task>.ts` (per-framework subdir) or
+   `<output-dir>/<framework>.ts` (flattened root).
 3. `Write` the scaffold's `package.json` + `tsconfig.json` per the
    reference. When multiple frameworks share an output directory, merge
    the `dependencies` across frameworks into a single `package.json`.
 4. `Bash` `PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD=1 npm install --silent --no-audit --no-fund`
-   then `npx tsx <framework>.ts` against a fresh Browserbase session.
+   then `npx tsx <the-script-you-just-wrote>` against a fresh Browserbase
+   session. Use the same filename you `Write`'d in step 2.
 5. Parse the trailing `{"success":boolean,...}` JSON line from stdout. If
    it failed, read the stderr tail and iterate — up to ~3 attempts is
    reasonable. If still failing, delete the broken script so it isn't
