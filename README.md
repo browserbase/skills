@@ -19,6 +19,7 @@ This plugin includes the following skills (see `skills/` for details):
 | [fetch](skills/fetch/SKILL.md) | Fetch HTML or JSON from static pages without a browser session — inspect status codes, headers, follow redirects |
 | [search](skills/search/SKILL.md) | Search the web and return structured results (titles, URLs, metadata) without a browser session |
 | [ui-test](skills/ui-test/SKILL.md) | AI-powered adversarial UI testing — analyzes git diffs to test changes, or explores the full app to find bugs |
+| [browsability](skills/browsability/SKILL.md) | Assess how usable a website is by an AI browser agent — how much stealth/proxy/captcha help it needs to get in, whether controls are labeled/reachable, iframe/shadow-DOM traps, and extra steps vs a human; reports what helps and what hurts, with concrete fixes (no numeric score) |
 
 ## Installation
 
