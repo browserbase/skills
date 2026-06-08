@@ -65,22 +65,34 @@ def main() -> int:
     out = pathlib.Path(args[1]).resolve() if len(args) > 1 \
         else inp.with_name(inp.stem + "-portable.html")
     html = inp.read_text()
-    base = inp.parent
+    base = inp.parent.resolve()
 
     def repl(m: re.Match) -> str:
         src = m.group("src")
         if src.startswith(("http://", "https://", "data:")):
             return m.group(0)
         img = (base / src).resolve()
+        # Refuse to embed anything outside the brief's own directory: this file
+        # is meant to be forwarded externally, so a `../` src must not slurp in
+        # arbitrary local files.
+        if not img.is_relative_to(base):
+            print(f"  ! refusing path outside brief dir, left as-is: {src}")
+            return m.group(0)
         if not img.exists():
             print(f"  ! missing image, left as-is: {src}")
             return m.group(0)
         data, mime = compress(img)
         b64 = base64.b64encode(data).decode()
         print(f"  embedded {src} ({len(data)//1024} KB, {mime})")
-        return m.group(0).replace(src, f"data:{mime};base64,{b64}")
+        # Rebuild only the src attribute (pre + new value + closing quote) so a
+        # matching string elsewhere in the tag (alt/title) is never touched.
+        return f"{m.group('pre')}data:{mime};base64,{b64}{m.group('q')}"
 
-    html = re.sub(r'<img\b[^>]*?\bsrc=["\'](?P<src>[^"\']+)["\']', repl, html)
+    # (?<![\w-]) keeps `src=` from matching `data-src=` and similar lazy-load attrs.
+    html = re.sub(
+        r'(?P<pre><img\b[^>]*?(?<![\w-])src\s*=\s*(?P<q>["\']))(?P<src>[^"\']+)(?P=q)',
+        repl, html,
+    )
     out.write_text(html)
     print(f"wrote {out} ({len(html.encode())//1024} KB)")
     if "--no-open" not in flags:
