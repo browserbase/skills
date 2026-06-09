@@ -19,6 +19,7 @@ This plugin includes the following skills (see `skills/` for details):
 | [fetch](skills/fetch/SKILL.md) | Fetch HTML or JSON from static pages without a browser session — inspect status codes, headers, follow redirects |
 | [search](skills/search/SKILL.md) | Search the web and return structured results (titles, URLs, metadata) without a browser session |
 | [ui-test](skills/ui-test/SKILL.md) | AI-powered adversarial UI testing — analyzes git diffs to test changes, or explores the full app to find bugs |
+| [bu-to-bb](skills/bu-to-bb/SKILL.md) | Migrate browser-use (Python) automation to Stagehand v3 (TypeScript) on Browserbase — maps features and picks the right determinism level per step |
 
 ## Installation
 
