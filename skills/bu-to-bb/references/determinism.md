@@ -15,26 +15,28 @@ the `/bu-to-bb` skill applies.
 | **2. Per-step AI** | `stagehand.act("…")`, `stagehand.extract("…", schema)` | You know the *steps* but not the exact selectors; pages change often. | One LLM call per action. Moderate cost. Each step is inspectable. |
 | **3. Observe → act (cached)** | `observe("…")` → replay `act(action)` | You know the steps and want to resolve + reuse concrete selectors. | `act(action)` makes **no LLM call**. Fast, repeatable. |
 | **4. Self-heal + cache** | `selfHeal: true`, `cacheDir`, `serverCache` | Production runs that should replay deterministically but recover when the DOM drifts. | Cheapest steady-state; AI only re-engages on a cache miss/break. |
-| **5. Deterministic** | plain `page.goto`, `page.locator(...).click()`, `page.fill(...)` | Stable, well-known elements (login forms, nav, known URLs). | No AI, no cost, fully deterministic. |
+| **5. Navigation (no AI)** | `page.goto(url)`, `page.url()` on the Stagehand page | Loading a known URL or reading the current location. | No AI, no cost. Element interactions live at Levels 2–4, not here. |
 
-A good migration is usually a **mix**: deterministic code for the skeleton (navigation, known
-forms), per-step `act`/`extract` for the parts that genuinely vary, and `agent()` reserved for the
-one open-ended stretch (if any).
+A good migration is usually a **mix**: `page.goto` for navigation, cached `observe`→`act` for the
+repeatable skeleton (known forms, nav), per-step `act`/`extract` for the parts that genuinely vary,
+and `agent()` reserved for the one open-ended stretch (if any). Determinism comes from Stagehand's
+own caching — not from hand-written selectors.
 
 ---
 
 ## Decision tree (apply per browser-use step / sub-task)
 
 ```
-Is the action on a stable, known element (fixed URL, standard form field)?
-├─ YES → use plain Playwright: page.goto / page.locator(...).click() / page.fill()   (Level 5)
-└─ NO  → Does the page change between runs, but you know WHAT to do each step?
-         ├─ YES → Will this exact step repeat many times / need replay?
-         │        ├─ YES → observe() once, persist the action, replay with act(action)  (Level 3/4)
-         │        └─ NO  → act("natural language instruction")                          (Level 2)
-         └─ NO  → Is the path genuinely open-ended (the LLM must decide the route)?
-                  ├─ YES → stagehand.agent().execute(...)                               (Level 1)
-                  └─ NO  → decompose into act/extract steps                             (Level 2)
+Navigating to a known URL?
+├─ YES → page.goto(url)                                                            (Level 5, no AI)
+└─ NO  → Reading structured data off the page?
+         ├─ YES → extract("…", schema)                                             (Level 2)
+         └─ NO  → It's an on-page action (click / type / select).
+                  Will this exact step repeat / need deterministic replay?
+                  ├─ YES → observe("…") once, persist it, replay with act(action)   (Level 3/4, no LLM on replay)
+                  └─ NO  → Is the route genuinely open-ended (LLM must decide)?
+                           ├─ YES → stagehand.agent().execute(...)                  (Level 1)
+                           └─ NO  → act("natural-language instruction")             (Level 2)
 ```
 
 Reading data off a page is always `extract("…", schema)` (Level 2) — there is no reason to use a

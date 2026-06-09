@@ -14,7 +14,7 @@ choosing the right level of determinism per step instead of a one-to-one agentic
 - **[EXAMPLES.md](EXAMPLES.md)** — before/after script pairs (simple task, structured extraction, login).
 - **[references/](references/)** — the mechanical detail the skill consults:
   - [api-mapping.md](references/api-mapping.md) — exhaustive browser-use → Stagehand mapping + v3 gotchas.
-  - [determinism.md](references/determinism.md) — the decision framework (agent vs act/extract/observe vs Playwright).
+  - [determinism.md](references/determinism.md) — the decision framework (agent vs act/extract/observe vs cached observe→act).
   - [trace-assisted.md](references/trace-assisted.md) — optional run-on-Browserbase + Session Logs path (pairs with the [`browser-trace`](../browser-trace/SKILL.md) skill).
 
 ## Why

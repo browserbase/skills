@@ -118,7 +118,7 @@ browser-use baseline: same navigations, same end state, same extracted data. Reu
 
 - The recording is **video**, not DOM events — use the **Logs API** for anything programmatic.
 - Logs are retrieved **after** the run completes.
-- Live CDP listeners (`page.on("console", …)`, Playwright `tracing`) attach on *your* side of the
-  connection and only fit Playwright-based scripts; browser-use is Python and increasingly
-  non-Playwright, so prefer the post-run Logs API for it.
+- A live CDP listener attaches on *your* side of the connection and suits JS/TS automation; for a
+  Python browser-use run, prefer the post-run Logs API (or the `browser-trace` skill) over wiring up
+  live listeners.
 - Running the script incurs real LLM + browser cost — it's a deliberate, opt-in step.

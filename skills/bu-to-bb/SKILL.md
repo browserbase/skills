@@ -23,8 +23,8 @@ unpredictable. This is a refactor with judgment, not a transpile.
   mapping: variant detection, the full feature table, before/after code, Browserbase platform
   options, and v3 version gotchas. **Read this for any non-trivial construct.**
 - [`references/determinism.md`](references/determinism.md) — how to choose `agent()` vs
-  `act`/`extract`/`observe` vs plain Playwright. The decision tree. **Read this when deciding how
-  to translate an `Agent(task=…)`.**
+  `act`/`extract`/`observe` vs cached `observe`→`act`. The decision tree. **Read this when deciding
+  how to translate an `Agent(task=…)`.**
 - [`references/trace-assisted.md`](references/trace-assisted.md) — the optional "run it on
   Browserbase, read the logs, then rewrite" workflow for opaque/flaky scripts.
 
@@ -52,8 +52,8 @@ Extract a structured inventory before writing any TypeScript:
 
 ### 4. Decide the determinism level per step
 For each step from the inventory, apply the decision tree in determinism.md:
-- Stable known element → plain Playwright (`page.goto`, `page.locator().click()`, `page.fill()`).
-- Known step, varying markup → `act("…")`; repeatable → `observe()`→`act(action)`.
+- Navigate to a known URL → `page.goto(url)` on the Stagehand page (no AI).
+- On-page action → `act("…")`; if it repeats, `observe()` once then replay `act(action)` (no LLM call).
 - Reading data → `extract("…", zodSchema)`.
 - Genuinely open-ended → keep `stagehand.agent().execute(...)` (tightened with `maxSteps`/`systemPrompt`).
 
@@ -153,7 +153,7 @@ main().catch((err) => { console.error(err); process.exit(1); });
 ## Common mistakes to avoid
 - **Copying v2 syntax** (`page.act()`, `stagehand.page`, `modelName`/`modelClientOptions`,
   `enableCaching`) from old blog posts. Use v3 — see api-mapping "Version notes".
-- **Translating every step into `act()`** — use plain Playwright for stable elements; that's the point.
+- **Translating every step into `act()`** — navigate with `page.goto` and cache repeatable steps via `observe`→`act`; don't spend an LLM call on every action.
 - **Defaulting everything to `agent()`** — that just reproduces browser-use's non-determinism in a
   new framework. Decompose where the flow is known.
 - **Silently dropping `allowed_domains`** — Stagehand has no domain firewall; flag it for review.

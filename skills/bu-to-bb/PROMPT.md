@@ -74,7 +74,7 @@ Most training data and blog posts show Stagehand **v2**. Use **v3**:
 
 | Level | Stagehand | Use when |
 |---|---|---|
-| 1. Deterministic | `page.goto`, `page.locator(...).click()`, `page.fill()` | Stable, known element (fixed URL/standard form). No AI. |
+| 1. Navigation (no AI) | `page.goto(url)`, `page.url()` | Loading a known URL or reading the current location. No LLM call. (Element interactions are Levels 2–4.) |
 | 2. Per-step AI | `act("…")`, `extract("…", schema)` | Step is known but markup varies. |
 | 3. Observe → act | `const [a] = await stagehand.observe("…"); if (a) await stagehand.act(a);` | Known step you want to resolve once and replay (the `act(a)` call makes no LLM call). |
 | 4. Self-heal + cache | `selfHeal`, `cacheDir`, `serverCache` | Production replay that should recover from DOM drift. |

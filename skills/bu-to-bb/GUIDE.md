@@ -14,8 +14,8 @@ which applies the mappings and determinism framework below to your actual script
 
 - **browser-use** is *agentic by default*: an LLM decides every action on every run. Great for
   exploration; harder to make deterministic, cheap, and debuggable.
-- **Stagehand** gives you a *spectrum*: plain Playwright for stable steps, `act`/`extract`/`observe`
-  for the parts that vary, and a full `agent()` only when the path is genuinely open-ended.
+- **Stagehand** gives you a *spectrum*: cached `observe`→`act` for stable, repeatable steps,
+  `act`/`extract` for the parts that vary, and a full `agent()` only when the path is open-ended.
 - **Browserbase** is the cloud runtime under both. Stagehand in `env: "BROWSERBASE"` manages the
   session for you, and unlocks Contexts (persistent auth), proxies, stealth, and observability.
 - The migration is a **refactor with judgment**: decide, per step, how much AI you actually need.
@@ -30,7 +30,7 @@ which applies the mappings and determinism framework below to your actual script
 | Default control model | Fully agentic — LLM picks each action | You choose, per step, how much AI to use |
 | Unit of work | A natural-language `task` | Primitives: `act`, `extract`, `observe`, `agent` |
 | Page perception | Indexed DOM/accessibility tree (vision optional) | Targeted per-call; DOM by default, vision in agent `hybrid`/`cua` modes |
-| Determinism | Hard — every run re-reasons | A dial: from raw Playwright to full agent |
+| Determinism | Hard — every run re-reasons | A dial: from cached, replayable actions to full agent |
 | Best at | Open-ended exploration, prototyping | Production flows you want repeatable and cheap |
 | Language | Python | TypeScript (also Python) |
 
@@ -54,8 +54,9 @@ done or `max_steps` is hit. One `Agent(task="…")` can hide a dozen decisions.
   replay them later with no LLM call (the determinism trick).
 - **`agent().execute(instruction)`** — the full autonomous loop, when you genuinely need it.
 
-Plus the entire Playwright surface (`page.goto`, locators, `fill`, `waitForLoadState`) for the
-stable parts. The migration is mostly deciding which primitive each browser-use step becomes.
+Navigation to known URLs is just `page.goto()` on the Stagehand page (no AI), and you lock in
+repeatable steps by caching an `observe()` result and replaying it with `act()`. The migration is
+mostly deciding which primitive each browser-use step becomes.
 
 ---
 
@@ -93,11 +94,11 @@ skill's [`determinism.md`](references/determinism.md) has the decision tree.)
 | **2. Per-step AI** | `act("…")`, `extract("…", schema)` | Steps known, markup varies | One call/step; inspectable |
 | **3. Observe → act** | `observe()` then `act(action)` | Known steps you want to replay | `act(action)` makes **no** LLM call |
 | **4. Self-heal + cache** | `selfHeal`, `cacheDir`, `serverCache` | Production replay that tolerates DOM drift | Cheapest steady state |
-| **5. Deterministic** | `page.goto`, `page.locator().click()` | Stable, known elements | No AI, no cost |
+| **5. Navigation (no AI)** | `page.goto(url)`, `page.url()` | Loading a known URL (element interactions are Levels 2–4) | No AI, no cost |
 
-A healthy rewrite is a **mix**: deterministic skeleton (navigation, known forms) + per-step AI for
-the variable bits + a Context for auth. Reserve `agent()` for the one genuinely open-ended stretch,
-if any.
+A healthy rewrite is a **mix**: `page.goto` for navigation + cached `observe`→`act` for the
+repeatable skeleton + per-step `act`/`extract` for the variable bits + a Context for auth. Reserve
+`agent()` for the one genuinely open-ended stretch, if any.
 
 > **Example decomposition.** browser-use:
 > `Agent(task="Go to the store, search 'wireless mouse', add the cheapest to cart, checkout with my saved card")`
@@ -119,9 +120,9 @@ You don't have to rewrite everything at once. A low-risk sequence:
    Logs API** (`sessions.logs.list`) to see the real navigations and network calls. Use the video
    recording for human QA. See the skill's
    [`trace-assisted.md`](references/trace-assisted.md).
-3. **Rewrite incrementally in Stagehand.** Translate the skeleton to deterministic Playwright, the
-   variable steps to `act`/`extract`, and only the open-ended parts to `agent()`. Move auth to a
-   **Context**, secrets to `variables`.
+3. **Rewrite incrementally in Stagehand.** Translate the skeleton — navigation to `page.goto`,
+   repeatable steps to cached `observe`→`act` — the variable steps to `act`/`extract`, and only the
+   open-ended parts to `agent()`. Move auth to a **Context**, secrets to `variables`.
 4. **Validate against the baseline.** Run the Stagehand version on Browserbase and compare logs and
    end state to step 1. Reuse the same Context so you're comparing like with like.
 5. **Harden for production.** Turn on `selfHeal` + caching, pin models, scope extracts with
