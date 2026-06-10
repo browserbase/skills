@@ -68,13 +68,19 @@ Prefer `browse snapshot`, page text, and DOM inspection over screenshots unless 
 node scripts/compile.mjs artifacts/example.com/page-context
 ```
 
-6. Validate:
+6. Generate a runnable Stagehand example:
+
+```bash
+node scripts/generate-stagehand-example.mjs artifacts/example.com/page-context
+```
+
+7. Validate:
 
 ```bash
 node scripts/validate.mjs artifacts/example.com/page-context
 ```
 
-7. If validation fails, inspect `eval.json` and `eval-report.md`, patch `manifest.json`, then compile and validate again.
+8. If validation fails, inspect `eval.json` and `eval-report.md`, patch `manifest.json`, then compile and validate again.
 
 ## Manifest contract
 
@@ -115,6 +121,7 @@ node scripts/validate.mjs artifacts/example.com/page-context
 - Do not use `eval` or `new Function`.
 - Avoid destructive actions unless the user explicitly asked for them.
 - Make implementations defensive: check for missing elements and return structured `{ success: false, error: "..." }` responses.
+- Generated init scripts register WebMCP tools only in the top frame.
 
 ## Output layout
 
@@ -122,6 +129,7 @@ node scripts/validate.mjs artifacts/example.com/page-context
 artifacts/<domain>/<task>/
   manifest.json
   webmcp.init.js
+  stagehand-example.mjs
   eval.json
   eval-report.md
 ```

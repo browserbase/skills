@@ -4,6 +4,12 @@ import path from "node:path";
 
 const TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]{1,80}$/;
 const IMPLEMENTATION_KINDS = new Set(["same_origin_fetch", "dom", "hybrid"]);
+const PLAYWRIGHT_STYLE_PATTERNS = [
+  /\bpage\.(goto|locator|click|fill|evaluate|waitFor|waitForSelector)\s*\(/,
+  /\bbrowser\.newPage\s*\(/,
+  /\bcontext\.newPage\s*\(/,
+  /\bawait\s+page\b/,
+];
 
 function usage() {
   return "Usage: compile.mjs <artifact-dir>";
@@ -69,6 +75,8 @@ function emitWebMCPInitScript(manifest) {
   const tools = manifest.tools.map(serializeTool).join(",\n\n");
 
   return `(() => {
+  if (window.self !== window.top) return;
+
   const WEBMCP_GEN_TOOLS = [
     ${tools}
   ];
@@ -144,7 +152,7 @@ function staticChecks(manifest, source) {
   }
   for (const tool of manifest.tools) {
     const implementationSource = String(tool.implementation.source || "");
-    if (implementationSource.includes("page.") || implementationSource.includes("locator(")) {
+    if (PLAYWRIGHT_STYLE_PATTERNS.some((pattern) => pattern.test(implementationSource))) {
       warnings.push(`Tool "${tool.name}" may contain Playwright-style code; WebMCP implementations run in the page.`);
     }
     if (implementationSource.includes("eval(") || implementationSource.includes("new Function")) {
