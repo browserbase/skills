@@ -83,6 +83,21 @@
       "skills": [
         "./skills/safe-browser"
       ]
+    },
+    {
+      "name": "webmcp-gen",
+      "source": "./",
+      "description": "Author, compile, and validate site-specific WebMCP init scripts from a target URL and desired tool capability.",
+      "version": "0.0.1",
+      "author": {
+        "name": "Browserbase"
+      },
+      "category": "automation",
+      "keywords": ["webmcp", "stagehand", "browser", "automation", "tool-generation", "chrome-devtools"],
+      "strict": false,
+      "skills": [
+        "./skills/webmcp-gen"
+      ]
     }
   ]
 }
