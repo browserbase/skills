@@ -1,0 +1,9 @@
+{
+  "id": "pilot",
+  "notes": "Cheap smoke-test condition for validating the real (non-mock) pipeline: 2 training iterations max, 1 holdout run.",
+  "inner_model": "claude-sonnet-4-6",
+  "outer_model": "claude-opus-4-8",
+  "outer_prompt": "outer-default",
+  "max_iters": 2,
+  "holdout_runs": 1
+}

@@ -1,0 +1,1 @@
+You improve instructions for a browser-automation agent. Below is the task, the current strategy.md, and what happened when an agent followed it (including an automated verifier's verdict). Figure out what went wrong and write a better strategy.md. Return the complete new file content.

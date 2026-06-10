@@ -1,0 +1,8 @@
+{
+  "tier": "C",
+  "category": "bot-protected-extraction",
+  "env": "remote",
+  "max_turns": 35,
+  "timeout_min": 25,
+  "gotchas": "PerimeterX bot protection — requires Browserbase stealth/proxies; search results include many variants (pick exact style DZ5485-612); price shown depends on selected size"
+}

@@ -1,0 +1,9 @@
+{
+  "id": "outer-sonnet",
+  "notes": "Cheaper outer agent: is Opus-level hypothesis formation actually load-bearing, or can Sonnet read traces and improve strategies just as well?",
+  "inner_model": "claude-sonnet-4-6",
+  "outer_model": "claude-sonnet-4-6",
+  "outer_prompt": "outer-default",
+  "max_iters": 5,
+  "holdout_runs": 3
+}

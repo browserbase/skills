@@ -1,0 +1,9 @@
+{
+  "id": "outer-fable-5",
+  "notes": "Fable 5 as the OUTER strategy-improver (vs baseline's Opus 4.8). Measures hypothesis-formation quality: convergence speed, regressions, holdout pass rate of the strategies it writes. Outer calls are small, so the 2x pricing barely matters here.",
+  "inner_model": "claude-sonnet-4-6",
+  "outer_model": "claude-fable-5",
+  "outer_prompt": "outer-default",
+  "max_iters": 5,
+  "holdout_runs": 3
+}

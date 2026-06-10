@@ -1,0 +1,11 @@
+{
+  "success": true,
+  "date": "2026-08-12",
+  "flights": [
+    { "airline": "JetBlue", "depart_time": "07:15", "arrive_time": "15:48", "price_usd": 199, "nonstop": true },
+    { "airline": "Delta", "depart_time": "08:30", "arrive_time": "17:05", "price_usd": 228, "nonstop": true },
+    { "airline": "United", "depart_time": "11:00", "arrive_time": "19:32", "price_usd": 241, "nonstop": true }
+  ],
+  "cheapest_price_usd": 199,
+  "error_reasoning": null
+}
