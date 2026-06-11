@@ -1,7 +1,9 @@
 ---
 name: functions
 description: "Deploy serverless browser automation as cloud functions using Browserbase. Use when the user wants to deploy browser automation to run on a schedule or cron, create a webhook endpoint for browser tasks, run automation in the cloud instead of locally, or asks about Browserbase Functions."
+compatibility: "Requires the browse CLI (`npm install -g browse`), Node.js 18+ with pnpm or npm, and BROWSERBASE_API_KEY."
 license: MIT
+allowed-tools: Bash Read Write Edit
 ---
 
 # Browserbase Functions

@@ -1,6 +1,7 @@
 ---
 name: safe-browser
 description: Build local constrained-browser agents with a safe_browser tool that owns CDP, enforces a domain allowlist with Fetch interception, and lets a runtime Claude Agent SDK agent complete browsing tasks without raw browser, shell, or CDP access. Use when the user wants an agent to browse or scrape while staying on approved domains, demo blocked off-domain navigation, or generate a safe browser client.
+compatibility: "Requires Node.js 18+, npm, and a local Chromium (`npx playwright install chromium`). The generated Claude Agent SDK runtime app needs ANTHROPIC_API_KEY."
 license: MIT
 allowed-tools: Bash, Read, Write, Edit
 ---
