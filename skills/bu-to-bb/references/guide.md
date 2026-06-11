@@ -63,7 +63,7 @@ mostly deciding which primitive each browser-use step becomes.
 ## 3. Feature mapping
 
 The most-used mappings (see the skill's
-[`api-mapping.md`](references/api-mapping.md) for the exhaustive table and
+[`api-mapping.md`](api-mapping.md) for the exhaustive table and
 before/after code):
 
 | browser-use | Stagehand v3 / Browserbase |
@@ -86,7 +86,7 @@ before/after code):
 ## 4. The determinism spectrum (the important part)
 
 Every browser-use step lands somewhere on this spectrum. Choosing well is the whole game. (The
-skill's [`determinism.md`](references/determinism.md) has the decision tree.)
+skill's [`determinism.md`](determinism.md) has the decision tree.)
 
 | Level | Stagehand | Use when | Cost / determinism |
 |---|---|---|---|
@@ -119,7 +119,7 @@ You don't have to rewrite everything at once. A low-risk sequence:
 2. **Observe (optional, for opaque scripts).** Run it once on Browserbase and read the **Session
    Logs API** (`sessions.logs.list`) to see the real navigations and network calls. Use the video
    recording for human QA. See the skill's
-   [`trace-assisted.md`](references/trace-assisted.md).
+   [`trace-assisted.md`](trace-assisted.md).
 3. **Rewrite incrementally in Stagehand.** Translate the skeleton — navigation to `page.goto`,
    repeatable steps to cached `observe`→`act` — the variable steps to `act`/`extract`, and only the
    open-ended parts to `agent()`. Move auth to a **Context**, secrets to `variables`.
@@ -181,7 +181,7 @@ main().catch((err) => { console.error(err); process.exit(1); });
 
 The navigation that the agent used to "decide" is now an explicit `page.goto`, and the data read is
 a single typed `extract` instead of a full agent loop — faster, cheaper, and deterministic. See
-[`EXAMPLES.md`](EXAMPLES.md) for more before/after pairs (simple task, structured extraction, login).
+[`EXAMPLES.md`](../EXAMPLES.md) for more before/after pairs (simple task, structured extraction, login).
 
 ---
 

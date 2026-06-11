@@ -4,8 +4,8 @@ Before/after pairs showing the migration patterns. Each "before" is a browser-us
 each "after" is its Stagehand v3 (TypeScript) rewrite on Browserbase. Illustrative — validate
 against your real site and tighten the `act(...)` prompts to the actual on-page labels.
 
-See [SKILL.md](SKILL.md) for the workflow, [GUIDE.md](GUIDE.md) for the philosophy + feature
-mapping, and [references/determinism.md](references/determinism.md) for the decision framework.
+See [SKILL.md](SKILL.md) for the workflow, [the guide](references/guide.md) for the philosophy +
+feature mapping, and [references/determinism.md](references/determinism.md) for the decision framework.
 
 ## Running an "after" example
 

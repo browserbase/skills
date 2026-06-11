@@ -27,6 +27,11 @@ unpredictable. This is a refactor with judgment, not a transpile.
   how to translate an `Agent(task=…)`.**
 - [`references/trace-assisted.md`](references/trace-assisted.md) — the optional "run it on
   Browserbase, read the logs, then rewrite" workflow for opaque/flaky scripts.
+- [`references/guide.md`](references/guide.md) — the human migration guide: philosophy shift,
+  feature mapping, the determinism spectrum, and a recommended migration path.
+- [`references/prompt.md`](references/prompt.md) — a self-contained, tool-agnostic version of this
+  skill; paste it into any AI assistant along with a browser-use script.
+- [`EXAMPLES.md`](EXAMPLES.md) — before/after script pairs.
 
 ## Workflow
 
