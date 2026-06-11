@@ -1,9 +1,9 @@
 ---
 name: webmcp-gen
 description: Create, compile, and validate site-specific WebMCP init scripts from a target URL and desired tool capability. Use when the user wants to author WebMCP tools for a website, produce a webmcp.init.js artifact, or test WebMCP registration and invocation through Stagehand.
-compatibility: "Requires Node 18+, Chrome/Chromium with WebMCP testing flags, and the Stagehand package declared in this skill's package.json."
+compatibility: "Requires Node 18+ and Chrome/Chromium with WebMCP testing flags. Run `pnpm install` in the skill directory to install the Stagehand dependency. Page exploration uses the browse CLI (`npm install -g browse`)."
 license: MIT
-allowed-tools: Bash, Read, Grep, Edit, Write
+allowed-tools: Bash Read Grep Edit Write
 ---
 
 # WebMCP Gen
