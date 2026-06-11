@@ -21,7 +21,9 @@
       "keywords": ["browser", "automation", "web-scraping", "stagehand", "screenshots"],
       "strict": false,
       "skills": [
-        "./skills/browser"
+        "./skills/browser",
+        "./skills/fetch",
+        "./skills/search"
       ]
     },
     {
