@@ -4,10 +4,13 @@
 // Reads per-competitor markdown files, extracts `website` from frontmatter, navigates
 // via `browse`, and writes one PNG per competitor to `{OUTPUT_DIR}/screenshots/`.
 //
-// Requires: `browse` CLI (`npm install -g @browserbasehq/browse-cli`), either local Chrome
-// or a Browserbase remote session (`browse env remote`).
+// Requires: `browse` CLI (`npm install -g browse`), either local Chrome (--mode local)
+// or a Browserbase remote session (--mode remote, the default).
 //
-// Usage: node capture_screenshots.mjs <research-dir> [--env remote|local] [--concurrency 2]
+// The browser mode is selected per `browse` command via the --remote / --local flag,
+// so there is no separate environment-config step — see SKILL.md Step 6 for setup notes.
+//
+// Usage: node capture_screenshots.mjs <research-dir> [--mode remote|local] [--concurrency 2]
 
 import { readdirSync, readFileSync, mkdirSync, existsSync } from 'fs';
 import { join } from 'path';
@@ -26,7 +29,8 @@ homepage. Writes one PNG per competitor as {slug}-hero.png.
 Output goes to <research-dir>/screenshots/.
 
 Options:
-  --env <remote|local>   Which browse env to use (default: remote)
+  --mode <remote|local>  Which browse session to use (default: remote).
+                         Passed as --remote / --local on each browse command.
   --concurrency <n>      How many competitors to capture in parallel (default: 1)
                          (screenshot takes ~3s; serial is usually fine)
   --skip-existing        Skip competitors that already have screenshots
@@ -35,13 +39,19 @@ Options:
 }
 
 const dir = args[0];
-const envIdx = args.indexOf('--env');
-const browseEnv = envIdx !== -1 ? args[envIdx + 1] : 'remote';
+const modeIdx = args.indexOf('--mode');
+const browseMode = modeIdx !== -1 ? args[modeIdx + 1] : 'remote';
+const modeFlag = browseMode === 'local' ? '--local' : '--remote';
+// Drive a dedicated named session so we never collide with whatever `browse` session
+// the user already has open (the default session is bound to one mode — opening it
+// --remote while a --local session is live errors out). Stopped at the end of the run.
+const SESSION = 'competitor-analysis-shots';
+const browseFlags = [modeFlag, '-s', SESSION];
 const concurrencyIdx = args.indexOf('--concurrency');
 let concurrency = concurrencyIdx !== -1 ? parseInt(args[concurrencyIdx + 1], 10) : 1;
 const skipExisting = args.includes('--skip-existing');
 
-// `browse` maintains a single shared session; parallel `browse goto/screenshot` calls would
+// All captures share one named `browse` session; parallel `browse open/screenshot` calls would
 // race on the same tab. Clamp concurrency to 1 and warn rather than silently corrupt output.
 // (Each capture is fast — ~3-4s — so serial is acceptable.)
 if (concurrency > 1) {
@@ -56,12 +66,6 @@ function run(cmd, args, { timeout = 30000 } = {}) {
   return spawnSync(cmd, args, { encoding: 'utf-8', timeout, maxBuffer: 4 * 1024 * 1024 });
 }
 
-// Ensure the browse env is set to the requested mode (one-time config).
-const envRes = run('browse', ['env', browseEnv]);
-if (envRes.status !== 0) {
-  console.error(`Warning: could not set browse env to ${browseEnv}: ${envRes.stderr || envRes.stdout}`);
-}
-
 async function captureOne(slug, website) {
   const heroPath = join(shotsDir, `${slug}-hero.png`);
   const result = { slug, hero: null, errors: [] };
@@ -70,12 +74,13 @@ async function captureOne(slug, website) {
     return { ...result, hero: heroPath, skipped: true };
   }
 
-  // Hero: viewport 1280x800, single-screen shot
+  // Hero: viewport 1280x800, single-screen shot. The mode + session flags are passed on
+  // each command so every call resolves to the same dedicated browser session.
   try {
-    run('browse', ['goto', website], { timeout: 30000 });
-    run('browse', ['viewport', '1280', '800']);
-    run('browse', ['wait', 'timeout', '1500']); // let the hero settle
-    const r = run('browse', ['screenshot', '--no-animations', heroPath]);
+    run('browse', ['open', website, ...browseFlags], { timeout: 30000 });
+    run('browse', ['viewport', '1280', '800', ...browseFlags]);
+    run('browse', ['wait', 'timeout', '1500', ...browseFlags]); // let the hero settle
+    const r = run('browse', ['screenshot', '--path', heroPath, '--animations', 'disabled', ...browseFlags]);
     if (r.status === 0 && existsSync(heroPath)) result.hero = heroPath;
     else result.errors.push(`hero: ${r.stderr || r.stdout}`);
   } catch (err) { result.errors.push(`hero exception: ${err.message}`); }
@@ -111,6 +116,10 @@ async function worker() {
   }
 }
 await Promise.all(Array(Math.min(concurrency, jobs.length || 1)).fill(0).map(worker));
+
+// Tear down the dedicated session so we don't leak a running browser (or remote
+// Browserbase session) after the run. Best-effort — ignore failures.
+run('browse', ['stop', '-s', SESSION]);
 
 const okHero = results.filter(r => r.hero).length;
 console.error(`\nDone: ${okHero}/${jobs.length} hero`);

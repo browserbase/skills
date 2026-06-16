@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-// Parses "X vs Y" patterns from bb search result titles across discovery batch files.
+// Parses "X vs Y" patterns from `browse cloud search` result titles across discovery batch files.
 // Produces a ranked list of candidate competitor names, with an example title each,
 // and attempts to resolve each name to a domain from the result URL pool.
 //
-// Usage: node extract_vs_names.mjs <directory> [--prefix competitor] [--seed "Browserbase,Hyperbrowser,Steel"]
+// Usage: node extract_vs_names.mjs <directory> [--prefix competitor] [--seed "Exa,Tavily,SerpAPI"]
 //
 // Output: newline-delimited JSON to stdout, one object per candidate:
-//   { "name": "anchor", "hits": 3, "domain": "anchorbrowser.io", "example": "Browserless vs Anchor..." }
+//   { "name": "serper", "hits": 3, "domain": "serper.dev", "example": "Tavily vs Serper..." }
 
 import { readdirSync, readFileSync } from 'fs';
 import { join } from 'path';
@@ -65,9 +65,9 @@ for (const f of files) {
 }
 
 // Build a lookup of hostname -> candidate root domain from all result URLs.
-// Used later to try to resolve "anchor" -> "anchorbrowser.io".
+// Used later to try to resolve "serper" -> "serper.dev".
 // Exclude any host whose root-base equals a seed name — otherwise a short extracted token
-// like "browse" can match the user's own domain (browserbase.com).
+// like "exa" can match the user's own domain (exa.ai).
 const hostMap = new Map();
 for (const r of allResults) {
   if (!r.url) continue;
@@ -102,11 +102,11 @@ for (const r of allResults) {
 // Strategy:
 //   1. Exact match on rootBase wins outright.
 //   2. Otherwise allow rootBase.startsWith(needle) ONLY when the suffix is a known
-//      branding token (e.g. "anchor" → "anchorbrowser.io"). Bidirectional startsWith
-//      was too loose: "steel" matched steelhead.com, "browse" matched browserbase.com.
+//      branding token (e.g. "serp" → "serpapi.com"). Bidirectional startsWith
+//      was too loose: "serp" matched serpstack.com, "exa" matched example.com.
 //   3. Among multiple suffix matches, prefer the shortest suffix (most specific —
-//      "anchor" should match "anchorbrowser" before "anchorbrowserlabs"). Deterministic.
-const BRAND_SUFFIXES = ['browser','app','ai','io','hq','co','dev','tech','cloud','agent','agents','labs','lab'];
+//      "serp" should match "serpapi" before "serpapilabs"). Deterministic.
+const BRAND_SUFFIXES = ['api','search','app','ai','io','hq','co','dev','tech','cloud','agent','agents','labs','lab'];
 
 function resolveDomain(name) {
   const needle = name.replace(/\./g, '');

@@ -9,11 +9,11 @@ Main agent substitutes placeholders per competitor. Launch AFTER Step 5c fact-ch
 
 ## Placeholders to substitute
 
-- `{OUTPUT_DIR}` → full literal path, e.g. `/Users/jay/Desktop/browserbase_competitors_2026-04-24-1930`
-- `{COMPETITOR_SLUG}` → e.g. `hyperbrowser`
-- `{COMPETITOR_NAME}` → e.g. `Hyperbrowser`
-- `{USER_SLUG}` → e.g. `browserbase`
-- `{USER_COMPANY_NAME}` → e.g. `Browserbase`
+- `{OUTPUT_DIR}` → the absolute path to the output directory (the per-run directory from Step 0; no `~` or `$HOME`)
+- `{COMPETITOR_SLUG}` → e.g. `rival-co`
+- `{COMPETITOR_NAME}` → e.g. `Rival Co`
+- `{USER_SLUG}` → e.g. `exa`
+- `{USER_COMPANY_NAME}` → e.g. `Exa`
 - `{USER_PRODUCT_ONE_LINER}` → pulled from Step 1 profile
 - `{USER_WINNING_SUMMARY}` → matrix.json `userCompany.winningSummary`
 - `{USER_LOSING_SUMMARY}` → matrix.json `userCompany.losingSummary`
@@ -26,8 +26,8 @@ battle card a real AE would use on a call.
 
 TOOL RULES — CRITICAL, FOLLOW EXACTLY:
 1. You may ONLY use the Bash tool. No exceptions.
-2. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep, bb search,
-   bb fetch — ALL BANNED. This is a SYNTHESIS lane, not a research lane.
+2. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep, browse cloud search,
+   browse cloud fetch — ALL BANNED. This is a SYNTHESIS lane, not a research lane.
    You read files that already exist; you do not make new network calls.
 3. Read ALL inputs in ONE Bash call via `cat`. Write output in ONE heredoc.
 4. NEVER use ~ or $HOME — full literal paths only.
@@ -59,8 +59,8 @@ or matrix.sources URL:
 
 1. LANDMINES (3-5 items) — concrete verifiable facts that HURT
    {COMPETITOR_NAME} in a deal. Each:
-   - States a specific, verifiable fact (not "they're slow" — "their
-     p50 was 3.4s on the Nov 2025 Halluminate benchmark")
+   - States a specific, verifiable fact (not "their results are weak" —
+     "they scored 73% nDCG@10 on the Nov 2025 search-bench leaderboard")
    - Cites a source URL pulled from an actual bullet in one of the
      input partials (Mentions / Benchmarks / Research Findings)
    - Includes a one-line "how to use it" talking point

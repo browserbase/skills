@@ -1,13 +1,13 @@
 #!/usr/bin/env node
 
-// Category-fit gate. For each candidate URL, fetch the homepage hero via `bb fetch`,
+// Category-fit gate. For each candidate URL, fetch the homepage hero via `browse cloud fetch`,
 // extract visible text, and decide whether the candidate is in the same category as
 // the user's company based on include/exclude keyword rules.
 //
 // Usage:
 //   cat urls.txt | node gate_candidates.mjs \
-//     --include "cloud browser,headless browser,browser infrastructure,CDP,agent" \
-//     --exclude "antidetect,scraping api,screenshot api,multilogin,scraping platform,proxy rotation" \
+//     --include "web search api,neural search,retrieval api,semantic search,search for agents" \
+//     --exclude "vector database,observability,analytics,enterprise search appliance,site search widget" \
 //     --concurrency 6
 //
 // Output: newline-delimited JSON to stdout with one object per URL:
@@ -21,7 +21,7 @@ import { readFileSync } from 'fs';
 // Async execFile so the worker pool actually parallelizes. spawnSync blocks the entire
 // event loop, which silently turns --concurrency N into N=1 — every URL fetched serially
 // regardless of the flag. With promisified execFile, N workers can wait on N pending
-// `bb fetch` processes concurrently.
+// `browse cloud fetch` processes concurrently.
 const execFileAsync = promisify(execFile);
 
 const args = process.argv.slice(2);
@@ -30,7 +30,7 @@ if (args.includes('--help') || args.includes('-h')) {
   console.error(`Usage: cat urls.txt | node gate_candidates.mjs [options]
 
 Reads URLs from stdin (one per line) OR from --input <file>. For each URL, fetches
-the homepage via \`bb fetch --allow-redirects\`, extracts the first N chars of visible
+the homepage via \`browse cloud fetch --allow-redirects\`, extracts the first N chars of visible
 text (the hero / tagline area), and classifies against include/exclude keyword rules.
 
 Options:
@@ -137,14 +137,16 @@ function classify(title, heroFull, includes, excludes) {
 async function gateOne(url) {
   let stdout;
   try {
-    const r = await execFileAsync('bb', ['fetch', '--allow-redirects', url], {
+    // --format raw returns the JSON envelope with raw HTML in `.content` (the default
+    // is markdown, which has no <title> tag for the position-aware classifier to read).
+    const r = await execFileAsync('browse', ['cloud', 'fetch', '--allow-redirects', '--format', 'raw', url], {
       maxBuffer: 4 * 1024 * 1024,
       timeout: 20000,
     });
     stdout = r.stdout;
   } catch (err) {
     // Non-zero exit, timeout, or spawn failure all surface here.
-    return { url, status: 'UNKNOWN', reason: `bb fetch failed: ${err.message}`, matched_includes: [], matched_excludes: [], title: '', hero: '' };
+    return { url, status: 'UNKNOWN', reason: `browse cloud fetch failed: ${err.message}`, matched_includes: [], matched_excludes: [], title: '', hero: '' };
   }
   let resp;
   try { resp = JSON.parse(stdout); } catch {

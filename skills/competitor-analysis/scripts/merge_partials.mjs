@@ -246,7 +246,7 @@ for (const [slug, lanes] of bySlug.entries()) {
 
   const fmLines = Object.entries(mergedFm).map(([k, v]) => `${k}: ${v}`).join('\n');
 
-  // Comparison heading may be "Comparison vs Browserbase" etc — find any key starting with "Comparison"
+  // Comparison heading may be "Comparison vs Exa" etc — find any key starting with "Comparison"
   const comparisonKey = Object.keys(allSections).find(k => k.startsWith('Comparison'));
   // Battle lane is format-drifty: subagents emit `## Battle Card`, `# Battle Card: X vs Y`
   // (h1 — not picked up by parseSections), or skip the wrapper and lead with `## Landmines`.
@@ -256,7 +256,7 @@ for (const [slug, lanes] of bySlug.entries()) {
   if (lanes.battle && lanes.battle.body) {
     const body = lanes.battle.body.trim();
     // Strip the FIRST heading line if it mentions "Battle Card" — handles h1/h2/h3 and any
-    // suffix (e.g. `## Battle Card — Hyperbrowser`, `# Battle Card: Browsaur`). Otherwise the
+    // suffix (e.g. `## Battle Card — Serper`, `# Battle Card: Tavily`). Otherwise the
     // canonical `## Battle Card` wrapper added below produces duplicate headings.
     battleCardBody = body.replace(/^#{1,3}\s+Battle\s*Card\b[^\n]*\n+/m, '').trim();
   }

@@ -28,22 +28,22 @@ Both use the Plan → Research → Synthesize pattern. Self-research is identica
 
 ### Page Discovery
 Dynamic via sitemap — do NOT hardcode `/about` or `/pricing`:
-1. `bb fetch --allow-redirects "{company website}/sitemap.xml"` — primary source
+1. `browse cloud fetch --allow-redirects "{company website}/sitemap.xml"` — primary source
 2. Scan for URLs with keywords: `pricing`, `customer`, `compare`, `vs`, `about`, `features`, `integrations`
 3. Optionally fetch `/llms.txt` for page descriptions
 4. Pick 3-5 most relevant URLs
 
 ### External Research
-- `bb search "{company} alternatives competitors vs"`
-- `bb search "{company} review comparison"`
+- `browse cloud search "{company} alternatives competitors vs"`
+- `browse cloud search "{company} review comparison"`
 - Fetch 1-2 most informative third-party pages
 
 ### Synthesis Output
 Produce a profile with:
 - **Company**, **Product**, **Existing Customers**, **Competitors** (seed list), **Use Cases**
-- **precise_category** — one clear sentence that describes what category this product competes in. Avoid fuzzy words like "tools" or "platform". Good: "cloud headless browser infrastructure for AI agents exposing CDP". Bad: "browser automation tools". This becomes the anchor for discovery queries and the gate.
-- **category_include_keywords** — 8-15 phrases that a *direct competitor's* marketing would very likely contain (title or hero). Include semantic variants. e.g. for Browserbase: `cloud browser`, `headless browser`, `browser infrastructure`, `browser infra`, `browser api`, `infra for ai agents`, `browser for agents`, `managed chromium`, `cdp`, `remote browser`, `infrastructure for computer use`, `agents and automations`.
-- **exclusion_list** — phrases that indicate a *different* category, used by the gate to reject false positives. e.g. `antidetect browser`, `multilogin`, `scraping api`, `web scraping api`, `screenshot api`, `residential proxy`, `proxy rotation`, `open-source ai browser` (end-user local browsers, not cloud infra), `privacy-first browser`.
+- **precise_category** — one clear sentence that describes what category this product competes in. Avoid fuzzy words like "tools" or "platform". Good: "AI web search API for agents with neural + keyword retrieval". Bad: "search tools". This becomes the anchor for discovery queries and the gate.
+- **category_include_keywords** — 8-15 phrases that a *direct competitor's* marketing would very likely contain (title or hero). Include semantic variants. e.g. for Exa: `web search api`, `search api`, `neural search`, `semantic search`, `retrieval api`, `search for ai agents`, `search for llms`, `serp api`, `embeddings search`, `live crawling`, `answer api`, `research api`.
+- **exclusion_list** — phrases that indicate a *different* category, used by the gate to reject false positives. e.g. `vector database`, `enterprise search appliance`, `site search widget`, `observability`, `analytics platform`, `data warehouse`, `scraping platform` (full ETL/scraping suites, not retrieval APIs), `internal knowledge base`.
 
 The same `profiles/{company-slug}.json` shape used by `company-research`, extended with the three new fields. The `competitors` array becomes the seed list and the first inputs to the comparison-graph expansion in Step 3.
 
@@ -103,7 +103,7 @@ Goal: what the rest of the internet says about them.
 - `twitter.com` / `x.com` → `X`
 - `spotify.com/episode` / transistor/simplecast → `Podcast`
 
-For LinkedIn and YouTube, the snippet + URL from `bb search` is enough. Do NOT try to deep-fetch individual LinkedIn posts (auth walls) — list them with title/snippet.
+For LinkedIn and YouTube, the snippet + URL from `browse cloud search` is enough. Do NOT try to deep-fetch individual LinkedIn posts (auth walls) — list them with title/snippet.
 
 ### Lane 3 — Public Benchmarks (deeper only)
 Goal: find third-party benchmarks that measured this competitor's product.
@@ -119,13 +119,13 @@ Goal: find third-party benchmarks that measured this competitor's product.
 "site:github.com {competitor} benchmark"
 "site:github.com {competitor} vs"
 "{competitor} vs {seed_competitor} benchmark"   # pairwise, use another known competitor as the seed
-"{category} benchmark {competitor}"             # e.g. "headless browser benchmark {competitor}"
+"{category} benchmark {competitor}"             # e.g. "web search api benchmark {competitor}"
 ```
 
 **Extraction**: Add each hit to `Benchmarks` section with: title, source, URL, key finding (one line). Also mirror into `Mentions` with type `Benchmark`.
 
 **Known benchmark repos to check directly** (if domain is on-topic):
-- `github.com/computesdk/benchmarks`
+- Public retrieval-quality leaderboards (e.g. BEIR / MTEB-style repos) when a vendor publishes scores
 - Category-specific benchmark repos discovered via the first search wave
 
 ### Lane 4 — Strategic Diff vs User's Company (deeper only)
@@ -180,7 +180,7 @@ Every finding is a factual statement tied to a source:
 ```json
 {
   "lane": "marketing | external | benchmark | strategic",
-  "fact": "Rival Co charges $99/mo for 10K browser minutes",
+  "fact": "Rival Co charges $99/mo for 10K search requests",
   "sourceUrl": "https://rivalco.com/pricing",
   "confidence": "high"
 }

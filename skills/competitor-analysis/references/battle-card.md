@@ -1,6 +1,6 @@
 # Battle Card — format spec
 
-The Battle lane is the **6th** subagent lane in deep/deeper mode. It runs AFTER Step 5c fact-check completes — it reads only existing partials + the fact-checked `matrix.json`, **never makes new `bb` calls**. This is a pure synthesis lane.
+The Battle lane is the **6th** subagent lane in deep/deeper mode. It runs AFTER Step 5c fact-check completes — it reads only existing partials + the fact-checked `matrix.json`, **never makes new `browse cloud` calls**. This is a pure synthesis lane.
 
 Output file: `{OUTPUT_DIR}/partials/{slug}.battle.md`. `merge_partials.mjs` unions its `## Battle Card` section into the consolidated `{slug}.md`. `compile_report.mjs` renders it as a brand-accented card on the per-competitor HTML page.
 
@@ -19,7 +19,7 @@ Format:
 
 Example:
 ```
-- **Anchor won Halluminate's November 2025 stealth benchmark (1.7% fail rate)** — use if prospect worries about detection, but only after confirming their volume tier; Anchor's CAPTCHA product is paywalled behind Starter ($20/mo). (source: https://halluminate.com/browserbench)
+- **Rival Co placed 4th of 7 on the Nov 2025 search-bench retrieval leaderboard (73% nDCG@10)** — use if prospect cares about relevance, but only after confirming their volume tier; Rival Co's reranking add-on is paywalled behind Scale ($499/mo). (source: https://github.com/example-org/search-bench)
 ```
 
 ### Objection Handlers (3-5 items)
@@ -36,8 +36,8 @@ Format:
 
 Example:
 ```
-- If they say: "Hyperbrowser is $99/mo cheaper than your Scale tier"
-  You say: "Hyperbrowser drops replay this quarter — you'll lose session video when you hit production. Our Scale tier includes session inspector + video recording; matrix.json confirms Hyperbrowser's feature set doesn't cover either." (evidence: https://docs.hyperbrowser.ai/changelog)
+- If they say: "Rival Co is $99/mo cheaper than your Scale tier"
+  You say: "Rival Co's reranking is a paid add-on you'll need for production relevance — once you add it the price gap closes. Our Scale tier includes neural reranking and a research endpoint; matrix.json confirms Rival Co's feature set doesn't cover the research API." (evidence: https://docs.rivalco.com/changelog)
 ```
 
 ### Talk Tracks (2-3 items)
@@ -53,14 +53,14 @@ Format:
 
 Example:
 ```
-1. For production observability, Browserbase is the only provider in the category with BOTH session video recording AND a session inspector UI — Hyperbrowser shipped neither, Anchor shipped neither, and Kernel replaced video replay with rrweb-only last quarter.
+1. For production RAG, Exa is the only provider in the category with BOTH a first-party neural index AND a dedicated research/answer endpoint — Rival Co shipped neither, Serper shipped neither, and one competitor replaced its answer endpoint with a thin LLM wrapper last quarter.
 ```
 
 ## Markdown file shape
 
 ```markdown
 ---
-competitor_name: Hyperbrowser
+competitor_name: Rival Co
 lane: battle
 generated_at: 2026-04-24
 ---

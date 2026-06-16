@@ -1,9 +1,9 @@
 # Competitor Analysis — Workflow Reference
 
 ## Contents
-- [Discovery Batch JSON Schema](#discovery-batch-json-schema) — bb search output format
+- [Discovery Batch JSON Schema](#discovery-batch-json-schema) — browse cloud search output format
 - [Competitor Research Markdown Format](#competitor-research-markdown-format) — frontmatter + body section spec
-- [Extracting Text from HTML](#extracting-text-from-html) — bb fetch | jq | sed pipeline
+- [Extracting Page Text](#extracting-page-text) — browse cloud fetch (markdown default; --format raw for HTML)
 - [Discovery — parallel Bash, not subagents](#discovery--parallel-bash-not-subagents) — Wave A/B/C recipes
 - [Enrichment fan-out — 5 subagents PER competitor](#enrichment-fan-out--5-subagents-per-competitor-deepdeeper-modes)
 - [Legacy: Single-subagent template](#legacy-single-subagent-template-quick-mode-only) — quick mode only
@@ -14,14 +14,14 @@
 
 File: `/tmp/competitor_discovery_batch_{N}.json`
 
-`bb search --output` writes a JSON object:
+`browse cloud search --output` writes a JSON object:
 
 ```json
 {
   "requestId": "abc123",
   "query": "alternatives to acme",
   "results": [
-    { "url": "https://example.com", "title": "Example Corp", "author": null, "publishedDate": null }
+    { "id": "...", "url": "https://example.com", "title": "Example Corp", "image": null, "favicon": null }
   ]
 }
 ```
@@ -65,46 +65,52 @@ File: `{OUTPUT_DIR}/{competitor-slug}.md` — see `references/example-research.m
 ```
 `SourceType` ∈ `Benchmark | Comparison | News | Reddit | HN | LinkedIn | YouTube | Review | Podcast | X`. Date is optional but preferred.
 
-## Extracting Text from HTML
+## Extracting Page Text
 
-`bb fetch --allow-redirects` returns raw HTML. To extract readable text in one pipe:
+`browse cloud fetch --allow-redirects` returns clean **markdown by default** — no HTML stripping needed. Just cap the length:
 
 ```bash
-bb fetch --allow-redirects "https://rivalco.com/pricing" | sed 's/<script[^>]*>.*<\/script>//g; s/<style[^>]*>.*<\/style>//g; s/<[^>]*>//g; s/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&nbsp;/ /g; s/&#[0-9]*;//g' | tr -s ' \n' | head -c 3000
+browse cloud fetch --allow-redirects "https://rivalco.com/pricing" | head -c 3000
 ```
 
-Limit to ~3000 chars per page to keep subagent context manageable. For JS-heavy pages (client-rendered pricing tables), use `bb browse` instead of `bb fetch`.
+If you need the original HTML (e.g. to read the `<title>` tag or parse markup), add `--format raw` and strip tags:
+
+```bash
+browse cloud fetch --allow-redirects --format raw "https://rivalco.com/pricing" | sed 's/<script[^>]*>.*<\/script>//g; s/<style[^>]*>.*<\/style>//g; s/<[^>]*>//g; s/&amp;/\&/g; s/&lt;/</g; s/&gt;/>/g; s/&nbsp;/ /g; s/&#[0-9]*;//g' | tr -s ' \n' | head -c 3000
+```
+
+Limit to ~3000 chars per page to keep subagent context manageable. For JS-heavy pages (client-rendered pricing tables) where the Fetch API returns thin content, open the page in a browser session and read it: `browse open "{url}" --remote` then `browse get markdown`.
 
 ## Discovery — parallel Bash, not subagents
 
-The main agent runs discovery as **3 parallel `bb search` Bash calls** (one per wave) in a SINGLE message. No subagent layer. Each wave chains its 2-4 queries with `&&` and writes results to `/tmp/competitor_discovery_batch_{wave}{N}.json`.
+The main agent runs discovery as **3 parallel `browse cloud search` Bash calls** (one per wave) in a SINGLE message. No subagent layer. Each wave chains its 2-4 queries with `&&` and writes results to `/tmp/competitor_discovery_batch_{wave}{N}.json`.
 
 Example — main agent issues these three Bash tool calls in parallel in one message:
 
 ```bash
 # Wave A — alternatives
-bb search "alternatives to {user_company}" --num-results 12 --output /tmp/competitor_discovery_batch_A1.json && \
-bb search "{user_company} competitors" --num-results 12 --output /tmp/competitor_discovery_batch_A2.json && \
+browse cloud search "alternatives to {user_company}" --num-results 12 --output /tmp/competitor_discovery_batch_A1.json && \
+browse cloud search "{user_company} competitors" --num-results 12 --output /tmp/competitor_discovery_batch_A2.json && \
 echo "A done"
 ```
 
 ```bash
 # Wave B — precise category
-bb search "{precise_category}" --num-results 12 --output /tmp/competitor_discovery_batch_B1.json && \
-bb search "{compose 3 distinctive tokens}" --num-results 12 --output /tmp/competitor_discovery_batch_B2.json && \
-bb search "{primary_noun} for ai agents" --num-results 12 --output /tmp/competitor_discovery_batch_B3.json && \
+browse cloud search "{precise_category}" --num-results 12 --output /tmp/competitor_discovery_batch_B1.json && \
+browse cloud search "{compose 3 distinctive tokens}" --num-results 12 --output /tmp/competitor_discovery_batch_B2.json && \
+browse cloud search "{primary_noun} for ai agents" --num-results 12 --output /tmp/competitor_discovery_batch_B3.json && \
 echo "B done"
 ```
 
 ```bash
 # Wave C — comparison-page graph
-bb search "{user_company} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C1.json && \
-bb search "{seed1} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C2.json && \
-bb search "{seed2} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C3.json && \
+browse cloud search "{user_company} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C1.json && \
+browse cloud search "{seed1} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C2.json && \
+browse cloud search "{seed2} vs" --num-results 12 --output /tmp/competitor_discovery_batch_C3.json && \
 echo "C done"
 ```
 
-Why direct Bash and not subagents: each wave is 2-4 `bb search` calls — agent cold-start + tool-reasoning overhead is bigger than the actual work. Using parallel Bash saves ~1-2 min per run with no quality loss.
+Why direct Bash and not subagents: each wave is 2-4 `browse cloud search` calls — agent cold-start + tool-reasoning overhead is bigger than the actual work. Using parallel Bash saves ~1-2 min per run with no quality loss.
 
 ### Discovery query patterns
 
@@ -124,7 +130,7 @@ Discovery uses **three parallel waves** (evaluated — all three are additive):
 - For each seed competitor from the user's profile, also run `"{seed} vs"`
 - After the searches, `scripts/extract_vs_names.mjs` parses `"X vs Y"` titles across all Wave C results to surface candidate names that don't appear as URLs.
 
-**Evaluation result** (tested on Browserbase): Wave A returns ~10% real competitors (mostly AI-tool-listicle aggregators). Wave B returns ~35%. Wave C uniquely surfaces named brands via title parsing that neither A nor B finds. Use all three.
+**Evaluation result** (tested on a search-API run): Wave A returns ~10% real competitors (mostly AI-tool-listicle aggregators). Wave B returns ~35%. Wave C uniquely surfaces named brands via title parsing that neither A nor B finds. Use all three.
 
 ## Enrichment fan-out — 5 subagents PER competitor (deep/deeper modes)
 
@@ -138,7 +144,7 @@ The 5 lanes:
 | **B. Discussion** | `discussion` | Reddit, HN, forums, dev.to, hashnode. Broader queries beyond `site:` restrictions — also `"{competitor}" discussion`, `"{competitor}" review 2026`, `"{competitor}" issues OR problems`. Writes Mentions bullets with dates. |
 | **C. Social** | `social` | LinkedIn posts, YouTube videos, Twitter/X threads. Search snippets only — do NOT fetch (auth walls). |
 | **D. News & Comparisons** | `news` | Comparison pages ("X vs Y"), TechCrunch / Verge / Forbes / VentureBeat / Businesswire, independent blog reviews, Substack. Every mention MUST include a date. |
-| **E. Technical & Benchmarks** | `technical` | GitHub benchmark repos/PRs, performance blog posts, independent tests. Writes Benchmarks bullets AND Findings on technical specifics (CDP support, uptime, concurrency limits, SDKs). |
+| **E. Technical & Benchmarks** | `technical` | GitHub benchmark repos/PRs, performance blog posts, independent tests. Writes Benchmarks bullets AND Findings on technical specifics (retrieval modes, latency, rate limits, SDKs). |
 
 **Wave management — launch ALL subagents in ONE message**: for N competitors × 5 lanes = 5N subagents, fit them all in a single Agent-tool message. Wall clock then equals the slowest single subagent (~3-5 min) instead of `batches × slowest_per_batch`. On a real 10-competitor run we measured 25 minutes wasted by self-throttling to 10-per-message — the Agent tool happily runs 50+ in parallel; do not split into batches for "politeness". The only cap is that each subagent still batches its own Bash operations into a single call.
 
@@ -168,11 +174,12 @@ COMPETITOR URLS TO PROCESS:
 
 TOOL RULES — CRITICAL, FOLLOW EXACTLY:
 1. You may ONLY use the Bash tool. No exceptions.
-2. All searches: Bash → bb search "..." --num-results 10
-3. All page fetches: Bash → bb fetch --allow-redirects "..."
-   bb fetch returns RAW HTML. To extract text, pipe through:
+2. All searches: Bash → browse cloud search "..." --num-results 10
+3. All page fetches: Bash → browse cloud fetch --allow-redirects "..."
+   browse cloud fetch returns clean markdown by default — just `| head -c 3000`, no HTML stripping.
+   If you need the raw HTML, add --format raw and pipe through:
    sed 's/<script[^>]*>.*<\/script>//g; s/<style[^>]*>.*<\/style>//g; s/<[^>]*>//g' | tr -s ' \n' | head -c 3000
-   If a page returns thin content or "enable JavaScript", use bb browse instead.
+   If a page returns thin content or "enable JavaScript", use `browse open "{url}" --remote` then `browse get markdown`.
 4. BATCH all file writes: Write ALL markdown files in a SINGLE Bash call using chained heredocs.
 5. BANNED TOOLS: WebFetch, WebSearch, Write, Read, Glob, Grep — ALL BANNED.
 6. NEVER use ~ or $HOME in paths — use full literal paths.
@@ -188,14 +195,14 @@ LANE 1 — Marketing Surface (always run):
 
 LANE 2 — External Signal (deep + deeper):
   Run these searches:
-    bb search "{competitor} vs"
-    bb search "{competitor} alternatives review"
-    bb search "site:reddit.com {competitor}"
-    bb search "site:news.ycombinator.com {competitor}"
-    bb search "site:linkedin.com/posts {competitor}"
-    bb search "site:youtube.com {competitor}"
-    bb search "{competitor} G2 OR Capterra"
-    bb search "{competitor} launch OR funding 2025 OR 2026"
+    browse cloud search "{competitor} vs"
+    browse cloud search "{competitor} alternatives review"
+    browse cloud search "site:reddit.com {competitor}"
+    browse cloud search "site:news.ycombinator.com {competitor}"
+    browse cloud search "site:linkedin.com/posts {competitor}"
+    browse cloud search "site:youtube.com {competitor}"
+    browse cloud search "{competitor} G2 OR Capterra"
+    browse cloud search "{competitor} launch OR funding 2025 OR 2026"
 
   For each search result, classify source type from URL:
     reddit.com → Reddit
@@ -213,15 +220,15 @@ LANE 2 — External Signal (deep + deeper):
     other blog domain → Blog
 
   Record each as a Mentions line with title + one-line snippet + URL + **date**. Always include
-  the date when available. `bb search` returns `publishedDate` in the JSON result — prefer it.
+  the date when available. If a `browse cloud search` result carries a date field, prefer it.
   If absent, parse the year from title/URL (e.g. "2026" or `/2025/11/` in a news URL).
   For LinkedIn and YouTube — use search snippet only, do NOT fetch the page.
 
 LANE 3 — Public Benchmarks (deeper only):
   Run these searches:
-    bb search "{competitor} benchmark"
-    bb search "site:github.com {competitor} benchmark"
-    bb search "{category} benchmark {competitor}"
+    browse cloud search "{competitor} benchmark"
+    browse cloud search "site:github.com {competitor} benchmark"
+    browse cloud search "{category} benchmark {competitor}"
 
   Record each hit in ## Benchmarks with: title, source, URL, one-line key finding.
   Also append to ## Mentions with type Benchmark.
@@ -235,17 +242,17 @@ LANE 4 — Strategic Diff vs {user_company} (deeper only):
   - Where you win: ...
   Also fill the `strategic_diff` frontmatter field with a one-line summary.
 
-HARD TOOL-CALL CAP — count your bb calls and STOP at the cap. Partial output beats blocking the pipeline.
-  quick mode:   3 bb calls max per competitor
-  deep mode:    8 bb calls max per competitor
-  deeper mode:  12 bb calls max per competitor
+HARD TOOL-CALL CAP — count your browse cloud calls and STOP at the cap. Partial output beats blocking the pipeline.
+  quick mode:   3 browse cloud calls max per competitor
+  deep mode:    8 browse cloud calls max per competitor
+  deeper mode:  12 browse cloud calls max per competitor
 
 ENFORCEMENT — at the start of every Bash call, prepend a comment like
-  # bb call N/8 (deep mode)
+  # browse call N/8 (deep mode)
 After hitting the cap, write the output file with WHAT YOU HAVE — even if a section is thin.
 NEVER do a 9th call in deep mode "to be thorough". The pipeline budgets time on this assumption.
 
-Observed cost of overshoot (Apr 25 Browserbase run): two lanes hit 29-30 calls each, drove
+Observed cost of overshoot (Apr 25 search-API run): two lanes hit 29-30 calls each, drove
 wall-clock for the whole 30-agent fan-out from 5 min → 12 min. Don't do this.
 
 OUTPUT — write ALL competitor files in a SINGLE Bash call using chained heredocs directly to {OUTPUT_DIR}:
@@ -312,7 +319,7 @@ Do NOT return raw data to the main conversation.
 **Launch ALL subagents needed for a phase in ONE message.** No "up to 6 per message" cap — the Agent tool runs them in parallel, so wall clock = slowest single agent regardless of count. On a 10-competitor × 5-lane = 50-subagent enrichment, splitting into 5 batches of 10 cost an extra 20 minutes of wall clock vs one batch of 50 (measured Apr 2026). Each subagent still MUST batch its own Bash operations into a single call.
 
 ### Discovery Phase
-- **Run discovery as parallel `bb search` Bash calls, not subagents.** Subagent overhead (cold start + tool reasoning) is bigger than the work. Three Bash tool calls in one message — one per wave (A/B/C) — chain each wave's searches with `&&`.
+- **Run discovery as parallel `browse cloud search` Bash calls, not subagents.** Subagent overhead (cold start + tool reasoning) is bigger than the work. Three Bash tool calls in one message — one per wave (A/B/C) — chain each wave's searches with `&&`.
 - Each wave's bash call writes its outputs as `/tmp/competitor_discovery_batch_{wave}{N}.json`
 - After all waves complete, run the following in sequence:
   ```bash
@@ -325,7 +332,7 @@ Do NOT return raw data to the main conversation.
     > /tmp/competitor_vs_names.jsonl
   ```
 - **Filter URLs**: Remove blog posts, news articles, AI-tool directories (seektool.ai, respan.ai, agentsindex.ai, toolradar.com, aitoolsatlas.ai, aidirectory.com, vibecodedthis.com, aichief.com, openalternative.co, cbinsights.com, saasworthy.com, softwareworld.com), review aggregators (g2.com, capterra.com, trustradius.com), databases (crunchbase.com, tracxn.com), and the user's own domain. Keep only candidate company homepages.
-- For names from `extract_vs_names.mjs` that didn't resolve to a domain, optionally run `bb search "{name}" --num-results 3` to resolve the top domain; skip if ambiguous.
+- For names from `extract_vs_names.mjs` that didn't resolve to a domain, optionally run `browse cloud search "{name}" --num-results 3` to resolve the top domain; skip if ambiguous.
 - **Merge**: filtered-URL list ∪ resolved `vs_names` domains ∪ user-provided seed URLs. Dedup by hostname into `/tmp/competitor_candidates.txt`.
 
 ### User-confirm phase (between gate and enrichment — mandatory)
@@ -371,7 +378,7 @@ grep '"status":"PASS"' /tmp/competitor_gated.jsonl \
 
 **Review the output** — the main agent SHOULD spot-check both lists and MAY manually re-include a REJECT if it recognizes a known direct competitor whose own marketing is category-ambiguous.
 
-**Evaluation on Browserbase** (12 candidates): 7/7 real competitors PASSED; 4/4 wrong-category (antidetect, scraping API, screenshot API, local AI browser) REJECTED. One split-identity edge (Browserless) rejected — acceptable.
+**Evaluation on a search-API run** (12 candidates): 7/7 real competitors PASSED; 4/4 wrong-category (vector database, scraping/ETL platform, analytics tool, internal-KB search) REJECTED. One split-identity edge (a search vendor that also sells a scraping suite) rejected — acceptable.
 
 ### Enrichment Phase
 Two modes:
@@ -384,9 +391,9 @@ Two modes:
 
 Capture homepage hero screenshot for each competitor:
 ```bash
-node {SKILL_DIR}/scripts/capture_screenshots.mjs {OUTPUT_DIR} --env remote --concurrency 1
+node {SKILL_DIR}/scripts/capture_screenshots.mjs {OUTPUT_DIR} --mode remote --concurrency 1
 ```
-Requires the `browse` CLI (`npm install -g @browserbasehq/browse-cli` — separate package from `bb`). `--env remote` uses a Browserbase session. Writes one PNG per competitor to `{OUTPUT_DIR}/screenshots/{slug}-hero.png`. `compile_report.mjs` auto-embeds the hero in the per-competitor HTML page when present.
+Requires the `browse` CLI (`npm install -g browse`). `--mode remote` drives a Browserbase session (the script passes `--remote` on each `browse` command); use `--mode local` for local Chrome. Writes one PNG per competitor to `{OUTPUT_DIR}/screenshots/{slug}-hero.png`. `compile_report.mjs` auto-embeds the hero in the per-competitor HTML page when present.
 
 Cost: ~10-20s per competitor (serial). Total for 5 competitors ≈ 60s.
 
@@ -404,7 +411,7 @@ deeper:  research_subagents = ceil(expected_urls / 2)
 ### Error Handling
 - If a subagent fails, log and continue with remaining batches
 - If >50% of subagents fail in a wave, pause and inform the user
-- If `bb fetch --allow-redirects` fails, try `bb browse` as fallback or skip that page
+- If `browse cloud fetch --allow-redirects` fails, try `browse open "{url}" --remote` + `browse get markdown` as fallback, or skip that page
 
 ## Report Compilation
 
