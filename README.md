@@ -82,6 +82,20 @@ To refresh cookies from your main Chrome profile:
 rm -rf .chrome-profile
 ```
 
+## Evals and production telemetry
+
+The `evals/browserbase-workflows/` directory contains a small human-review eval
+set for safe navigation, trace-to-API analysis, and UI regression testing. The
+cases are harness-neutral so the same skill behavior can be checked before
+release in Claude Code, Codex, or another agent workspace.
+
+If you publish these skills through Telvine, keep runtime telemetry
+metadata-only: `skill.invocation.start`, `skill.invocation.end`, and
+`skill.invocation.error` for skill behavior, plus `plugin.component.invoked`
+and `plugin.component.error` for non-skill components. Do not emit prompts,
+cookies, browser traces, screenshots, DOM captures, connector payloads, tool
+arguments, credentials, or model outputs.
+
 ## Resources
 
 - [Stagehand Documentation](https://github.com/browserbase/stagehand)
