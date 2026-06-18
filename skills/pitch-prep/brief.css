@@ -1,0 +1,38 @@
+/* Demo Architect — brief styling. Inline this into the HTML <style> block.
+   Clean, neutral, skim-first. Override --accent with a prospect brand color
+   if you want a light "made for you" touch (NOT a full deck — that's parked). */
+:root { --ink:#1a1a1a; --muted:#6b6b6b; --line:#e6e6e3; --accent:#0a7cff; --bg:#fbfbfa; --card:#fff; }
+* { box-sizing:border-box; }
+body { margin:0; background:var(--bg); color:var(--ink);
+  font:16px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Helvetica,Arial,sans-serif; }
+.wrap { max-width:820px; margin:0 auto; padding:56px 28px 96px; }
+.kicker { font-size:12px; letter-spacing:.12em; text-transform:uppercase; color:var(--muted); }
+h1 { font-size:34px; line-height:1.15; margin:6px 0 6px; letter-spacing:-.02em; }
+.sub { color:var(--muted); font-size:15px; margin-bottom:34px; }
+h2 { font-size:13px; letter-spacing:.10em; text-transform:uppercase; color:var(--accent);
+  margin:42px 0 12px; border-bottom:1px solid var(--line); padding-bottom:7px; }
+h3 { font-size:17px; margin:22px 0 6px; }
+p { margin:10px 0; }
+ul { margin:10px 0; padding-left:20px; }
+li { margin:6px 0; }
+a { color:var(--accent); text-decoration:none; }
+a:hover { text-decoration:underline; }
+.tldr { background:var(--card); border:1px solid var(--line); border-left:3px solid var(--accent);
+  border-radius:10px; padding:18px 22px; font-size:16px; }
+figure { margin:18px 0; }
+figure img { width:100%; border:1px solid var(--line); border-radius:10px; display:block;
+  box-shadow:0 2px 14px rgba(0,0,0,.05); }
+figcaption { font-size:13px; color:var(--muted); margin-top:8px; }
+.grid { display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+@media(max-width:640px){ .grid { grid-template-columns:1fr; } }
+blockquote { margin:14px 0; padding:10px 16px; background:#f4f4f2; border-radius:8px;
+  color:var(--muted); font-size:14px; }
+.beats { counter-reset:b; list-style:none; padding-left:0; }
+.beats li { counter-increment:b; padding-left:38px; position:relative; margin:12px 0; }
+.beats li::before { content:counter(b); position:absolute; left:0; top:0; width:26px; height:26px;
+  background:var(--accent); color:#fff; border-radius:50%; display:grid; place-items:center;
+  font-size:13px; font-weight:600; }
+.wow { background:#fff7e6; border-left:3px solid #f5a623; padding:1px 6px; border-radius:5px; }
+.stat { font-weight:700; color:var(--ink); }
+code { background:#f0f0ee; padding:1px 6px; border-radius:5px; font-size:13px; }
+.foot { margin-top:40px; font-size:12px; color:var(--muted); border-top:1px solid var(--line); padding-top:14px; }
