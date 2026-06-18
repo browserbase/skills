@@ -49,6 +49,10 @@ const SESSION = 'competitor-analysis-shots';
 const browseFlags = [modeFlag, '-s', SESSION];
 const concurrencyIdx = args.indexOf('--concurrency');
 let concurrency = concurrencyIdx !== -1 ? parseInt(args[concurrencyIdx + 1], 10) : 1;
+// Floor at 1: `--concurrency 0` would spawn zero workers (no screenshots captured, yet the
+// script exits "successfully"), and a non-numeric value (NaN) would throw on Array(NaN).
+// Normalize before the >1 clamp below.
+if (!Number.isFinite(concurrency) || concurrency < 1) concurrency = 1;
 const skipExisting = args.includes('--skip-existing');
 
 // All captures share one named `browse` session; parallel `browse open/screenshot` calls would
