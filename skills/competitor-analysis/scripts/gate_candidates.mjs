@@ -50,7 +50,10 @@ function flag(name) {
 
 const includes = (flag('--include') || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 const excludes = (flag('--exclude') || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
-const concurrency = parseInt(flag('--concurrency') || '6', 10);
+// Floor at 1: `--concurrency 0` or a non-numeric value makes parseInt yield 0/NaN, which would
+// spawn zero workers — the script would exit "successfully" having gated nothing, making
+// discovery look empty with no error. Always run at least one worker.
+const concurrency = Math.max(1, parseInt(flag('--concurrency') || '6', 10) || 0);
 const heroChars = parseInt(flag('--hero-chars') || '800', 10);
 const inputFile = flag('--input');
 

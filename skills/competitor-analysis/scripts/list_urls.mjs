@@ -50,8 +50,11 @@ if (files.length === 0) {
   process.exit(1);
 }
 
-const seenDomains = new Set();
-const urls = [];
+// Dedup by hostname, but prefer the site root over a deep link. The first search hit for a
+// domain is often a blog/doc/comparison path; gating + enrichment want the homepage, so when
+// multiple URLs share a host we keep the shallowest path (fewest segments). First-seen host
+// order is preserved (Map.set on an existing key keeps its position).
+const byDomain = new Map(); // hostname -> { url, depth }
 let totalResults = 0;
 
 for (const file of files) {
@@ -65,11 +68,11 @@ for (const file of files) {
       if (!url) continue;
 
       try {
-        const hostname = new URL(url).hostname.replace(/^www\./, '');
-        if (!seenDomains.has(hostname)) {
-          seenDomains.add(hostname);
-          urls.push(url);
-        }
+        const u = new URL(url);
+        const hostname = u.hostname.replace(/^www\./, '');
+        const depth = u.pathname.replace(/\/+$/, '').split('/').filter(Boolean).length;
+        const existing = byDomain.get(hostname);
+        if (!existing || depth < existing.depth) byDomain.set(hostname, { url, depth });
       } catch {
         // Skip invalid URLs
       }
@@ -79,6 +82,7 @@ for (const file of files) {
   }
 }
 
+const urls = [...byDomain.values()].map(v => v.url);
 for (const url of urls) {
   console.log(url);
 }
