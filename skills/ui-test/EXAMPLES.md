@@ -14,8 +14,7 @@ git diff HEAD~1 -- src/components/HeroSection.tsx
 # Shows: "Get Started" changed to "Start Free Trial"
 
 # Setup
-browse env local
-browse open http://localhost:3000/
+browse open http://localhost:3000/ --local
 browse wait load
 
 # BEFORE snapshot
@@ -60,8 +59,7 @@ browse stop
 **User request**: "I added email validation to the signup form. Test it thoroughly."
 
 ```bash
-browse env local
-browse open http://localhost:3000/signup
+browse open http://localhost:3000/signup --local
 browse wait load
 
 # ---- Test 1: Invalid email → error ----
@@ -138,7 +136,7 @@ browse wait load
 browse fill "input[name=email]" "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa@test.com"
 browse snapshot
 # Check: does the input overflow its container? Is layout broken?
-browse screenshot /tmp/long-email.png
+browse screenshot --path /tmp/long-email.png
 # Visual check: input stays within bounds
 
 browse click @0-7
@@ -186,8 +184,7 @@ browse stop
 **User request**: "I added a confirmation modal to delete. Test it."
 
 ```bash
-browse env local
-browse open http://localhost:3000/dashboard
+browse open http://localhost:3000/dashboard --local
 browse wait load
 
 # ---- Test 1: Modal opens ----
@@ -268,8 +265,7 @@ browse stop
 **User request**: "Run accessibility tests on the settings page."
 
 ```bash
-browse env local
-browse open http://localhost:3000/settings
+browse open http://localhost:3000/settings --local
 browse wait load
 
 # ---- Test 1: axe-core audit ----
@@ -312,8 +308,7 @@ browse stop
 **User request**: "Does my app work on mobile?"
 
 ```bash
-browse env local
-browse open http://localhost:3000/
+browse open http://localhost:3000/ --local
 browse wait load
 
 # ---- Desktop baseline ----
@@ -321,7 +316,7 @@ browse viewport 1440 900
 browse wait timeout 500
 browse snapshot
 # Record desktop state: nav layout, content width, element positions
-browse screenshot /tmp/desktop.png --full-page
+browse screenshot --path /tmp/desktop.png --full-page
 
 # ---- Mobile ----
 browse viewport 375 812
@@ -331,7 +326,7 @@ browse snapshot
 # - Did nav collapse to hamburger? Or is it overflowing?
 # - Is content full-width? Or is there horizontal scroll?
 # - Are buttons large enough for touch (44px+)?
-browse screenshot /tmp/mobile.png --full-page
+browse screenshot --path /tmp/mobile.png --full-page
 
 # Check for horizontal overflow (deterministic)
 browse eval "document.documentElement.scrollWidth > document.documentElement.clientWidth"
@@ -348,7 +343,7 @@ browse eval "JSON.stringify(Array.from(document.querySelectorAll('button,a,[role
 # ---- Tablet ----
 browse viewport 768 1024
 browse wait timeout 1000
-browse screenshot /tmp/tablet.png --full-page
+browse screenshot --path /tmp/tablet.png --full-page
 
 browse stop
 ```
@@ -358,7 +353,7 @@ browse stop
 **User request**: "Are there any JS errors on my app?"
 
 ```bash
-browse env local
+browse open about:blank --local
 
 # Check each route for failed resource loads and JS errors
 # Note: console capture injected on about:blank gets wiped on navigation.
@@ -408,9 +403,12 @@ browse stop
 node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains staging.myapp.com
 # Output: Context ID: ctx_7f3a9b2c
 
-# Step 2: Remote mode
-browse env remote
-browse open https://staging.myapp.com/dashboard --context-id ctx_7f3a9b2c --persist
+# Step 2: Remote mode with the synced context
+SESSION_JSON="$(browse cloud sessions create --context-id ctx_7f3a9b2c --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://staging.myapp.com/dashboard --cdp "$CONNECT_URL"
 browse wait load
 
 # Verify authenticated state
@@ -422,7 +420,7 @@ browse get url
 # STEP_PASS|remote-auth|authenticated dashboard loaded, user avatar present, URL is /dashboard
 
 # Run tests against authenticated pages
-browse open https://staging.myapp.com/settings --context-id ctx_7f3a9b2c
+browse open https://staging.myapp.com/settings
 browse wait load
 browse snapshot
 # Verify settings content loads
@@ -435,6 +433,7 @@ browse wait timeout 3000
 browse eval "axe.run().then(r => JSON.stringify({ violations: r.violations.length, passes: r.passes.length }))"
 
 browse stop
+browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
 ## Example 8: Exploratory Testing — Try to Break It
@@ -442,13 +441,12 @@ browse stop
 **User request**: "Explore my app and find bugs."
 
 ```bash
-browse env local
-browse open http://localhost:3000/
+browse open http://localhost:3000/ --local
 browse wait load
 
 # ---- First impressions ----
 browse snapshot
-browse screenshot /tmp/explore-home.png
+browse screenshot --path /tmp/explore-home.png
 
 # Console health check
 browse eval "JSON.stringify({errors: (window.__logs || []).length})"
@@ -481,7 +479,7 @@ browse snapshot
 # Extremely long input
 browse fill "textarea[name=message]" "This is a very long message that keeps going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going and going"
 browse snapshot
-browse screenshot /tmp/long-input.png
+browse screenshot --path /tmp/long-input.png
 # Check: does textarea grow? Overflow? Break layout?
 
 # Special characters
@@ -547,8 +545,11 @@ Use the Agent tool — send all three in a single message so they run concurrent
 Agent 1 prompt:
   "You are running UI tests on https://staging.myapp.com/signup.
    Use BROWSE_SESSION=signup for every browse command.
-   Start with: BROWSE_SESSION=signup browse env remote
-   Then: BROWSE_SESSION=signup browse open https://staging.myapp.com/signup --context-id ctx_7f3a9b2c
+   Start with:
+     SESSION_JSON="$(browse cloud sessions create --context-id ctx_7f3a9b2c --keep-alive)"
+     SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+     CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+     BROWSE_SESSION=signup browse open https://staging.myapp.com/signup --cdp "$CONNECT_URL"
 
    Run these tests using the before/after snapshot pattern:
    1. [happy] Fill valid email, submit, verify success
@@ -559,26 +560,32 @@ Agent 1 prompt:
    For each test: snapshot BEFORE, act, snapshot AFTER, compare, emit:
      STEP_PASS|<id>|<evidence>  or  STEP_FAIL|<id>|<expected> → <actual>
 
-   When done: BROWSE_SESSION=signup browse stop"
+   When done: BROWSE_SESSION=signup browse stop; browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE"
 
 Agent 2 prompt:
   "You are running UI tests on https://staging.myapp.com/dashboard.
    Use BROWSE_SESSION=dashboard for every browse command.
-   Start with: BROWSE_SESSION=dashboard browse env remote
-   Then: BROWSE_SESSION=dashboard browse open https://staging.myapp.com/dashboard --context-id ctx_7f3a9b2c
+   Start with:
+     SESSION_JSON="$(browse cloud sessions create --context-id ctx_7f3a9b2c --keep-alive)"
+     SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+     CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+     BROWSE_SESSION=dashboard browse open https://staging.myapp.com/dashboard --cdp "$CONNECT_URL"
 
    Run these tests:
    1. Check empty state — is there a message and CTA, or blank?
    2. Check data display — table columns, row count, formatting
    3. Check console errors — inject capture, interact, check __logs
 
-   Emit STEP_PASS/STEP_FAIL markers. When done: BROWSE_SESSION=dashboard browse stop"
+   Emit STEP_PASS/STEP_FAIL markers. When done: BROWSE_SESSION=dashboard browse stop; browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE"
 
 Agent 3 prompt:
   "You are running accessibility tests on https://staging.myapp.com/settings.
    Use BROWSE_SESSION=a11y for every browse command.
-   Start with: BROWSE_SESSION=a11y browse env remote
-   Then: BROWSE_SESSION=a11y browse open https://staging.myapp.com/settings --context-id ctx_7f3a9b2c
+   Start with:
+     SESSION_JSON="$(browse cloud sessions create --context-id ctx_7f3a9b2c --keep-alive)"
+     SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+     CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+     BROWSE_SESSION=a11y browse open https://staging.myapp.com/settings --cdp "$CONNECT_URL"
 
    Run these tests:
    1. axe-core audit — load script, run, check violations
@@ -586,7 +593,7 @@ Agent 3 prompt:
    3. Keyboard nav — Tab through all elements, verify focus order
    4. Broken images — check naturalWidth on all img elements
 
-   Emit STEP_PASS/STEP_FAIL markers. When done: BROWSE_SESSION=a11y browse stop"
+   Emit STEP_PASS/STEP_FAIL markers. When done: BROWSE_SESSION=a11y browse stop; browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE"
 ```
 
 **Step 4: Merge results**
@@ -636,9 +643,9 @@ BROWSE_SESSION=a11y browse stop 2>/dev/null
 - **Use structured markers** — `STEP_PASS|id|evidence` or `STEP_FAIL|id|expected → actual|screenshot-path`
 - **Screenshot every failure** — save to `.context/ui-test-screenshots/<step-id>.png` so devs can see what broke
 - **Local for localhost** — never send localhost traffic through Browserbase
-- **Default localhost run** — start with `browse env local` for clean, reproducible QA
-- **Use `--auto-connect` selectively** — only when a localhost test explicitly needs existing local Chrome login/cookies/state (`browse env local --auto-connect`)
-- **Explicit local CDP attach** — use `browse env local <port|url>` when you must target a specific local browser instance
+- **Default localhost run** — start with `browse open <url> --local` for clean, reproducible QA
+- **Use `--auto-connect` selectively** — only when a localhost test explicitly needs existing local Chrome login/cookies/state (`browse open <url> --auto-connect`)
+- **Explicit local CDP attach** — use `browse open <url> --cdp <port|url>` when you must target a specific local browser instance
 - **Always `browse stop` when done** — for parallel runs, stop every named session
 - **`.then()` not `await`** — browse eval doesn't support top-level await
 - **Parallelize with `BROWSE_SESSION`** — each named session gets its own Browserbase browser; fan out via Agent tool

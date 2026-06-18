@@ -9,7 +9,7 @@
 - [Fetch API](#fetch-api)
 - [Search API](#search-api)
 - [Templates](#templates)
-- [Browse passthrough](#browse-passthrough)
+- [Local & remote browser driving](#local--remote-browser-driving)
 - [Skills](#skills)
 - [Troubleshooting](#troubleshooting)
 
@@ -18,15 +18,15 @@
 Install the CLI if needed:
 
 ```bash
-npm install -g @browserbasehq/cli
+npm install -g browse
 ```
 
 Check the available surface with:
 
 ```bash
-bb --help
-bb functions --help
-bb sessions --help
+browse --help
+browse functions --help
+browse cloud sessions --help
 ```
 
 ## Authentication and flags
@@ -37,22 +37,16 @@ All authenticated commands require an API key:
 export BROWSERBASE_API_KEY="your_api_key"
 ```
 
-Only `bb functions dev` and `bb functions publish` require a project ID:
-
-```bash
-export BROWSERBASE_PROJECT_ID="your_project_id"
-```
-
 ### Platform API commands
 
 These command groups share a common flag shape:
 
-- `bb projects`
-- `bb sessions`
-- `bb contexts`
-- `bb extensions`
-- `bb fetch`
-- `bb search`
+- `browse cloud projects`
+- `browse cloud sessions`
+- `browse cloud contexts`
+- `browse cloud extensions`
+- `browse cloud fetch`
+- `browse cloud search`
 
 Common flags:
 
@@ -61,33 +55,32 @@ Common flags:
 
 ### Functions commands
 
-`bb functions ...` is slightly different:
+`browse functions ...` is slightly different:
 
-- uses `--api-url <apiUrl>`, not `--base-url`
-- `bb functions dev` and `bb functions publish` also support `--project-id`
-- `bb functions invoke` does not expose `--project-id`
+- uses `--base-url <baseUrl>` for API base URL overrides
+- reads the API key and project from environment variables by default
 
 ## Functions
 
 ### Initialize a project
 
 ```bash
-bb functions init my-function
-bb functions init my-function --package-manager npm
+browse functions init my-function
+browse functions init my-function --package-manager npm
 ```
 
 ### Run local development
 
 ```bash
-bb functions dev index.ts
-bb functions dev index.ts --port 14113 --host 127.0.0.1 --verbose
+browse functions dev index.ts
+browse functions dev index.ts --port 14113 --host 127.0.0.1 --verbose
 ```
 
 ### Publish
 
 ```bash
-bb functions publish index.ts
-bb functions publish index.ts --dry-run
+browse functions publish index.ts
+browse functions publish index.ts --dry-run
 ```
 
 Use `--dry-run` when you want to inspect what would be packaged without uploading.
@@ -95,9 +88,9 @@ Use `--dry-run` when you want to inspect what would be packaged without uploadin
 ### Invoke
 
 ```bash
-bb functions invoke <function_id> --params '{"url":"https://example.com"}'
-bb functions invoke <function_id> --no-wait
-bb functions invoke --check-status <invocation_id>
+browse functions invoke <function_id> --params '{"url":"https://example.com"}'
+browse functions invoke <function_id> --no-wait
+browse functions invoke --check-status <invocation_id>
 ```
 
 ## Platform APIs
@@ -105,28 +98,27 @@ bb functions invoke --check-status <invocation_id>
 ### Projects
 
 ```bash
-bb projects list
-bb projects get <project_id>
-bb projects usage <project_id>
+browse cloud projects list
+browse cloud projects get <project_id>
+browse cloud projects usage <project_id>
 ```
 
 ### Sessions
 
 ```bash
-bb sessions list
-bb sessions list --q "user_metadata['userId']:'123'"
-bb sessions get <session_id>
-bb sessions create --proxies --advanced-stealth
-bb sessions create --region us-east-1 --timeout 300
-bb sessions create --solve-captchas --context-id ctx_abc --persist
-bb sessions create --body '{"proxies":[{"type":"browserbase","geolocation":{"country":"US"}}]}'
-echo '{"proxies":true}' | bb sessions create --stdin
-bb sessions update <session_id> --status REQUEST_RELEASE
-bb sessions debug <session_id>
-bb sessions logs <session_id>
-bb sessions recording <session_id>
-bb sessions downloads get <session_id> --output session-artifacts.zip
-bb sessions uploads create <session_id> ./file.txt
+browse cloud sessions list
+browse cloud sessions list --q "user_metadata['userId']:'123'"
+browse cloud sessions get <session_id>
+browse cloud sessions create --proxies --verified
+browse cloud sessions create --region us-east-1 --timeout 300
+browse cloud sessions create --solve-captchas --context-id ctx_abc --persist
+browse cloud sessions create --body '{"proxies":[{"type":"browserbase","geolocation":{"country":"US"}}]}'
+echo '{"proxies":true}' | browse cloud sessions create --stdin
+browse cloud sessions update <session_id> --status REQUEST_RELEASE
+browse cloud sessions debug <session_id>
+browse cloud sessions logs <session_id>
+browse cloud sessions downloads get <session_id> --output session-artifacts.zip
+browse cloud sessions uploads create <session_id> ./file.txt
 ```
 
 #### `sessions create` flags
@@ -136,7 +128,7 @@ Use flags for common options instead of building `--body` JSON manually:
 | Flag | Description |
 |------|-------------|
 | `--proxies` | Enable Browserbase proxy |
-| `--advanced-stealth` | Enable advanced stealth mode |
+| `--verified` | Enable Browserbase Verified browser mode |
 | `--solve-captchas` / `--no-solve-captchas` | Toggle automatic CAPTCHA solving |
 | `--block-ads` | Enable ad blocking |
 | `--region <region>` | Session region (`us-west-2`, `us-east-1`, `eu-central-1`, `ap-southeast-1`) |
@@ -151,46 +143,47 @@ Use flags for common options instead of building `--body` JSON manually:
 | `--body <body>` | Full JSON request body (merged with flags) |
 | `--stdin` | Read JSON request body from stdin |
 
-When both `--status` and `--body` are present on `bb sessions update`, the CLI merges them.
+When both `--status` and `--body` are present on `browse cloud sessions update`, the CLI merges them.
 
 ### Contexts
 
 ```bash
-bb contexts create --body '{"region":"us-west-2"}'
-bb contexts get <context_id>
-bb contexts update <context_id>
-bb contexts delete <context_id>
+browse cloud contexts create --body '{"region":"us-west-2"}'
+browse cloud contexts get <context_id>
+browse cloud contexts delete <context_id>
 ```
+
+`browse cloud contexts update <context_id>` refreshes context upload URLs, but context uploads through this API are deprecated and may return a deprecation error. Avoid it unless Browserbase support has asked you to use that path.
 
 ### Extensions
 
 ```bash
-bb extensions upload ./my-extension.zip
-bb extensions get <extension_id>
-bb extensions delete <extension_id>
+browse cloud extensions upload ./my-extension.zip
+browse cloud extensions get <extension_id>
+browse cloud extensions delete <extension_id>
 ```
 
 ## Fetch API
 
-Use `bb fetch` when the user wants Browserbase Fetch specifically or wants the request to stay inside the CLI workflow.
+Use `browse cloud fetch` when the user wants Browserbase Fetch specifically or wants the request to stay inside the CLI workflow.
 
 ```bash
-bb fetch https://example.com
-bb fetch https://example.com --allow-redirects
-bb fetch https://self-signed.example.com --allow-insecure-ssl
-bb fetch https://example.com --proxies --output page.html
+browse cloud fetch https://example.com
+browse cloud fetch https://example.com --allow-redirects
+browse cloud fetch https://self-signed.example.com --allow-insecure-ssl
+browse cloud fetch https://example.com --proxies --output page.html
 ```
 
 Prefer the `browser` skill when the target page requires JavaScript execution or page interaction.
 
 ## Search API
 
-Use `bb search` to find web pages by query without opening a browser session.
+Use `browse cloud search` to find web pages by query without opening a browser session.
 
 ```bash
-bb search "browser automation"
-bb search "web scraping best practices" --num-results 5
-bb search "AI agents" --output results.json
+browse cloud search "browser automation"
+browse cloud search "web scraping best practices" --num-results 5
+browse cloud search "AI agents" --output results.json
 ```
 
 Returns structured results with titles, URLs, and optional metadata (author, published date). Use `--num-results` to control how many results are returned (1-25, default 10).
@@ -204,54 +197,48 @@ Browse and scaffold starter templates from the Browserbase templates repository.
 ### List templates
 
 ```bash
-bb templates list
-bb templates list --language python
-bb templates list --language typescript
+browse templates list
+browse templates list --tag Python --source Browserbase
+browse templates list --tag TypeScript --source Browserbase
 ```
 
 ### Clone a template
 
 ```bash
-bb templates clone form-filling --language typescript
-bb templates clone amazon-product-scraping --language python ./my-scraper
+browse templates clone form-filling --language typescript
+browse templates clone amazon-product-scraping --language python ./my-scraper
 ```
 
 Arguments:
-- `<slug>` (required) — template name from `bb templates list`
+- `<slug>` (required) — template name from `browse templates list`
 - `[path]` (optional) — destination directory, defaults to the template slug
 
 Options:
 - `--language <language>` — `python` or `typescript`
 
-## Browse passthrough
+## Local & remote browser driving
 
-`bb browse ...` forwards arguments to the standalone `browse` binary (`@browserbasehq/browse-cli`). The examples below are `browse-cli` subcommands — they are not native `bb` commands:
-
-```bash
-bb browse env
-bb browse env local
-bb browse env local --auto-connect
-bb browse env remote
-bb browse status
-bb browse open https://example.com
-```
-
-`bb browse` mirrors the standalone `browse` binary exactly. For local work, `bb browse env local` starts a clean isolated browser by default. Use `bb browse env local --auto-connect` only when you need the agent to reuse an existing local Chrome session, cookies, or login state.
-
-If `browse` is not installed, the CLI will prompt you to install it:
+Top-level `browse` commands drive local and remote browsers directly: `browse open`, `browse get`, `browse click`, `browse fill`, `browse press`, `browse screenshot`, and `browse cdp`.
 
 ```bash
-npm install -g @browserbasehq/browse-cli
+browse open https://example.com                            # default mode from env
+browse open https://example.com --local --headless         # explicit local + headless
+browse open https://example.com --auto-connect             # attach to existing debuggable Chrome
+browse open https://example.com --remote                   # create a new Browserbase remote session
+browse open https://example.com --remote --session research # use a named browse daemon session
+browse open https://example.com --cdp "$CONNECT_URL"       # attach to a pre-created CDP endpoint
+browse get markdown body                                   # extract the current page as markdown
+browse status                                              # show the active session
 ```
 
-For most interactive browsing tasks, prefer the dedicated `browser` skill instead of routing through `bb browse`.
+For most interactive browsing tasks, prefer the dedicated `browser` skill instead of routing through the CLI directly.
 
 ## Skills
 
 Install Browserbase agent skills for Claude Code directly from the CLI:
 
 ```bash
-bb skills install
+browse skills install
 ```
 
 This runs the skill installer non-interactively via npx.
@@ -259,7 +246,6 @@ This runs the skill installer non-interactively via npx.
 ## Troubleshooting
 
 - Missing API key: set `BROWSERBASE_API_KEY` or pass `--api-key`
-- Missing project ID on `bb functions dev` or `bb functions publish`: set `BROWSERBASE_PROJECT_ID` or pass `--project-id`
-- Wrong base URL flag: use `--api-url` for `bb functions ...`, `--base-url` for the other API commands
+- Wrong base URL flag: use `--base-url` for both `browse functions ...` and `browse cloud ...`
 - Invalid JSON input: wrap `--body` and `--params` payloads in single quotes so the shell preserves the JSON string
-- Browse passthrough missing: install `@browserbasehq/browse-cli` or use the `browser` skill directly
+- Command not found: re-run `npm install -g browse` and verify with `which browse`

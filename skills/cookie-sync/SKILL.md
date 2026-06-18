@@ -1,6 +1,9 @@
 ---
 name: cookie-sync
 description: Sync cookies from local Chrome to a Browserbase persistent context so the browse CLI can access authenticated sites. Use when the user wants to browse as themselves, sync cookies, or log into sites via Browserbase.
+compatibility: "Requires Node.js 22+, a local Chromium-based browser (Chrome, Brave, Edge) with remote debugging enabled, and BROWSERBASE_API_KEY. Run `npm install` in the skill directory before first use."
+license: MIT
+allowed-tools: Bash
 ---
 
 # Cookie Sync — Local Chrome → Browserbase Context
@@ -52,13 +55,13 @@ node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --context ctx_abc123
 
 Re-injects fresh cookies into a previously created context. Use this when cookies have expired.
 
-### Advanced stealth mode
+### Verified browser mode
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --stealth
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --verified
 ```
 
-Enables Browserbase's advanced stealth mode to reduce bot detection. Recommended for sites like Google that fingerprint browsers.
+Enables Browserbase Identity with a Verified browser to improve access on protected sites. Recommended for sites like Google that fingerprint browsers.
 
 ### Residential proxy with geolocation
 
@@ -71,7 +74,7 @@ Routes through a residential proxy in the specified location. Format: `"City,ST,
 ### Combine flags
 
 ```bash
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains github.com,google.com --stealth --proxy "San Francisco,CA,US"
+node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains github.com,google.com --verified --proxy "San Francisco,CA,US"
 ```
 
 ## Browsing Authenticated Sites
@@ -79,10 +82,14 @@ node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains github.com,goo
 After syncing, use the `browse` CLI with the context ID:
 
 ```bash
-browse open https://mail.google.com --context-id <ctx-id> --persist
+SESSION_JSON="$(browse cloud sessions create --context-id <ctx-id> --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://mail.google.com --cdp "$CONNECT_URL"
 ```
 
-The `--persist` flag saves any new cookies or state changes back to the context, keeping the session fresh for next time.
+The `--persist` flag on `browse cloud sessions create` saves any new cookies or state changes back to the context when the cloud session is released, keeping the session fresh for next time.
 
 **Full workflow example:**
 
@@ -92,10 +99,15 @@ node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains x.com,twitter.
 # Output: Context ID: ctx_abc123
 
 # Step 2: Browse authenticated Twitter
-browse open https://x.com/messages --context-id ctx_abc123 --persist
+SESSION_JSON="$(browse cloud sessions create --context-id ctx_abc123 --persist --keep-alive)"
+SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"
+CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+
+browse open https://x.com/messages --cdp "$CONNECT_URL"
 browse snapshot
 browse screenshot
 browse stop
+browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE
 ```
 
 ## Reusing Contexts for Scheduled Jobs
@@ -103,7 +115,7 @@ browse stop
 Contexts persist across sessions, making them ideal for scheduled/recurring tasks:
 
 1. **Once (laptop open):** Run cookie-sync → get a context ID
-2. **Scheduled jobs:** Use `browse open <url> --context-id <ctx-id> --persist` — no local Chrome needed
+2. **Scheduled jobs:** Create a Browserbase session with `browse cloud sessions create --context-id <ctx-id> --persist --keep-alive`, then attach with `browse open <url> --cdp <connectUrl>` — no local Chrome needed
 3. **Re-sync as needed:** When cookies expire, run cookie-sync again with `--context <ctx-id>` to refresh
 
 ## Troubleshooting
@@ -112,4 +124,4 @@ Contexts persist across sessions, making them ideal for scheduled/recurring task
 - **"No open page targets found"** → Open at least one tab in Chrome
 - **"WebSocket error"** → Chrome may be hung; force quit and reopen it
 - **Cookies expired in context** → Re-run cookie-sync with `--context <id>` to refresh
-- **Auth rejected by site** → Try adding `--stealth` and/or `--proxy` with a location near you
+- **Auth rejected by site** → Try adding `--verified` and/or `--proxy` with a location near you

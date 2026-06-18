@@ -9,11 +9,13 @@
 //   node scripts/cookie-sync.mjs                                        # sync all cookies into a new context
 //   node scripts/cookie-sync.mjs --domains google.com,github.com        # only sync cookies for these domains
 //   node scripts/cookie-sync.mjs --context ctx_abc123                   # refresh cookies in an existing context
-//   node scripts/cookie-sync.mjs --stealth                              # enable advanced stealth mode
+//   node scripts/cookie-sync.mjs --verified                             # enable Browserbase Verified browser mode
 //   node scripts/cookie-sync.mjs --proxy "San Francisco,CA,US"          # use residential proxy with geolocation
 //
 // After syncing, use the browse CLI to open an authenticated session:
-//   browse open https://example.com --context-id <ctx-id> --persist
+//   SESSION_JSON="$(browse cloud sessions create --context-id <ctx-id> --persist --keep-alive)"
+//   CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"
+//   browse open https://example.com --cdp "$CONNECT_URL"
 //
 // Env vars:
 //   BROWSERBASE_API_KEY    — required
@@ -35,15 +37,15 @@ import { resolve } from 'path';
 
 function parseArgs() {
   const args = process.argv.slice(2);
-  const result = { domains: [], contextId: null, stealth: false, proxy: null };
+  const result = { domains: [], contextId: null, verified: false, proxy: null };
 
   for (let i = 0; i < args.length; i++) {
     if (args[i] === '--domains' && args[i + 1]) {
       result.domains = args[++i].split(',').map(d => d.trim().toLowerCase()).filter(Boolean);
     } else if (args[i] === '--context' && args[i + 1]) {
       result.contextId = args[++i];
-    } else if (args[i] === '--stealth') {
-      result.stealth = true;
+    } else if (args[i] === '--verified') {
+      result.verified = true;
     } else if (args[i] === '--proxy' && args[i + 1]) {
       const parts = args[++i].split(',').map(s => s.trim());
       if (!parts[0] || !parts[1]) {
@@ -264,7 +266,7 @@ async function main() {
 
   // Step 4: Create a temporary Browserbase session to inject cookies
   const browserSettings = { context: { id: contextId, persist: true } };
-  if (CLI.stealth) browserSettings.advancedStealth = true;
+  if (CLI.verified) browserSettings.verified = true;
 
   const cloud = new Stagehand({
     env: 'BROWSERBASE',
@@ -294,7 +296,11 @@ async function main() {
   console.log(`Context ID: ${contextId}`);
   console.log('');
   console.log('Browse authenticated sites with:');
-  console.log(`  browse open <url> --context-id ${contextId} --persist`);
+  console.log(`  SESSION_JSON="$(browse cloud sessions create --context-id ${contextId} --persist --keep-alive)"`);
+  console.log('  SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"');
+  console.log('  CONNECT_URL="$(echo "$SESSION_JSON" | jq -r .connectUrl)"');
+  console.log('  browse open <url> --cdp "$CONNECT_URL"');
+  console.log('  # when done: browse stop && browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE');
   console.log('');
   console.log('To refresh cookies later:');
   console.log(`  node cookie-sync.mjs --context ${contextId}`);

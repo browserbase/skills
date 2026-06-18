@@ -11,21 +11,19 @@ The `--session` flag (or `BROWSE_SESSION` env var) gives each `browse` command i
 ```bash
 # Session "signup" gets its own browser
 # For localhost/default QA, use clean local mode first
-BROWSE_SESSION=signup browse env local
-BROWSE_SESSION=signup browse open http://localhost:3000/signup
+BROWSE_SESSION=signup browse open http://localhost:3000/signup --local
 
 # Session "dashboard" gets a completely separate browser
-BROWSE_SESSION=dashboard browse env local
-BROWSE_SESSION=dashboard browse open http://localhost:3000/dashboard
+BROWSE_SESSION=dashboard browse open http://localhost:3000/dashboard --local
 
 # They don't share state — each has its own page, cookies, refs
 ```
 
 Local mode variants follow the CLI contract:
 
-- `browse env local` — clean isolated local browser (default; preferred for reproducible localhost testing)
-- `browse env local --auto-connect` — auto-discover local Chrome, fallback to isolated (use only when a test needs existing local login/cookies/state)
-- `browse env local <port|url>` — explicit CDP attach to a specific local browser target
+- `browse open <url> --local` — clean isolated local browser (default; preferred for reproducible localhost testing)
+- `browse open <url> --auto-connect` — auto-discover an existing debuggable local Chrome (use only when a test needs existing local login/cookies/state)
+- `browse open <url> --cdp <port|url>` — explicit CDP attach to a specific local browser target
 
 ### When to use parallel vs sequential
 
@@ -58,7 +56,7 @@ Use the Agent tool to fan out. Each agent gets a unique session name and runs it
 Launch agents in parallel (use Agent tool with multiple invocations in one message):
 
 Agent 1 — prompt: "Run signup form tests using BROWSE_SESSION=signup.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
+  Start with `BROWSE_SESSION=signup browse open <localhost URL> --local`. Run these tests: [list tests].
   Follow the before/after assertion protocol.
   On any STEP_FAIL, immediately take a screenshot:
     BROWSE_SESSION=signup browse screenshot --path .context/ui-test-screenshots/signup-<step-id>.png
@@ -66,7 +64,7 @@ Agent 1 — prompt: "Run signup form tests using BROWSE_SESSION=signup.
   Run `BROWSE_SESSION=signup browse stop` when done."
 
 Agent 2 — prompt: "Run dashboard tests using BROWSE_SESSION=dashboard.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
+  Start with `BROWSE_SESSION=dashboard browse open <localhost URL> --local`. Run these tests: [list tests].
   Follow the before/after assertion protocol.
   On any STEP_FAIL, immediately take a screenshot:
     BROWSE_SESSION=dashboard browse screenshot --path .context/ui-test-screenshots/dashboard-<step-id>.png
@@ -74,7 +72,7 @@ Agent 2 — prompt: "Run dashboard tests using BROWSE_SESSION=dashboard.
   Run `BROWSE_SESSION=dashboard browse stop` when done."
 
 Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
-  Use `browse env local` first (localhost URL). Run these tests: [list tests].
+  Start with `BROWSE_SESSION=a11y browse open <localhost URL> --local`. Run these tests: [list tests].
   Follow the before/after assertion protocol.
   On any STEP_FAIL, immediately take a screenshot:
     BROWSE_SESSION=a11y browse screenshot --path .context/ui-test-screenshots/a11y-<step-id>.png
@@ -84,8 +82,8 @@ Agent 3 — prompt: "Run accessibility audit using BROWSE_SESSION=a11y.
 
 **Critical rules for parallel agents:**
 - Every `browse` command in the agent MUST be prefixed with `BROWSE_SESSION=<name>`
-- If the target URL is localhost/127.0.0.1, each agent should start with `browse env local` for clean/reproducible runs
-- Use `browse env local --auto-connect` only when the test explicitly needs existing local Chrome state
+- If the target URL is localhost/127.0.0.1, each agent should start with `browse open <url> --local` for clean/reproducible runs
+- Use `browse open <url> --auto-connect` only when the test explicitly needs existing local Chrome state
 - Each agent must call `browse stop` when done (with its session name)
 - Pass the full test steps and assertion protocol to each agent — they don't have the skill context
 - Include the before/after snapshot pattern in each agent's prompt
@@ -129,12 +127,16 @@ If testing authenticated pages, sync cookies once and share the context ID acros
 node .claude/skills/cookie-sync/scripts/cookie-sync.mjs --domains staging.app.com
 # Output: Context ID: ctx_abc123
 
-# Each session uses the same context ID
-BROWSE_SESSION=settings browse env remote
-BROWSE_SESSION=settings browse open https://staging.app.com/settings --context-id ctx_abc123
+# Each named browse session attaches to its own Browserbase session with the same context ID.
+SETTINGS_JSON="$(browse cloud sessions create --context-id ctx_abc123 --keep-alive)"
+SETTINGS_ID="$(echo "$SETTINGS_JSON" | jq -r .id)"
+SETTINGS_CDP="$(echo "$SETTINGS_JSON" | jq -r .connectUrl)"
+BROWSE_SESSION=settings browse open https://staging.app.com/settings --cdp "$SETTINGS_CDP"
 
-BROWSE_SESSION=profile browse env remote
-BROWSE_SESSION=profile browse open https://staging.app.com/profile --context-id ctx_abc123
+PROFILE_JSON="$(browse cloud sessions create --context-id ctx_abc123 --keep-alive)"
+PROFILE_ID="$(echo "$PROFILE_JSON" | jq -r .id)"
+PROFILE_CDP="$(echo "$PROFILE_JSON" | jq -r .connectUrl)"
+BROWSE_SESSION=profile browse open https://staging.app.com/profile --cdp "$PROFILE_CDP"
 ```
 
 ### Cleanup
@@ -145,4 +147,6 @@ Always stop all sessions when done, even if a test fails:
 BROWSE_SESSION=signup browse stop 2>/dev/null
 BROWSE_SESSION=dashboard browse stop 2>/dev/null
 BROWSE_SESSION=a11y browse stop 2>/dev/null
+browse cloud sessions update "$SETTINGS_ID" --status REQUEST_RELEASE 2>/dev/null
+browse cloud sessions update "$PROFILE_ID" --status REQUEST_RELEASE 2>/dev/null
 ```

@@ -16,6 +16,7 @@ import * as fs from "node:fs";
 import * as path from "node:path";
 import { execFileSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import crypto from "node:crypto";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const SKILL_DIR = path.resolve(__dirname, "..");
@@ -23,7 +24,7 @@ const SKILL_DIR = path.resolve(__dirname, "..");
 // ── Config ─────────────────────────────────────────────────────────
 
 const DEFAULT_MODEL = "claude-sonnet-4-6";
-const MAX_TURNS = 30;
+const MAX_TURNS = Number(process.env.MAX_TURNS) || 30;
 const MAX_TOKENS = 4096;
 const EXEC_TIMEOUT_MS = 30_000;
 
@@ -35,19 +36,18 @@ const TOOLS = [
     description:
       "Execute a browse CLI command for browser automation.\n\n" +
       "Browse commands:\n" +
-      "  browse env local|remote    — Switch browser environment\n" +
-      "  browse open <url>          — Navigate to URL\n" +
+      "  browse open <url> --local|--remote — Navigate and choose browser mode\n" +
       "  browse snapshot            — Get accessibility tree; refs look like [0-5] (primary perception)\n" +
-      "  browse screenshot <path>   — Save screenshot to file\n" +
+      "  browse screenshot --path <path> — Save screenshot to file\n" +
       "  browse click <ref>         — Click element by [X-Y] ref from snapshot\n" +
       "  browse type <text>         — Type into focused element\n" +
       "  browse fill <sel> <value>  — Fill input (clears first — preferred over type)\n" +
       "  browse press <key>         — Keyboard: Enter, Tab, Escape, ArrowRight, ArrowLeft...\n" +
-      "  browse scroll <x> <y> <dx> <dy> — Scroll at coords (positive dy scrolls down)\n" +
+      "  browse mouse scroll <x> <y> <dx> <dy> — Scroll at coords (positive dy scrolls down)\n" +
       "  browse select <sel> <val>  — Select dropdown option\n" +
       "  browse wait load|selector|timeout — Wait for page load, a selector, or a timeout\n" +
       "  browse get url/title/text  — Get page info\n" +
-      "  browse drag <x1> <y1> <x2> <y2> — Drag (for sliders)\n" +
+      "  browse mouse drag <x1> <y1> <x2> <y2> — Drag (for sliders)\n" +
       "  browse back/reload/stop    — Navigation/session control\n\n" +
       "Critical: Always `browse snapshot` after every action — refs invalidate on DOM changes.",
     input_schema: {
@@ -82,12 +82,19 @@ Options:
   --env local|remote   Browser environment (default: local)
   --model <model>      Claude model for the inner agent (default: ${DEFAULT_MODEL})
   --run-number N       Force a specific run number (default: auto-increment)
+  --connect-url <url>  Browserbase wss connectUrl; when set, every inner browse
+                       call is rewritten to attach via --cdp <url> --session
+                       autobrowse-main, and browse stop is suppressed. Used by
+                       the outer harness when --browser-trace is active so a
+                       sibling bb-capture observer can see Network/Console
+                       events (the --remote attach path routes those only to
+                       the driving client).
   --help               Show this help message
 
 Environment variables:
   ANTHROPIC_API_KEY          Required — Claude API key
   BROWSERBASE_API_KEY        Required for --env remote
-  BROWSERBASE_PROJECT_ID     Required for --env remote
+  BROWSERBASE_PROJECT_ID     Optional Browserbase project override
 
 Output:
   traces/<task>/run-NNN/summary.md     Decision log and final output
@@ -242,7 +249,43 @@ function parseCommand(command) {
   return { args };
 }
 
-function executeCommand(command) {
+// browse subcommands that drive a page through a local daemon — these need
+// the --cdp/--session injection when --connect-url is set. Excludes commands
+// that don't touch the daemon (cloud/cdp/status) or that would tear it down
+// (stop).
+const PAGE_DRIVING_VERBS = new Set([
+  "open", "snapshot", "screenshot", "click", "type", "fill", "press", "select",
+  "wait", "get", "reload", "back", "forward", "mouse", "tab",
+]);
+
+// Per-process local daemon name. Derived from a hash of the connectUrl so two
+// evaluate.mjs invocations driving different Browserbase sessions (e.g. SKILL.md
+// Step-3 parallel sub-agents) use distinct local daemons and don't collide on
+// the "autobrowse-main" socket. crypto.createHash is sync, fast, no deps.
+function deriveBrowseSessionName(connectUrl) {
+  const hash = crypto.createHash("sha1").update(connectUrl).digest("hex").slice(0, 8);
+  return `autobrowse-${hash}`;
+}
+
+function rewriteArgsForTrace(args, connectUrl) {
+  // No-op when not in trace mode or when the first arg isn't a page-driving
+  // verb (cloud, cdp, etc. pass through unchanged).
+  if (!connectUrl || args.length === 0) return args;
+  const verb = args[0];
+  if (!PAGE_DRIVING_VERBS.has(verb)) return args;
+
+  const out = args.slice();
+  const hasFlag = (name) => out.some((a, i) => a === name && i > 0);
+  // Remove --remote / --local — they'd conflict with --cdp.
+  for (let i = out.length - 1; i > 0; i--) {
+    if (out[i] === "--remote" || out[i] === "--local") out.splice(i, 1);
+  }
+  if (!hasFlag("--cdp")) out.push("--cdp", connectUrl);
+  if (!hasFlag("--session") && !hasFlag("-s")) out.push("--session", deriveBrowseSessionName(connectUrl));
+  return out;
+}
+
+function executeCommand(command, connectUrl) {
   // Security: only allow the browse CLI and execute it without a shell so
   // metacharacters are treated as literal arguments instead of extra commands.
   const parsed = parseCommand(command);
@@ -255,9 +298,18 @@ function executeCommand(command) {
     return { output: `BLOCKED: only browse commands are allowed. Got: ${command.slice(0, 50)}`, error: true, duration_ms: 0 };
   }
 
+  // Suppress `browse stop` under --browser-trace: the outer harness owns the
+  // session and daemon; tearing the named daemon down would orphan the trace
+  // observer and block the rest of the iteration.
+  if (connectUrl && args[0] === "stop") {
+    return { output: '{"stopped":true,"suppressed":"browse-trace mode owns the session"}', error: false, duration_ms: 0 };
+  }
+
+  const finalArgs = rewriteArgsForTrace(args, connectUrl);
+
   const start = Date.now();
   try {
-    const output = execFileSync(executable, args, {
+    const output = execFileSync(executable, finalArgs, {
       encoding: "utf-8",
       timeout: EXEC_TIMEOUT_MS,
       stdio: ["pipe", "pipe", "pipe"],
@@ -272,18 +324,26 @@ function executeCommand(command) {
   }
 }
 
-function buildSystemPrompt(strategy, traceDir, browseEnv) {
-  const envDesc = browseEnv === "remote"
-    ? `Use **remote mode** (Browserbase) — anti-bot stealth, CAPTCHA solving, residential proxies:
+function buildSystemPrompt(strategy, traceDir, browseEnv, connectUrl) {
+  // Under --browser-trace (connectUrl set), the outer harness owns the
+  // Browserbase session and a sibling bb-capture observer is attached. Every
+  // browse call is rewritten by executeCommand to attach via
+  // --cdp $connectUrl --session autobrowse-main, and `browse stop` is a no-op.
+  // The inner agent must NOT pass --remote/--local or run browse stop.
+  const openFlag = connectUrl ? "" : (browseEnv === "remote" ? "--remote" : "--local");
+  const envDesc = connectUrl
+    ? `**Traced session managed by the outer harness.** Do not run \`browse stop\`. Do not pass \`--remote\` or \`--local\` — the harness routes every browse call through the trace-attached connection automatically. Just write \`browse open <url>\`, \`browse snapshot\`, etc.`
+    : (browseEnv === "remote"
+    ? `Use **remote mode** (Browserbase) — Browserbase Identity, Verified browsers, CAPTCHA solving, residential proxies:
 \`\`\`
 browse stop
-browse env remote
+browse open <url> --remote
 \`\`\`
-Always run \`browse stop\` first to kill any existing local session before switching to remote.`
+Run \`browse stop\` first when a prior daemon may be active; active sessions do not switch between local and remote automatically.`
     : `Use **local mode** — runs on local Chrome:
 \`\`\`
-browse env local
-\`\`\``;
+browse open <url> --local
+\`\`\``);
 
   return `You are a browser automation agent. You navigate websites using the browse CLI via the execute tool.
 
@@ -298,13 +358,13 @@ ${envDesc}
 ## Commands
 
 ### Navigation
-- \`browse open <url>\` — Go to URL
+- \`browse open <url> ${openFlag}\` — Go to URL
 - \`browse reload\` — Reload page
 - \`browse back\` / \`browse forward\` — History navigation
 
 ### Page State (prefer snapshot over screenshot)
 - \`browse snapshot\` — Get accessibility tree. Each element has a ref in \`[X-Y]\` format (e.g. \`[0-5]\`, \`[2-147]\`). This is your PRIMARY perception tool.
-- \`browse screenshot ${traceDir}/screenshots/step-NN.png\` — Save visual screenshot (for debugging only)
+- \`browse screenshot --path ${traceDir}/screenshots/step-NN.png\` — Save visual screenshot (for debugging only)
 - \`browse get url\` / \`browse get title\` — Page info
 - \`browse get text <selector>\` — Get text content ("body" for all)
 - \`browse get value <selector>\` — Get form field value
@@ -312,11 +372,12 @@ ${envDesc}
 ### Interaction
 - \`browse click [X-Y]\` — Click element by ref from the latest snapshot. Pass the ref EXACTLY as it appears in the tree, including brackets (e.g. \`browse click [2-147]\`).
 - \`browse type <text>\` — Type text into focused element
-- \`browse fill <selector> <value>\` — Fill input AND press Enter (clears existing text — PREFERRED over type)
+- \`browse fill <selector> <value>\` — Fill input without pressing Enter (clears existing text — PREFERRED over type)
+- \`browse fill <selector> <value> --press-enter\` — Fill input and press Enter
 - \`browse select <selector> <values...>\` — Select dropdown option(s)
 - \`browse press <key>\` — Press key: Enter, Tab, Escape, ArrowRight, ArrowLeft, ArrowUp, ArrowDown, Cmd+A
-- \`browse drag <fromX> <fromY> <toX> <toY>\` — Drag (useful for sliders)
-- \`browse scroll <x> <y> <deltaX> <deltaY>\` — Scroll at coords (positive dy scrolls down)
+- \`browse mouse drag <fromX> <fromY> <toX> <toY>\` — Drag (useful for sliders)
+- \`browse mouse scroll <x> <y> <deltaX> <deltaY>\` — Scroll at coords (positive dy scrolls down)
 - \`browse wait load\` — Wait for page to finish loading
 - \`browse wait timeout <ms>\` — Wait a fixed amount of time for spinners or animations
 - \`browse wait selector "<selector>"\` — Wait for an element to become visible (or use \`--state\`)
@@ -324,12 +385,12 @@ ${envDesc}
 ### Session
 - \`browse stop\` — Close browser
 - \`browse status\` — Check daemon status
-- \`browse pages\` — List open tabs
-- \`browse tab_switch <index>\` — Switch tabs
+- \`browse tab list\` — List open tabs
+- \`browse tab switch <index-or-target-id>\` — Switch tabs
 
 ## Workflow Pattern
-1. \`browse env ${browseEnv}\` — set browser environment
-2. \`browse open <url>\` — navigate to page
+1. \`browse stop\` — clean up any previous run
+2. \`browse open <url> ${openFlag}\` — navigate to page in ${browseEnv} mode
 3. \`browse snapshot\` — read accessibility tree; refs appear as \`[X-Y]\`
 4. \`browse click [X-Y]\` / \`browse fill <sel> <val>\` / \`browse press <key>\` — interact using refs
 5. \`browse snapshot\` — confirm action worked (refs invalidate after DOM changes!)
@@ -337,12 +398,12 @@ ${envDesc}
 7. \`browse stop\` — clean up
 
 ## Critical Rules
-1. **Always start with \`browse env ${browseEnv}\` then \`browse open <url>\`**
+1. **Start clean when needed** — if a daemon may already be active, run \`browse stop\` before \`browse open <url> ${openFlag}\`
 2. **ALWAYS snapshot after every action** — refs like \`[0-5]\` invalidate when the DOM changes
 3. **Use fill, not type, for input fields** — fill clears existing text first
 4. **Use refs from the LATEST snapshot only** — old refs are stale
 5. **Never invent refs.** If you haven't seen \`[X-Y]\` in the snapshot output, it doesn't exist. Snapshot first, then click.
-6. **Save screenshots at key decision points** — \`browse screenshot ${traceDir}/screenshots/step-NN.png\`
+6. **Save screenshots at key decision points** — \`browse screenshot --path ${traceDir}/screenshots/step-NN.png\`
 7. **When an action fails**, run \`browse snapshot\` to see current state and try a different approach
 8. **When done, output your final answer as a JSON code block**
 
@@ -391,6 +452,11 @@ async function main() {
   }
 
   const browseEnv = getArg("env", "local");
+  const connectUrl = getArg("connect-url");
+  if (connectUrl && browseEnv !== "remote") {
+    console.error("ERROR: --connect-url requires --env remote");
+    process.exit(1);
+  }
   const client = new Anthropic();
   const runNumber = getNextRunNumber(tracesDir);
   const runId = `run-${String(runNumber).padStart(3, "0")}`;
@@ -400,12 +466,12 @@ async function main() {
 
   const strategy = fs.readFileSync(strategyFile, "utf-8");
   const task = fs.readFileSync(taskFile, "utf-8");
-  const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv);
+  const systemPrompt = buildSystemPrompt(strategy, traceDir, browseEnv, connectUrl);
 
   console.error(`\n${"=".repeat(60)}`);
   console.error(`  AUTOBROWSE — ${taskName} — Run ${runNumber}`);
   console.error(`${"=".repeat(60)}`);
-  console.error(`Model: ${model} | Env: ${browseEnv} | Max turns: ${MAX_TURNS} | Trace: ${traceDir}\n`);
+  console.error(`Model: ${model} | Env: ${browseEnv}${connectUrl ? " (traced)" : ""} | Max turns: ${MAX_TURNS} | Trace: ${traceDir}\n`);
 
   const trace = [];
   const messages = [
@@ -485,7 +551,7 @@ async function main() {
 
       console.error(`  [${turn}] exec: ${command.slice(0, 120)}`);
 
-      const { output, error, duration_ms } = executeCommand(command);
+      const { output, error, duration_ms } = executeCommand(command, connectUrl);
 
       if (error) {
         console.error(`  [${turn}] error: ${output.slice(0, 100)}`);

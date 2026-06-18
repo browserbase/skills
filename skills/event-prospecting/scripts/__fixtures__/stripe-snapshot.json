@@ -1,0 +1,10 @@
+{
+  "title": "Stripe Sessions 2026 | Speakers",
+  "hasNextData": true,
+  "nextDataLen": 439761,
+  "speakerArrayPaths": [
+    ".props.pageProps.featuredSpeakers.speakers.items",
+    ".props.pageProps.moreSpeakers.speakers.items"
+  ],
+  "totalSpeakers": 240
+}

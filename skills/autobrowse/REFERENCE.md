@@ -19,7 +19,7 @@ node ${CLAUDE_SKILL_DIR}/scripts/evaluate.mjs --task <name> [options]
 |----------|----------|-------------|
 | `ANTHROPIC_API_KEY` | Yes | Claude API key |
 | `BROWSERBASE_API_KEY` | Remote only | Browserbase API key |
-| `BROWSERBASE_PROJECT_ID` | Remote only | Browserbase project ID |
+| `BROWSERBASE_PROJECT_ID` | No | Optional Browserbase project override |
 
 ## Trace artifacts
 
