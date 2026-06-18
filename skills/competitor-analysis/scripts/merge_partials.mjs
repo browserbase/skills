@@ -211,7 +211,13 @@ for (const [slug, lanes] of bySlug.entries()) {
   ];
   // Subagents drift on canonical field names too. Common aliases observed in real runs:
   // `competitor` → `competitor_name` (browsaur marketing subagent), `homepage` → `website`,
-  // `price_tiers` / `pricing` → `pricing_tiers`. Accept aliases silently.
+  // `price_tiers` → `pricing_tiers`. Accept aliases silently.
+  //
+  // NOTE: a bare `pricing` key is mapped to `pricing_model`, NOT `pricing_tiers`. In practice
+  // subagents use `pricing` for a pricing *model* or prose summary ("usage-based", "$0.005/req")
+  // far more often than for an enumerated tier list, so routing it to `pricing_tiers` corrupted
+  // the structured tier data the overview/matrix render from. Use `price_tiers`/`pricing_tiers`
+  // explicitly for tiers.
   const FIELD_ALIASES = {
     'competitor': 'competitor_name',
     'name': 'competitor_name',
@@ -219,7 +225,7 @@ for (const [slug, lanes] of bySlug.entries()) {
     'homepage': 'website',
     'url': 'website',
     'price_tiers': 'pricing_tiers',
-    'pricing': 'pricing_tiers',
+    'pricing': 'pricing_model',
   };
   function canonicalValue(fm, key) {
     if (fm[key]) return fm[key];

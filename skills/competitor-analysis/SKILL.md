@@ -6,8 +6,8 @@ description: |
   deeply researches each using a 4-lane pattern (marketing surface, external signal,
   public benchmarks, strategic diff vs the user's company), and compiles the results
   into an HTML report with four views: overview, per-competitor deep dive, side-by-side
-  feature/pricing matrix, and a chronological mentions feed (benchmarks, comparison
-  pages, news, Reddit, HN, LinkedIn posts, YouTube videos, reviews).
+  feature/pricing matrix, and a chronological mentions feed (news, reviews,
+  social, comparison pages, and public benchmarks).
   Use when the user wants to: (1) analyze competitors, (2) build a competitive matrix,
   (3) extract competitor pricing / features, (4) find comparison pages and online
   mentions of competitors, (5) surface public benchmarks. Triggers: "competitor analysis",
@@ -280,7 +280,9 @@ The main agent fixes this by synthesizing a **shared taxonomy** across competito
 
    **`userCompany` is required**. The overview page renders two cards — "Where {user} is winning" and "Where {user} is losing". Populate `userCompany.features` and `userCompany.integrations` from the self-research profile (Step 1). Without this field those two cards don't render.
 
-   **`userCompany.winningSummary` / `losingSummary` are strongly preferred** (analyst-style prose, 2-4 sentences each). When present, the cards render as paragraphs instead of bulleted lists — reads like a briefing, not a spreadsheet. Write these AFTER the fact-check step below so prose is grounded in verified cells, not raw inference. If absent, the cards fall back to a bulleted list of winning/losing items with who-else-has-it.
+   **Write order (two passes — this resolves the apparent ordering tension below).** In this step (5b) write all `features` / `integrations` cells for `userCompany` and every competitor, plus a **draft** `winningSummary` / `losingSummary`. The drafts exist only to tell the Step 5c fact-checker which claims are high-stakes (it prioritizes cells named in the summaries). After Step 5c flips cells on verified evidence, **rewrite** the two summaries so the prose reflects only fact-checked cells. The JSON shape above shows the finalized post-fact-check object.
+
+   **`userCompany.winningSummary` / `losingSummary` are strongly preferred** (analyst-style prose, 2-4 sentences each). When present, the cards render as paragraphs instead of bulleted lists — reads like a briefing, not a spreadsheet. If absent, the cards fall back to a bulleted list of winning/losing items with who-else-has-it.
 
 If this step is skipped, the matrix view falls back to the raw pipe-split axis (useless for atomic comparison) and the strategic summary doesn't render. Do not skip.
 
@@ -350,7 +352,13 @@ After the subagent completes, re-read matrix.json, recompile, and surface `matri
 
 Prompt template: `references/battle-card-subagent.md` (substitute `{COMPETITOR_SLUG}` / `{COMPETITOR_NAME}` / `{USER_COMPANY_NAME}` / `{USER_WINNING_SUMMARY}` per competitor). Format spec: `references/battle-card.md`.
 
-Output: `{OUTPUT_DIR}/partials/{slug}.battle.md` with a `## Battle Card` section. `merge_partials.mjs` unions this into the consolidated `{slug}.md`. `compile_report.mjs` renders it as a brand-accented card on the per-competitor HTML page.
+Output: `{OUTPUT_DIR}/partials/{slug}.battle.md` with a `## Battle Card` section.
+
+**Re-run the merge after this lane completes.** The Step 5 merge ran *before* the battle partials existed, so the consolidated `{slug}.md` files don't contain them yet. Re-run:
+```bash
+node {SKILL_DIR}/scripts/merge_partials.mjs {OUTPUT_DIR}
+```
+This unions each `{slug}.battle.md` into its consolidated `{slug}.md` (the `battle` lane is already handled by `merge_partials.mjs`). `compile_report.mjs` reads the `## Battle Card` section from `{slug}.md` and renders it as a brand-accented card on the per-competitor HTML page. **Skip this re-merge and the battle cards never appear in the report.**
 
 **Why this lane is synthesis-only** — battle cards must be grounded in facts that already survived Step 5c. Letting the subagent do fresh `browse cloud` searches would reintroduce the hallucinated-moat problem the fact-check step exists to prevent. The subagent's adversarial self-check explicitly rejects claims not traceable to an input partial bullet or a `sources`-backed matrix cell.
 
