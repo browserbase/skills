@@ -44,7 +44,13 @@ function artifactDirFor(slug, outRoot) {
 }
 
 function toolNameFor(domain, task) {
-  return `${domain}_${task}`.replace(/[^a-zA-Z0-9]+/g, "_").replace(/^_+|_+$/g, "");
+  // Keep within compile.mjs's 1-80 char tool-name limit so a scaffolded
+  // manifest never fails compile on an over-long generated name.
+  return `${domain}_${task}`
+    .replace(/[^a-zA-Z0-9]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .slice(0, 80)
+    .replace(/_+$/, "");
 }
 
 async function main() {

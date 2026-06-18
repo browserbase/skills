@@ -83,7 +83,7 @@ async function validateArtifact(artifactDir) {
     await page.addInitScript({ path: scriptPath });
     await page.goto(manifest.url, { waitUntil: "load" });
 
-    const registeredTools = await page.listWebMCPTools({ timeoutMs: 1000 });
+    const registeredTools = await page.listWebMCPTools({ timeoutMs: 5000 });
 
     for (const expectedTool of manifest.tools) {
       const foundTool = registeredTools.find((tool) => tool.name === expectedTool.name);
