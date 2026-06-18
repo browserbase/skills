@@ -1,0 +1,8 @@
+{
+  "tier": "C",
+  "category": "bot-protected-extraction",
+  "env": "remote",
+  "max_turns": 35,
+  "timeout_min": 25,
+  "gotchas": "DataDome CAPTCHA wall — needs Browserbase stealth + residential proxies; review dates render as relative strings sometimes; login-walled actions must be avoided"
+}

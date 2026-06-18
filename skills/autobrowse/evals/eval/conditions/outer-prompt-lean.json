@@ -1,0 +1,9 @@
+{
+  "id": "outer-prompt-lean",
+  "notes": "Prompt ablation: strip the SKILL.md-style guidance (one-hypothesis rule, build-on-wins, evidence grounding) from the outer prompt. Measures how much of convergence quality comes from the methodology vs the model.",
+  "inner_model": "claude-sonnet-4-6",
+  "outer_model": "claude-opus-4-8",
+  "outer_prompt": "outer-lean",
+  "max_iters": 5,
+  "holdout_runs": 3
+}
