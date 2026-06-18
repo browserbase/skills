@@ -401,14 +401,20 @@ function buildStrategicSummary() {
     return renderList(items, emptyMessage);
   }
 
+  // The badge counts the boolean-heuristic list. When analyst prose is shown instead of that
+  // list, the count can be 0 or unrelated to the prose — so only show the badge when the list
+  // is what's actually rendered.
+  const winBadge = (user.winningSummary && user.winningSummary.trim()) ? '' : ` <span class="badge win">${allWins.length}</span>`;
+  const lossBadge = (user.losingSummary && user.losingSummary.trim()) ? '' : ` <span class="badge loss">${allLosses.length}</span>`;
+
   return `<div class="strategic">
     <div class="card win">
-      <h3>Where ${userEsc} is winning <span class="badge win">${allWins.length}</span></h3>
+      <h3>Where ${userEsc} is winning${winBadge}</h3>
       ${user.winningSummary ? '' : `<div class="sub">Features and integrations ${userEsc} has that 0–1 competitors match.</div>`}
       ${renderBody(user.winningSummary, allWins, 'No clear differentiators found — user has no unique features in the current taxonomy.')}
     </div>
     <div class="card loss">
-      <h3>Where ${userEsc} is losing <span class="badge loss">${allLosses.length}</span></h3>
+      <h3>Where ${userEsc} is losing${lossBadge}</h3>
       ${user.losingSummary ? '' : `<div class="sub">Features and integrations ${userEsc} lacks that 3+ competitors have.</div>`}
       ${renderBody(user.losingSummary, allLosses, 'No major gaps found — user keeps up on table-stakes features.')}
     </div>
