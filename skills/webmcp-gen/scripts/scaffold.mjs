@@ -29,6 +29,13 @@ function parseSlug(slug) {
   if (parts.length !== 2 || !parts[0] || !parts[1]) {
     throw new Error(`Slug must be <domain>/<task> with exactly one slash.\n\n${usage()}`);
   }
+  for (const part of parts) {
+    if (!/^[A-Za-z0-9][A-Za-z0-9._-]*$/.test(part)) {
+      throw new Error(
+        `Invalid slug segment "${part}". Each segment must start with a letter or digit and contain only letters, digits, dot, dash, or underscore (no path traversal).\n\n${usage()}`
+      );
+    }
+  }
   return { domain: parts[0], task: parts[1] };
 }
 
