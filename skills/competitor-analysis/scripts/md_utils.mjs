@@ -4,6 +4,7 @@
 // Parses YAML-ish frontmatter delimited by `---` lines.
 // Returns an object of fields, or null if no frontmatter delimiter is found.
 export function parseFrontmatter(content) {
+  content = content.replace(/\r\n/g, '\n'); // tolerate CRLF — anchors below assume LF
   const m = content.match(/^---\n([\s\S]*?)\n---/);
   if (!m) return null;
   const fields = {};
@@ -22,6 +23,7 @@ export function parseFrontmatter(content) {
 // If no frontmatter is present, returns the full content trimmed — so callers
 // that don't gate on parseFrontmatter still get usable text.
 export function parseBody(content) {
+  content = content.replace(/\r\n/g, '\n'); // tolerate CRLF — anchors below assume LF
   const m = content.match(/^---\n[\s\S]*?\n---\n([\s\S]*)/);
   return m ? m[1].trim() : content.trim();
 }
@@ -30,7 +32,7 @@ export function parseBody(content) {
 // Content before the first `## ` is dropped (matches existing behavior).
 export function parseSections(body) {
   const sections = {};
-  const lines = body.split('\n');
+  const lines = body.replace(/\r\n/g, '\n').split('\n');
   let currentKey = null;
   let buffer = [];
   for (const line of lines) {

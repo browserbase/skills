@@ -80,6 +80,11 @@ Clean up discovery batch files from prior runs:
 rm -f /tmp/competitor_discovery_batch_*.json
 ```
 
+**Re-runs must start from a clean `$OUTPUT_DIR`.** `compile_report.mjs` ingests *every* `{slug}.md` in the directory, and `merge_partials.mjs` only overwrites the slugs in the current set — it never deletes ones dropped from a new enrichment set. Since the directory is keyed by date, a same-day re-run with a different competitor set would leave stale competitors in the overview, matrix, CSV, and screenshots. Either use a fresh directory or clear the prior per-competitor files first:
+```bash
+rm -f "$OUTPUT_DIR"/*.md && rm -rf "$OUTPUT_DIR"/partials "$OUTPUT_DIR"/screenshots
+```
+
 ## Step 1: User Company Research
 
 This step sets the baseline for what "competitor" means AND produces the verified data the Step 5b matrix will use for the `userCompany` row.

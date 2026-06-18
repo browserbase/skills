@@ -266,11 +266,20 @@ try {
 // summary, per-competitor pages, CSV) must iterate `competitorRows`, not `deduped` —
 // otherwise the user appears as a phantom column with all-false features.
 const userCompanyName = (curatedMatrix && curatedMatrix.userCompany && curatedMatrix.userCompany.name) || userCompany || '';
-const userNameLower = userCompanyName.toLowerCase();
+// Normalize before comparing so legal/DBA drift ("Exa, Inc." in matrix.json vs slug `exa`)
+// still excludes the user's own file. Strip a trailing corporate suffix then all non-alphanumerics.
+// We deliberately do NOT fuzzy-match — exclusion still requires an exact normalized-equality, so a
+// real competitor is only dropped if its normalized name/slug is identical to the user's.
+const normKey = s => (s || '').toLowerCase().replace(/\s*\b(inc|llc|ltd|corp|co)\b\s*\.?$/i, '').replace(/[^a-z0-9]/g, '');
+const userKey = normKey(userCompanyName);
+// Slug compare strips punctuation only (no suffix strip) so `rival-co` isn't reduced to `rival`.
+const slugKey = s => (s || '').toLowerCase().replace(/[^a-z0-9]/g, '');
+const userSlugKey = slugKey(userCompanyName);
 const competitorRows = deduped.filter(c => {
-  const nameLower = (c.competitor_name || '').toLowerCase();
-  const slugLower = (c.slug || '').toLowerCase();
-  return !userNameLower || (nameLower !== userNameLower && slugLower !== userNameLower);
+  if (!userKey) return true;
+  const nameKey = normKey(c.competitor_name);
+  const sKey = slugKey(c.slug);
+  return nameKey !== userKey && sKey !== userKey && sKey !== userSlugKey;
 });
 
 // ---------- Aggregates ----------
