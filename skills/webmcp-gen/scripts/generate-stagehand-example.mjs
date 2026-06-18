@@ -30,8 +30,7 @@ function serializeExpectedTools(tools) {
 function emitStagehandExample(manifest) {
   const expectedTools = serializeExpectedTools(manifest.tools);
 
-  return `#!/usr/bin/env node
-import { fileURLToPath } from "node:url";
+  return `import { fileURLToPath } from "node:url";
 
 import { Stagehand } from "@browserbasehq/stagehand";
 
@@ -104,11 +103,11 @@ async function main() {
   assertValidManifest(manifest);
 
   await writeFile(
-    path.join(resolvedArtifactDir, "stagehand-example.mjs"),
+    path.join(resolvedArtifactDir, "stagehand-example.ts"),
     emitStagehandExample(manifest),
     "utf8",
   );
-  console.log(`Generated Stagehand example at ${path.join(resolvedArtifactDir, "stagehand-example.mjs")}`);
+  console.log(`Generated Stagehand example at ${path.join(resolvedArtifactDir, "stagehand-example.ts")}`);
 }
 
 main().catch((error) => {

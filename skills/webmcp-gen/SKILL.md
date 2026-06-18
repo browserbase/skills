@@ -14,18 +14,15 @@ This skill does not call a nested agent. You are responsible for exploring the p
 
 ## Setup check
 
-From the skill directory, install the Stagehand dependency if it is not already installed:
+From the skill directory, install dependencies if they are not already installed:
 
 ```bash
 cd skills/webmcp-gen
 pnpm install
 ```
 
-The skill's `package.json` points at the published Stagehand package:
-
-```text
-@browserbasehq/stagehand
-```
+This installs the pinned Stagehand package plus the TypeScript toolchain (`tsx`,
+`typescript`, `@types/node`) used to run the generated `stagehand-example.ts`.
 
 ## Workflow
 
@@ -68,10 +65,11 @@ Prefer `browse snapshot`, page text, and DOM inspection over screenshots unless 
 node scripts/compile.mjs artifacts/example.com/page-context
 ```
 
-6. Generate a runnable Stagehand example:
+6. Generate a runnable Stagehand example (`stagehand-example.ts`) and run it with `tsx`:
 
 ```bash
 node scripts/generate-stagehand-example.mjs artifacts/example.com/page-context
+npx tsx artifacts/example.com/page-context/stagehand-example.ts
 ```
 
 7. Validate:
@@ -129,7 +127,11 @@ node scripts/validate.mjs artifacts/example.com/page-context
 artifacts/<domain>/<task>/
   manifest.json
   webmcp.init.js
-  stagehand-example.mjs
+  stagehand-example.ts
   eval.json
   eval-report.md
 ```
+
+To turn the example into a standalone project, scaffold a Stagehand app with
+`npx create-browser-app` and drop the generated `webmcp.init.js` into it (load it
+with `page.addInitScript({ path: "webmcp.init.js" })`).
