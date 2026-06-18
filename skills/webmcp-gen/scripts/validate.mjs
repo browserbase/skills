@@ -43,6 +43,18 @@ async function validateArtifact(artifactDir) {
   const errors = [];
   const tools = [];
 
+  if (!Array.isArray(manifest.tools)) {
+    const result = {
+      artifactDir,
+      url: manifest.url,
+      status: "failed",
+      tools,
+      errors: ["Manifest `tools` must be an array."]
+    };
+    await writeEvalResult(artifactDir, result);
+    return result;
+  }
+
   try {
     await access(scriptPath);
   } catch {
