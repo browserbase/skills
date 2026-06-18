@@ -92,8 +92,9 @@ async function validateArtifact(artifactDir) {
           { frameId: foundTool.frameId }
         );
         const result = await invocation.result;
-        const error = result.errorText || outputLooksFailed(result.output)
-          ? result.errorText ?? "Tool returned an output with success=false."
+        const failed = Boolean(result.errorText) || outputLooksFailed(result.output);
+        const error = failed
+          ? result.errorText || "Tool returned an output with success=false."
           : undefined;
         tools.push({
           name: expectedTool.name,
@@ -118,7 +119,12 @@ async function validateArtifact(artifactDir) {
     await stagehand.close().catch(() => {});
   }
 
+  if (manifest.tools.length === 0) {
+    errors.push("Manifest declares no tools; nothing to validate.");
+  }
+
   const status = errors.length === 0 &&
+    manifest.tools.length > 0 &&
     tools.length === manifest.tools.length &&
     tools.every((tool) => tool.found && tool.invoked && tool.status === "Completed" && !tool.error)
     ? "passed"
