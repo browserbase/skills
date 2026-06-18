@@ -82,11 +82,14 @@ async function captureOne(slug, website) {
   // each command so every call resolves to the same dedicated browser session.
   try {
     const openRes = run('browse', ['open', website, ...browseFlags], { timeout: 30000 });
-    // The dedicated session is reused across competitors, so a failed `open` leaves the
-    // PREVIOUS competitor's page loaded — screenshotting now would save it under THIS slug's
-    // filename (a mislabeled hero). Bail before capturing rather than emit a wrong image.
-    if (openRes.status !== 0) {
-      result.errors.push(`open failed: ${openRes.stderr || openRes.stdout || `exit ${openRes.status}`}`);
+    // `browse open` exits 0 even when navigation fails — it just lands the tab on
+    // `chrome-error://chromewebdata/`. Detect failure from the resulting URL, not the exit
+    // code, so we never screenshot a Chrome error page (and, since the session is reused
+    // across competitors, never save one competitor's page under another's slug).
+    let landedUrl = '';
+    try { landedUrl = (JSON.parse(openRes.stdout || '{}').url) || ''; } catch { /* non-JSON stdout */ }
+    if (openRes.status !== 0 || !landedUrl || /^chrome-error:\/\//.test(landedUrl) || landedUrl === 'about:blank') {
+      result.errors.push(`open failed (landed: ${landedUrl || 'unknown'}): ${openRes.stderr || openRes.stdout || `exit ${openRes.status}`}`.slice(0, 200));
       return result;
     }
     run('browse', ['viewport', '1280', '800', ...browseFlags]);
@@ -129,10 +132,10 @@ async function worker() {
 await Promise.all(Array(Math.min(concurrency, jobs.length || 1)).fill(0).map(worker));
 
 // Tear down the dedicated session so we don't leak a running browser (or remote
-// Browserbase session) after the run. Pass the same mode + session flags used to open
-// it — `browse stop` without --remote/--local won't reliably stop a remote Browserbase
-// session, which would leak the session. Best-effort — ignore failures.
-run('browse', ['stop', ...browseFlags]);
+// Browserbase session) after the run. `browse stop` takes only `-s <session>` — it does NOT
+// accept --remote/--local (passing them errors out), and `stop -s <session>` reliably stops
+// a remote Browserbase session (verified against browse v0.8.5). Best-effort — ignore failures.
+run('browse', ['stop', '-s', SESSION]);
 
 const okHero = results.filter(r => r.hero).length;
 console.error(`\nDone: ${okHero}/${jobs.length} hero`);
