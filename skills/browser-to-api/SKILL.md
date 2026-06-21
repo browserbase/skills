@@ -40,11 +40,10 @@ browse network on                                    # capture request/response 
 browse open https://example.com
 # ...drive whatever flows you want covered...
 
-# Snapshot the bodies dir BEFORE turning capture off (the temp dir is shared
-# per-session, so subsequent `browse network on` runs would mix your bodies
-# with whatever a future capture writes if you skip this step).
-cp -r "$(browse network path | jq -r .path)" .o11y/my-site/cdp/network/bodies/
-browse network off
+# Snapshot the bodies dir BEFORE another `browse network on` overwrites it
+# (the temp dir is shared per-session). The helper creates
+# .o11y/my-site/cdp/network/bodies/ and runs `browse network off` for you.
+node ../browser-trace/scripts/snapshot-bodies.mjs my-site
 
 node ../browser-trace/scripts/stop-capture.mjs my-site
 node ../browser-trace/scripts/bisect-cdp.mjs my-site
