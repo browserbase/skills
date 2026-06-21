@@ -305,7 +305,7 @@ grep -lr 'api\.example\.com' .o11y/*/cdp/network/requests.jsonl
 # Search DOM dumps for an element class that came and went
 rg -l 'class="error-banner"' .o11y/<run-id>/dom/
 
-# Tail the firehose live (re-run start-capture is fine — it appends to raw.ndjson? no, it overwrites)
+# Tail the firehose live (note: re-running start-capture overwrites raw.ndjson, it does not append)
 tail -f .o11y/<run-id>/cdp/raw.ndjson | jq -c '{m:.method, u:.params.request.url // .params.frame.url // ""}'
 ```
 
@@ -328,5 +328,5 @@ The interval-second arg to `start-capture.mjs` controls only the sampler. The fi
 | Browserbase session ends as soon as tracer connects | tracer was the only client; no automation attached          | create with `--keep-alive`, attach automation with `browse open --cdp <connectUrl> --session <name>` first   |
 | `index.jsonl` shows `"url": ""`                 | sampler `browse get url` failed transiently                   | benign; happens during navigation transitions                 |
 | Screenshots empty / huge / inconsistent sizes  | viewport not set                                              | `browse viewport 1920 1080 --cdp <target>` once before capture |
-| `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" bash start-capture.mjs ...` |
+| `raw.ndjson` grows but bisect buckets empty    | wrong domains; e.g. you wanted DOM but didn't enable it       | `O11Y_DOMAINS="Network Console Runtime Log Page DOM" node scripts/start-capture.mjs ...` |
 | Loop process leaks after crash                  | `stop-capture.mjs` not run                                     | `pkill -f snapshot-loop.mjs`; PID files in `<run-dir>` are stale  |
