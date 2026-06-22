@@ -28,6 +28,37 @@ const MAX_TURNS = Number(process.env.MAX_TURNS) || 30;
 const MAX_TOKENS = 4096;
 const EXEC_TIMEOUT_MS = 30_000;
 
+// Trace artifacts can contain cookies, auth headers, bearer tokens, passwords,
+// private URLs, and screenshots of authenticated pages. Restrict them to the
+// owner so other local users or processes on a shared host (CI runners, shared
+// dev boxes, multi-tenant containers) can't read them. 0700/0600 are
+// unaffected by the process umask.
+const TRACE_DIR_MODE = 0o700;
+const TRACE_FILE_MODE = 0o600;
+
+// Recursively tighten an already-written trace tree to owner-only. Catches
+// files created by subprocesses (screenshots from the `browse` CLI, .o11y
+// artifacts) whose creation mode we don't control. Symlinks are skipped.
+function lockDownTrace(root) {
+  let entries;
+  try {
+    entries = fs.readdirSync(root, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  for (const entry of entries) {
+    const p = path.join(root, entry.name);
+    if (entry.isSymbolicLink()) continue;
+    if (entry.isDirectory()) {
+      try { fs.chmodSync(p, TRACE_DIR_MODE); } catch {}
+      lockDownTrace(p);
+    } else if (entry.isFile()) {
+      try { fs.chmodSync(p, TRACE_FILE_MODE); } catch {}
+    }
+  }
+  try { fs.chmodSync(root, TRACE_DIR_MODE); } catch {}
+}
+
 // ── Tool definition ────────────────────────────────────────────────
 
 const TOOLS = [
@@ -462,7 +493,10 @@ async function main() {
   const runId = `run-${String(runNumber).padStart(3, "0")}`;
   const traceDir = path.join(tracesDir, runId);
 
-  fs.mkdirSync(path.join(traceDir, "screenshots"), { recursive: true });
+  fs.mkdirSync(path.join(traceDir, "screenshots"), { recursive: true, mode: TRACE_DIR_MODE });
+  // mkdirSync's mode only applies to dirs it creates; ensure the run dir is
+  // locked down even if a parent already existed with looser perms.
+  fs.chmodSync(traceDir, TRACE_DIR_MODE);
 
   const strategy = fs.readFileSync(strategyFile, "utf-8");
   const task = fs.readFileSync(taskFile, "utf-8");
@@ -593,7 +627,7 @@ async function main() {
     messages.push({ role: "user", content: toolResults });
 
     // Write trace incrementally
-    fs.writeFileSync(path.join(traceDir, "trace.json"), JSON.stringify(trace, null, 2));
+    fs.writeFileSync(path.join(traceDir, "trace.json"), JSON.stringify(trace, null, 2), { mode: TRACE_FILE_MODE });
   }
 
   // ── Write final artifacts ──────────────────────────────────────
@@ -645,9 +679,13 @@ async function main() {
 
   const summary = summaryLines.join("\n");
 
-  fs.writeFileSync(path.join(traceDir, "summary.md"), summary);
-  fs.writeFileSync(path.join(traceDir, "trace.json"), JSON.stringify(trace, null, 2));
-  fs.writeFileSync(path.join(traceDir, "messages.json"), JSON.stringify(messages, null, 2));
+  fs.writeFileSync(path.join(traceDir, "summary.md"), summary, { mode: TRACE_FILE_MODE });
+  fs.writeFileSync(path.join(traceDir, "trace.json"), JSON.stringify(trace, null, 2), { mode: TRACE_FILE_MODE });
+  fs.writeFileSync(path.join(traceDir, "messages.json"), JSON.stringify(messages, null, 2), { mode: TRACE_FILE_MODE });
+
+  // Lock down everything under the run dir, including artifacts written by
+  // subprocesses (screenshots, .o11y) whose creation mode we don't control.
+  lockDownTrace(traceDir);
 
   // Update latest symlink
   const latestLink = path.join(tracesDir, "latest");
