@@ -22,7 +22,7 @@ The output is a `skill.md` — a site-specific playbook any agent can follow. On
 git clone <this-repo>
 cd autobrowse
 npm install
-cp .env.example .env   # fill in your API keys
+touch .env             # add ANTHROPIC_API_KEY (and BROWSERBASE_API_KEY if needed)
 ```
 
 ## Your project structure

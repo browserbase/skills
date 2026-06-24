@@ -1,6 +1,9 @@
 ---
 name: cookie-sync
 description: Sync cookies from local Chrome to a Browserbase persistent context so the browse CLI can access authenticated sites. Use when the user wants to browse as themselves, sync cookies, or log into sites via Browserbase.
+compatibility: "Requires Node.js 22+, a local Chromium-based browser (Chrome, Brave, Edge) with remote debugging enabled, and BROWSERBASE_API_KEY. Run `npm install` in the skill directory before first use."
+license: MIT
+allowed-tools: Bash
 ---
 
 # Cookie Sync — Local Chrome → Browserbase Context

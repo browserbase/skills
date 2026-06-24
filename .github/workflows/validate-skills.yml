@@ -1,0 +1,19 @@
+name: Validate skills
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 20
+          # validate-skills.mjs uses only Node built-ins; no deps to install,
+          # so skip setup-node's pnpm auto-cache (it errors: pnpm not installed).
+          package-manager-cache: false
+      - run: node scripts/validate-skills.mjs

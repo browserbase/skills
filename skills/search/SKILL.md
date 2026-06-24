@@ -1,6 +1,7 @@
 ---
 name: search
 description: "Use this skill when the user wants to search the web without a full browser session: find URLs, titles, and metadata for a query. Prefer it over a browser when you just need search results, not page content. Returns structured results with titles, URLs, authors, and dates."
+compatibility: "Requires BROWSERBASE_API_KEY. Examples use `curl`; no browser session or CLI install needed."
 license: MIT
 allowed-tools: Bash
 ---

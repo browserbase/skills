@@ -1,6 +1,7 @@
 ---
 name: fetch
 description: "Use this skill when the user wants to retrieve a URL without a full browser session: fetch HTML or JSON from static pages, inspect status codes or headers, follow redirects, or get page source for simple scraping. Prefer it over a browser when JavaScript rendering and page interaction are not needed. Supports proxies and redirect control."
+compatibility: "Requires BROWSERBASE_API_KEY. Examples use `curl` (or the Node SDK via `npm install @browserbasehq/sdk`); no browser session or CLI install needed."
 license: MIT
 allowed-tools: Bash
 ---

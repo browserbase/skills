@@ -1,6 +1,7 @@
 ---
 name: agent-experience
 description: "Audit the developer experience of a product, SDK, docs site, or SKILL.md by dropping multiple Claude subagents at it with only a tiny task prompt and real tools (WebFetch, Bash, Write). Agents must discover the docs themselves, install deps, ask for credentials if needed, and attempt real execution. The skill captures each agent's trace — tool calls, retries, wall time, errors — and scores on Setup Friction, Speed, Efficiency, Error Recovery, and Doc Quality, then emits an HTML report with an A–F grade and concrete fixes. Use when the user asks to audit agent experience, test a skill, audit docs for agents, check if a SDK is agent-friendly, validate a SKILL.md, measure agent DX, or benchmark how painful onboarding is for an AI agent. Triggers: 'audit agent experience', 'test this skill', 'audit docs for agents', 'is my SDK agent-friendly', 'run a DX audit', 'agent experience test', 'test my docs', 'how do agents do with my product'."
+compatibility: "Requires an agent harness with subagent (Agent tool), WebFetch, and Bash support, plus network access. No CLI install needed; audited products may require their own credentials at runtime."
 license: MIT
 metadata:
   author: jay-sahnan

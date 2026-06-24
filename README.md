@@ -11,15 +11,20 @@ This plugin includes the following skills (see `skills/` for details):
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with Browserbase Identity, Verified browsers, CAPTCHA solving, and residential proxies |
 | [browserbase-cli](skills/browserbase-cli/SKILL.md) | Use the official `browse` CLI for Browserbase Functions and platform API workflows including sessions, projects, contexts, extensions, fetch, and dashboard |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `browse` CLI |
-| [site-debugger](skills/site-debugger/SKILL.md) | Diagnose and fix failing browser automations — analyzes bot detection, selectors, timing, auth, and captchas, then generates a tested site playbook |
 | [browser-trace](skills/browser-trace/SKILL.md) | Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets |
+| [browser-to-api](skills/browser-to-api/SKILL.md) | Turn a website's observable HTTP traffic into a best-effort OpenAPI 3.1 spec by analyzing a `browser-trace` capture |
+| [autobrowse](skills/autobrowse/SKILL.md) | Self-improving browser automation — iteratively runs a browsing task, reads the trace, and improves the navigation skill until it reliably passes |
 | [safe-browser](skills/safe-browser/SKILL.md) | Build local Claude Agent SDK browser agents whose only browser capability is a CDP-gated `safe_browser` tool with domain allowlist enforcement |
-| [bb-usage](skills/bb-usage/SKILL.md) | Show Browserbase usage stats, session analytics, and cost forecasts in a terminal dashboard |
+| [webmcp-gen](skills/webmcp-gen/SKILL.md) | Author, compile, and validate site-specific WebMCP init scripts with the Stagehand WebMCP runtime |
 | [cookie-sync](skills/cookie-sync/SKILL.md) | Sync cookies from local Chrome to a Browserbase persistent context so the browse CLI can access authenticated sites |
 | [fetch](skills/fetch/SKILL.md) | Fetch HTML or JSON from static pages without a browser session — inspect status codes, headers, follow redirects |
 | [search](skills/search/SKILL.md) | Search the web and return structured results (titles, URLs, metadata) without a browser session |
 | [ui-test](skills/ui-test/SKILL.md) | AI-powered adversarial UI testing — analyzes git diffs to test changes, or explores the full app to find bugs |
 | [bu-to-bb](skills/bu-to-bb/SKILL.md) | Migrate browser-use (Python) automation to Stagehand v3 (TypeScript) on Browserbase — maps features and picks the right determinism level per step |
+| [agent-experience](skills/agent-experience/SKILL.md) | Audit how agent-friendly a product, SDK, or docs site is — drops Claude subagents at it with tiny prompts, captures their traces, and scores setup friction, speed, error recovery, and doc quality |
+| [company-research](skills/company-research/SKILL.md) | Discover target companies matching your ICP using the Browserbase Search API, deep-research each one, and score fit into a research report and CSV |
+| [event-prospecting](skills/event-prospecting/SKILL.md) | Extract speakers from a conference page, filter their companies against your ICP, and deep-research the best-fit people into a person-first prospecting report |
+| [competitor-analysis](skills/competitor-analysis/SKILL.md) | Auto-discover a company's competitors via the Browserbase Search API, deep-research each across marketing, signal, benchmark, and strategic-diff lanes, and compile a browsable HTML report with an overview, per-competitor deep dives, a feature/pricing matrix, and a mentions feed |
 
 ## Installation
 

@@ -1,0 +1,14 @@
+{
+  "name": "webmcp-gen-skill",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@browserbasehq/stagehand": "3.6.0-alpha-fd42e65bb84825bdb7341a4953472db1ff774989"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.0",
+    "tsx": "^4.16.0",
+    "typescript": "^5.5.0"
+  }
+}
