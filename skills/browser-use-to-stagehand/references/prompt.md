@@ -1,5 +1,5 @@
 <!--
-  This file is the publishable "docs prompt" version of the /bu-to-bb skill.
+  This file is the publishable "docs prompt" version of the /browser-use-to-stagehand skill.
   It is self-contained: paste it into ANY AI coding assistant (Claude, Cursor,
   Windsurf, ChatGPT, etc.) together with a browser-use script to get a migration.
   Everything below the horizontal rule IS the prompt — copy it (or this raw file).
@@ -18,7 +18,7 @@ of producing a one-to-one agentic copy.
 4. Review the generated Stagehand code and migration summary against your real site — tighten the
    `act(...)` prompts to the actual on-page labels, and confirm any flagged items.
 
-> Prefer it as a one-command tool inside Claude Code? The same logic ships as the `/bu-to-bb`
+> Prefer it as a one-command tool inside Claude Code? The same logic ships as the `/browser-use-to-stagehand`
 > skill. This prompt is the universal, tool-agnostic form.
 
 ---

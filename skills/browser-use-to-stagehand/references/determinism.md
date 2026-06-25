@@ -3,7 +3,7 @@
 The single most important judgment in a browser-use → Stagehand migration is **how much AI to
 keep at each step**. browser-use is agentic-by-default: the LLM decides every action, every run.
 Stagehand lets you dial that down wherever the flow is known. This file is the decision framework
-the `/bu-to-bb` skill applies.
+the `/browser-use-to-stagehand` skill applies.
 
 ---
 

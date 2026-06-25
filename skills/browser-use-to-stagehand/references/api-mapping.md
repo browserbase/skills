@@ -1,6 +1,6 @@
 # browser-use → Stagehand + Browserbase: API Mapping
 
-The authoritative, mechanical mapping the `/bu-to-bb` skill uses to translate code. Pair it
+The authoritative, mechanical mapping the `/browser-use-to-stagehand` skill uses to translate code. Pair it
 with [`determinism.md`](determinism.md) (which Stagehand primitive to reach for) and
 [`trace-assisted.md`](trace-assisted.md) (the optional run-and-observe path).
 

@@ -1,12 +1,12 @@
 ---
-name: bu-to-bb
+name: browser-use-to-stagehand
 description: Migrate browser-use (Python) browser-automation scripts to Stagehand v3 (TypeScript) on Browserbase. Use when the user wants to convert, port, rewrite, or migrate a browser-use Agent script to Stagehand, map browser-use features/APIs to Stagehand primitives (act/extract/observe/agent), or move agentic browser automation onto Browserbase with more determinism. Triggers on "browser-use", "browser_use", or "Agent(task=...)".
 compatibility: "The skill itself uses only Read/Write/Edit/Grep/Bash — no install step. The Stagehand code it generates needs Node 18+, `@browserbasehq/stagehand` (v3) and `zod`, plus `BROWSERBASE_API_KEY` / `BROWSERBASE_PROJECT_ID` and a model-provider key (e.g. `ANTHROPIC_API_KEY`) to run. The optional trace-assisted path uses the Browserbase SDK or the sibling `browser-trace` skill."
 license: MIT
 allowed-tools: Read, Write, Edit, Grep, Bash
 ---
 
-# browser-use → Stagehand on Browserbase (`/bu-to-bb`)
+# browser-use → Stagehand on Browserbase (`/browser-use-to-stagehand`)
 
 Convert a browser-use (Python) script into an idiomatic **Stagehand v3 (TypeScript)** script on
 **Browserbase**, choosing the right level of determinism at each step rather than producing a

@@ -5,7 +5,7 @@ A guide for teams moving browser automation from **browser-use** (Python) to **S
 level of determinism — not a rigid line-by-line transpile, because real migrations differ by team,
 tooling, and how much autonomy each workflow actually needs.
 
-If you want an agent to do the rewriting for you, pair this guide with the **`/bu-to-bb` skill**,
+If you want an agent to do the rewriting for you, pair this guide with the **`/browser-use-to-stagehand` skill**,
 which applies the mappings and determinism framework below to your actual scripts.
 
 ---
