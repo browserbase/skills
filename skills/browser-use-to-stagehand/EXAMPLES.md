@@ -233,6 +233,11 @@ async function main() {
       throw new Error(`unexpected navigation off the allow-list: ${page.url()}`);
     }
     console.log("Logged in:", page.url());
+
+    // Second half of the task ("…then open the dashboard") — don't stop at login.
+    await stagehand.act("open the dashboard");
+    await page.waitForLoadState("domcontentloaded");
+    console.log("Dashboard:", page.url());
   } finally {
     await stagehand.close();
   }

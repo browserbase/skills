@@ -97,7 +97,7 @@ so auth is already present (L3/4).
 | `Agent(task=…)` + `agent.run()` | Decompose into `act`/`extract`/`observe` when the flow is known; else `stagehand.agent().execute(…)` |
 | `llm=ChatAnthropic(model="claude-sonnet-4-6")` | `new Stagehand({ model: "anthropic/claude-sonnet-4-6" })` |
 | `llm=ChatOpenAI(model="gpt-5")` / `ChatGoogle(...)` | `model: "openai/gpt-5"` / `"google/gemini-2.5-flash"` |
-| `output_model_schema=PydanticModel` | `stagehand.extract("…", zodSchema)` (or `agent().execute({ output: zodSchema })`) |
+| `output_model_schema=PydanticModel` | `stagehand.extract("…", zodSchema)` (preferred); or `agent().execute({ output: zodObjectSchema })` — needs `experimental: true`, zod **object** only (see ⚠️ below) |
 | `history.final_result()` / `.structured_output` | `extract(...)` return / `result.output` |
 | `Browser()` (local) | `new Stagehand({ env: "LOCAL", localBrowserLaunchOptions })` |
 | `Browser(cdp_url=session.connect_url)` (Browserbase) | `new Stagehand({ env: "BROWSERBASE" })` (Stagehand manages the session) |
@@ -105,10 +105,14 @@ so auth is already present (L3/4).
 | `storage_state` / `user_data_dir` | Browserbase **Context**: `browserbaseSessionCreateParams.browserSettings.context: { id, persist: true }` |
 | proxies / stealth / captcha / region | `browserbaseSessionCreateParams` (`proxies`, `browserSettings.advancedStealth`, `solveCaptchas`, `region`) |
 | `@tools.action` (deterministic side-effect) | plain TypeScript |
-| `@tools.action` (capability the agent must choose) | `stagehand.agent({ tools: { name: tool({ description, inputSchema: z.object({…}), execute }) } })` — `tool` is imported from the **`ai`** package (Vercel AI SDK), so add `ai` to dependencies |
+| `@tools.action` (capability the agent must choose) | `stagehand.agent({ tools: { name: tool({ description, inputSchema: z.object({…}), execute }) } })` — `tool` from the **`ai`** package (pin **`ai@^5`**); needs `experimental: true` (see ⚠️ below) |
 | `page_extraction_llm=…` | `extract("…", schema, { model })` |
 | `planner_llm=…` + main `llm=…` | `agent({ model, executionModel })` |
 | `max_steps` | `agent().execute({ maxSteps })` |
+
+> ⚠️ **Experimental gate:** agent `output`, custom `tools`, and MCP `integrations` each require
+> `experimental: true` on the `Stagehand` constructor (it bypasses the managed API path). For a typed
+> result from an agentic run, prefer running the agent then a separate `stagehand.extract(...)`.
 
 ## No clean equivalent — flag these in the summary
 

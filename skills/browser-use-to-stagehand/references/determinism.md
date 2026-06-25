@@ -71,8 +71,10 @@ Don't force decomposition where it doesn't fit. Keep an autonomous agent when:
 - You're doing a **first-pass lift-and-shift** and want behavior parity before optimizing.
 
 Even then, tighten it: set `maxSteps`, pass a `systemPrompt` with constraints, use `output` for a
-typed result, and consider `executionModel` (a cheaper model for the agent's inner act/observe
-calls). For computer-use-style visual tasks, `mode: "cua"`; otherwise the default `mode: "dom"`.
+typed result (**requires `experimental: true` on the constructor**, and `output` must be a zod
+*object*; to avoid experimental mode, prefer running the agent then a separate `extract`), and
+consider `executionModel` (a cheaper model for the agent's inner act/observe calls). For
+computer-use-style visual tasks, `mode: "cua"`; otherwise the default `mode: "dom"`.
 
 ---
 
