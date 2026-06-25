@@ -294,12 +294,22 @@ const stagehand = new Stagehand({
 });
 await stagehand.init();
 
+const page = stagehand.context.pages()[0];
+
 const agent = stagehand.agent({
   tools: {
     saveUrl: tool({
-      description: "Save the current URL to a file",
-      inputSchema: z.object({ url: z.string() }), // Pydantic param_model -> zod inputSchema
-      execute: async ({ url }) => { await writeFile("url.txt", url); return `saved ${url}`; },
+      description: "Save the current page URL to a file",
+      // The original reads the URL from `browser_session`, NOT the LLM. So take
+      // no model args and close over `page` — otherwise the model can pass a
+      // guessed/hallucinated URL. (Only put a field in inputSchema when the value
+      // genuinely has to come from the agent's reasoning.)
+      inputSchema: z.object({}),
+      execute: async () => {
+        const url = page.url();
+        await writeFile("url.txt", url);
+        return `saved ${url}`;
+      },
     }),
   },
 });
