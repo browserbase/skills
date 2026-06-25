@@ -135,7 +135,7 @@ async function main() {
   try {
     const page = stagehand.context.pages()[0];
     await page.goto("https://news.ycombinator.com");
-    await page.waitForLoadState("networkidle"); // settle before the AI snapshot
+    await page.waitForLoadState("domcontentloaded"); // settle before the AI snapshot
 
     const stories = await stagehand.extract(
       "extract the top 5 stories with their title, points, and comment count",
@@ -225,7 +225,7 @@ async function main() {
     });
     await stagehand.act("click the sign in button");
 
-    await page.waitForLoadState("networkidle");
+    await page.waitForLoadState("domcontentloaded");
 
     // Guardrail replacing allowed_domains=["https://*.example.com"]:
     const host = new URL(page.url()).hostname;

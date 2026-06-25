@@ -108,12 +108,21 @@ const stagehand = new Stagehand({
 ## Best practices for deterministic runs
 
 From Stagehand's own guidance — bake these into rewrites:
-- **Wait for the page to settle** before an AI snapshot: `await page.waitForLoadState("networkidle")`.
+- **Wait for the page to settle** before an AI snapshot: `await page.waitForLoadState("domcontentloaded")`
+  (or `"load"`). **Avoid `"networkidle"`** — it never fires on sites with continuous background
+  traffic (Google, analytics, long-poll/websocket apps) and will throw a 15s timeout. When a specific
+  element matters, wait for it explicitly instead of a global load state.
 - **Scope** extractions/observations with `selector` (CSS or xpath) to cut noise and cost:
   `extract("…", schema, { selector: "//main" })`.
-- **Lock the viewport** so cached selectors stay valid: `await page.setViewportSize({ width: 1280, height: 720 })`.
+- **Lock the viewport** so cached selectors stay valid: `await page.setViewportSize(1280, 720)`
+  (v3 takes **positional** args `setViewportSize(width, height)`, not Playwright's `{ width, height }` object).
 - **Use `variables`** so different inputs share one cache entry (and keep secrets out of prompts).
 - **Anchor prompts to visible UI labels** ("click the *Sign in* button"), not internal structure.
+- **Iterating an extracted list** (browser-use's "open the links one by one" / loop-an-action
+  patterns): `extract` the list first, then loop in plain TypeScript — there is no AI in the loop.
+  Resolve relative hrefs to absolute before navigating: `new URL(href, page.url()).toString()` (a
+  bare `page.goto("/foo")` or `goto("")` throws `Cannot navigate to invalid URL`). Wrap each
+  iteration in try/catch so one dead link doesn't abort the run.
 
 ---
 

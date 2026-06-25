@@ -17,6 +17,18 @@ lets you choose how much AI to use. A good migration replaces opaque agent loops
 inspectable, mostly-deterministic pipeline — using AI only where the page is genuinely
 unpredictable. This is a refactor with judgment, not a transpile.
 
+> **Source of truth & versions.** This skill's durable value is the *judgment* — the determinism
+> spectrum and the decompose-vs-agent decision — not the API specifics, which drift every release.
+> The code mappings here are a **snapshot validated against `@browserbasehq/stagehand` 3.6.x and
+> browser-use 0.13.x (2026-06)**. On any conflict, the **live docs win** — always verify against the
+> installed package and these sources before emitting code:
+> - Stagehand v3: <https://docs.stagehand.dev/v3>  ·  installed types: `node_modules/@browserbasehq/stagehand`
+> - Browserbase: <https://docs.browserbase.com>
+> - browser-use: <https://docs.browser-use.com>
+>
+> If the installed Stagehand major is **not 3**, treat this skill as conceptual only and follow the
+> live docs for every signature.
+
 ## Reference files (read as needed)
 
 - [`references/api-mapping.md`](references/api-mapping.md) — the mechanical browser-use → Stagehand
@@ -40,8 +52,11 @@ Obtain the browser-use script(s). If the user only described a script, ask for t
 the target: **TypeScript Stagehand on Browserbase** unless they say otherwise.
 
 ### 2. Detect the browser-use variant
-Identify legacy (pre-0.12) vs stable (0.12.x) vs Rust beta (0.13 `browser_use.beta`) — see
-api-mapping §1. Normalize legacy names mentally before translating. State which variant you found.
+Identify legacy (pre-0.12) vs stable vs Rust beta (only when imports come from `browser_use.beta`)
+— see api-mapping §1. Note: the classic top-level `from browser_use import Agent, ChatBrowserUse`
+surface is alive and well in 0.13.x — `ChatBrowserUse` alone is **not** a beta tell; only a
+`browser_use.beta` import is. All variants translate identically, so when unsure, proceed with the
+stable mapping. Normalize legacy names before translating. State which variant you found.
 
 ### 3. Inventory the script
 Extract a structured inventory before writing any TypeScript:
@@ -67,7 +82,10 @@ first lift-and-shift, a faithful `agent()` translation is acceptable — say so 
 optimization path.
 
 ### 5. Produce the Stagehand v3 rewrite
-Emit runnable TypeScript. Always:
+**First, verify the API.** Before writing, confirm the exact signatures you're about to use against
+the installed package (`node_modules/@browserbasehq/stagehand` types) or <https://docs.stagehand.dev/v3>.
+The mappings below are a 3.6.x snapshot; if anything differs in the installed version, the installed
+version wins. Then emit runnable TypeScript. Always:
 - `import { Stagehand } from "@browserbasehq/stagehand";` and `import { z } from "zod";` when extracting.
 - Get the page via `const page = stagehand.context.pages()[0];`.
 - Call AI methods on the **instance**: `stagehand.act(...)`, `stagehand.extract(...)`,

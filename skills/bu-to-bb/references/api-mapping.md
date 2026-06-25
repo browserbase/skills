@@ -8,6 +8,12 @@ Stagehand examples here target **v3** (`@browserbasehq/stagehand` ≥ 3.x), the 
 version. v3 is a rewrite — see the [Version notes](#version-notes-read-before-translating) at
 the bottom before trusting any older snippet you find online.
 
+> ⚠️ **This is a point-in-time snapshot (validated against Stagehand 3.6.x / browser-use 0.13.x,
+> 2026-06), not a live spec.** Signatures and option names drift every release. The **live docs
+> supersede this table on any conflict** — verify against the installed package
+> (`node_modules/@browserbasehq/stagehand`) or <https://docs.stagehand.dev/v3> /
+> <https://docs.browserbase.com> / <https://docs.browser-use.com> before relying on an exact signature.
+
 ---
 
 ## 1. Detect the browser-use variant first
@@ -19,7 +25,13 @@ uses before translating, because the imports and class names differ.
 |---|---|---|
 | **Legacy** (pre-0.12) | `from browser_use import Browser, BrowserConfig`; `Browser(config=BrowserConfig(...))`; `BrowserContext`; `Controller()`, `@controller.action` | Deprecated. Normalize to current names first (see §6), then translate. |
 | **Stable** (0.12.x) | `from browser_use import Agent, Browser, BrowserProfile, Tools, ChatOpenAI` ; `Browser(browser_profile=BrowserProfile(...))` ; `Tools()`, `@tools.action` | What essentially all teams run today. The primary migration source. |
-| **Rust beta** (0.13.x) | `from browser_use.beta import Agent, BrowserProfile, ChatBrowserUse` | New beta loop. Imports come from `browser_use.beta`. Translate the same way — the public surface (`Agent(task=, llm=)`, `agent.run()`) is the same. |
+| **Rust beta** (0.13.x) | imports specifically from **`from browser_use.beta import ...`** | Opt-in new loop. The *only* reliable tell is the `browser_use.beta` import path. Translate the same way — the public surface (`Agent(task=, llm=)`, `agent.run()`) is identical. |
+
+> **Note on 0.13.x:** the classic top-level `from browser_use import Agent, ChatBrowserUse, ChatOpenAI`
+> surface is still the default in 0.13.x — `ChatBrowserUse` is browser-use's hosted-model class and
+> appears in *stable* code, **not** just the beta. Don't classify a script as "Rust beta" just because
+> it imports `ChatBrowserUse`; require a literal `browser_use.beta` import. When in doubt, use the
+> stable mapping (all variants translate the same way anyway).
 
 Key renames to recognize (all three may appear in a codebase):
 - `Browser` is now an **alias for `BrowserSession`** — same class. Old `BrowserContext` is gone (folded into the session).
@@ -38,9 +50,21 @@ Key renames to recognize (all three may appear in a codebase):
 | `llm=ChatGoogle(model="gemini-2.5-flash")` | `model: "google/gemini-2.5-flash"` |
 | `llm=ChatBrowserUse()` (default) | pick a provider string, e.g. `"google/gemini-2.5-flash"` (fast/cheap) or `"anthropic/claude-sonnet-4-6"` |
 | `agent.run(max_steps=30)` | `agent().execute({ instruction, maxSteps: 30 })` |
-| `output_model_schema=MyPydanticModel` | `stagehand.extract("...", zodSchema)` or `agent().execute({ output: zodSchema })` |
+| `output_model_schema=MyPydanticModel` | **Preferred:** decompose and `stagehand.extract("...", zodSchema)` for the typed read. For an agentic run, `agent().execute({ output: zodObjectSchema })` — but see the two gotchas below. |
 | `history.final_result()` | `extract(...)` return value, or `result.message` from an agent run |
-| `history.structured_output` | typed `extract(...)` return, or `result.output` from `agent().execute({ output })` |
+| `history.structured_output` | typed `extract(...)` return, or `result.output` from `agent().execute({ output })` (gotchas below) |
+
+> **Agent `output` gotchas (both bite at runtime, not compile time — verified on 3.6.x):**
+> 1. **Requires experimental mode.** `agent().execute({ output })` throws
+>    `ExperimentalNotConfiguredError` unless the Stagehand constructor sets `experimental: true`.
+>    Note experimental mode changes execution (it bypasses the managed Stagehand API path), so prefer
+>    the alternative below for production.
+> 2. **Must be a zod *object*** (`output?: StagehandZodObject`) — unlike `extract`, a top-level
+>    `z.array(...)` is rejected. Wrap lists: `z.object({ items: z.array(...) })`.
+>
+> **Recommended non-experimental pattern for a typed result from an agentic task:** run the agent
+> without `output`, then do a separate `stagehand.extract("...", zodSchema)` on the final page (or
+> over `result.message`). This keeps the managed API path and lets `extract` use a top-level array.
 | `Browser()` (local default) | `new Stagehand({ env: "LOCAL", localBrowserLaunchOptions: { ... } })` |
 | `Browser(cdp_url=session.connect_url)` (Browserbase) | `new Stagehand({ env: "BROWSERBASE" })` — Stagehand creates & manages the session |
 | `BrowserProfile(headless=False)` | `localBrowserLaunchOptions: { headless: false }` |
@@ -350,7 +374,14 @@ not transfer 1:1.
   (for `goto`, locators, etc.) is `stagehand.context.pages()[0]`. Most v2 examples online still
   show `page.act()` / `stagehand.page` — do not copy them verbatim.
 - **Models are `"provider/model"` strings** (e.g. `"anthropic/claude-sonnet-4-6"`), set via the
-  `model` constructor field. v2's `modelName` + `modelClientOptions` are gone.
+  `model` constructor field. Prefer the string form; the object form
+  `{ modelName, ...clientOptions }` still exists for passing client options, but the bare string is
+  the idiomatic v3 path.
+- **Page settling:** use `page.waitForLoadState("domcontentloaded")` / `"load"`, **not
+  `"networkidle"`** (it times out on Google/analytics/long-poll pages).
+- **Agent `output` schema requires `experimental: true`** on the constructor and must be a zod
+  *object* (not a top-level array). See the "Agent `output` gotchas" callout in §2; prefer the
+  agent-then-`extract` pattern to avoid experimental mode.
 - **Caching:** `cacheDir` (local) and `serverCache` (Browserbase, default on) replace v2's
   `enableCaching`. `domSettleTimeoutMs` → `domSettleTimeout`.
 - **zod is a peer dependency** (v3 or v4): the consuming project must `npm install zod`.

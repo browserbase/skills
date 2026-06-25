@@ -126,7 +126,7 @@ You don't have to rewrite everything at once. A low-risk sequence:
 4. **Validate against the baseline.** Run the Stagehand version on Browserbase and compare logs and
    end state to step 1. Reuse the same Context so you're comparing like with like.
 5. **Harden for production.** Turn on `selfHeal` + caching, pin models, scope extracts with
-   `selector`, lock the viewport, wait for `networkidle` before AI snapshots.
+   `selector`, lock the viewport, wait for `domcontentloaded` (never `networkidle`) before AI snapshots.
 
 ---
 
