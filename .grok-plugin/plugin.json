@@ -1,0 +1,13 @@
+{
+  "name": "browse",
+  "version": "1.0.0",
+  "description": "Browser automation for Grok via the Browserbase browse CLI. Drive a local or Browserbase-hosted browser, inspect pages with accessibility snapshots, click/type/extract, capture network, and discover Browse.sh skills.",
+  "author": {
+    "name": "Browserbase",
+    "url": "https://browserbase.com"
+  },
+  "homepage": "https://browse.sh",
+  "repository": "https://github.com/browserbase/skills",
+  "license": "MIT",
+  "keywords": ["browser", "automation", "browserbase", "stagehand", "web-scraping", "browse"]
+}
