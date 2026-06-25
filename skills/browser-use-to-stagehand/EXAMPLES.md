@@ -227,16 +227,24 @@ async function main() {
 
     await page.waitForLoadState("domcontentloaded");
 
-    // Guardrail replacing allowed_domains=["https://*.example.com"]:
-    const host = new URL(page.url()).hostname;
-    if (host !== "example.com" && !host.endsWith(".example.com")) {
-      throw new Error(`unexpected navigation off the allow-list: ${page.url()}`);
-    }
+    // Best-effort stand-in for allowed_domains=["https://*.example.com"]. browser-use
+    // enforces the allow-list across the ENTIRE run; a host check only covers the moment
+    // it runs, so call it after *every* navigation — not just sign-in. For real continuous
+    // enforcement use Browserbase proxy domain rules (api-mapping §5); this throw is only a
+    // tripwire and is flagged "needs human review" in the migration summary.
+    const assertAllowedHost = () => {
+      const host = new URL(page.url()).hostname;
+      if (host !== "example.com" && !host.endsWith(".example.com")) {
+        throw new Error(`navigated off the allow-list: ${page.url()}`);
+      }
+    };
+    assertAllowedHost();
     console.log("Logged in:", page.url());
 
     // Second half of the task ("…then open the dashboard") — don't stop at login.
     await stagehand.act("open the dashboard");
     await page.waitForLoadState("domcontentloaded");
+    assertAllowedHost(); // re-check: the guardrail must cover this navigation too
     console.log("Dashboard:", page.url());
   } finally {
     await stagehand.close();
