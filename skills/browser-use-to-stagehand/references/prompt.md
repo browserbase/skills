@@ -74,19 +74,19 @@ Most training data and blog posts show Stagehand **v2**. Use **v3**:
 
 | Level | Stagehand | Use when |
 |---|---|---|
-| 1. Navigation (no AI) | `page.goto(url)`, `page.url()` | Loading a known URL or reading the current location. No LLM call. (Element interactions are Levels 2–4.) |
+| 1. Autonomous | `stagehand.agent().execute("…")` | Path is genuinely open-ended/unknown. |
 | 2. Per-step AI | `act("…")`, `extract("…", schema)` | Step is known but markup varies. |
 | 3. Observe → act | `const [a] = await stagehand.observe("…"); if (a) await stagehand.act(a);` | Known step you want to resolve once and replay (the `act(a)` call makes no LLM call). |
 | 4. Self-heal + cache | `selfHeal`, `cacheDir`, `serverCache` | Production replay that should recover from DOM drift. |
-| 5. Autonomous | `stagehand.agent().execute("…")` | Path is genuinely open-ended/unknown. |
+| 5. Navigation (no AI) | `page.goto(url)`, `page.url()` | Loading a known URL or reading the current location. No LLM call. (Element interactions are Levels 2–4.) |
 
 **Decision rule:** split each browser-use `task="…"` string into its implied ordered steps, then
-place each on the spectrum. **Default to decomposition (levels 1–3)** when the flow is known; keep
-`agent()` only for genuinely open-ended tasks (tighten it with `maxSteps`, a `systemPrompt`, and
-`output` for typed results). **Reading data is always `extract`**, never a full agent.
+place each on the spectrum. **Default to decomposition (levels 2–5)** when the flow is known; keep
+`agent()` (level 1) only for genuinely open-ended tasks (tighten it with `maxSteps`, a `systemPrompt`,
+and `output` for typed results). **Reading data is always `extract`**, never a full agent.
 
 Example: `task="Go to the store, search 'wireless mouse', add the cheapest to cart, checkout with
-my saved card"` → `page.goto(store)` (L1) → `act("search 'wireless mouse'")` (L2) → `extract` the
+my saved card"` → `page.goto(store)` (L5) → `act("search 'wireless mouse'")` (L2) → `extract` the
 prices + pick the min in code + `act("add to cart")` (L2) → checkout via a Browserbase **Context**
 so auth is already present (L3/4).
 
