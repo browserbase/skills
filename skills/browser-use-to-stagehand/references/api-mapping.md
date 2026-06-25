@@ -371,6 +371,14 @@ scope rather than converting it.
 For both MCP-client transports, dispose the connection in `finally`: an MCP `Client` exposes
 `.close()` (the analog of browser-use's `await mcp.disconnect()`).
 
+> ⚠️ **Known runtime bug (Stagehand 3.6.0, verified live):** passing a **`Client` instance** (i.e. a
+> local/stdio server via `connectToMCPServer`) into `integrations` throws
+> `TypeError: Converting circular structure to JSON` *before the agent runs* — `agent()` does
+> `JSON.stringify(options.integrations)` for event logging and the Client object is circular
+> (reproduced with two different MCP servers). A plain **URL-string** integration is unaffected, so
+> prefer **remote/URL MCP** until this is fixed upstream; for a stdio-only server, flag that the
+> migration is correct but blocked by this Stagehand bug.
+
 ### 3.8 Real-world patterns (embedded code, vision, legacy result handling)
 
 Real browser-use lives inside apps, not clean `main()` scripts. Handle these explicitly:
