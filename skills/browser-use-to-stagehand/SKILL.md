@@ -51,6 +51,13 @@ unpredictable. This is a refactor with judgment, not a transpile.
 Obtain the browser-use script(s). If the user only described a script, ask for the file(s). Note
 the target: **TypeScript Stagehand on Browserbase** unless they say otherwise.
 
+> **First, gate on scope — is this even migratable?** Not every browser-use file is an
+> `Agent(task=…)` script. If the source is **browser-use running as an MCP server**
+> (`uvx browser-use --mcp`, a `mcpServers` config) there is **no Stagehand equivalent** — flag it as
+> out of scope, don't invent one (see api-mapping §3.7b). If the browser-use call is **embedded in a
+> larger app** (a class/tool wrapper, web route, queue task), convert only the browser-use surface and
+> preserve the surrounding app glue — see api-mapping §3.8.
+
 ### 2. Detect the browser-use variant
 Identify legacy (pre-0.12) vs stable vs Rust beta (only when imports come from `browser_use.beta`)
 — see api-mapping §1. Note: the classic top-level `from browser_use import Agent, ChatBrowserUse`
@@ -126,7 +133,13 @@ mapped, offer the trace-assisted workflow (trace-assisted.md): run the original 
   "devDependencies": { "tsx": "^4.0.0", "typescript": "^5.0.0" }
 }
 ```
-> Add `"ai"` (Vercel AI SDK) to dependencies only if a custom browser-use action maps to an agent `tool`.
+> Add `"ai": "^5.0.0"` (Vercel AI SDK) **only** if a custom browser-use action maps to an agent
+> `tool`. **Pin v5, not v4** — Stagehand 3.6.x bundles `ai` v5 and types `agent({ tools })` as the v5
+> `ToolSet`, where a tool's schema field is **`inputSchema`**. The v4 `tool()` helper emits
+> `parameters` instead and will **fail to type-check** against Stagehand's v5 `ToolSet`. If you can't
+> control the hoisted `ai` version, skip the `tool()` helper and pass a plain object
+> `{ description, inputSchema: zodSchema, execute }` — it satisfies the v5 `ToolSet` regardless of which
+> `ai` major resolves.
 
 **`.env`**
 ```bash
