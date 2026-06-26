@@ -23,9 +23,12 @@ one of three moves:
    `locator('[data-testid="x"]')`; `setViewportSize({w,h})` → positional `setViewportSize(w,h)`;
    `goto(url,{timeout})` → `{timeoutMs}`; `page.keyboard`/`page.mouse` → `page.keyPress`/`page.click(x,y)`;
    `page.waitForURL` → poll `page.url()`.
-3. **Upgrade or flag** (no deterministic equivalent):
-   - brittle selectors (long CSS, `nth-child`, text-coupled XPath) and list scrapes → `stagehand.act("…")`,
-     `stagehand.observe()`→`act(action)` (cached), or `stagehand.extract("…", zodSchema)`;
+3. **Upgrade or flag** (no deterministic equivalent — but a stable-selector scrape is NOT this; that's
+   a deterministic `page.evaluate(...)` rewrite, above):
+   - brittle selectors (long CSS, `nth-child`, text-coupled XPath) → `stagehand.act("…")`,
+     `stagehand.observe()`→`act(action)` (cached);
+   - **brittle or variable-markup reads, or reads you want to survive DOM drift** → `stagehand.extract("…", zodSchema)`
+     (reserve for fragile pages — a stable table should stay a deterministic `page.evaluate`);
    - semantic `getByRole`/`getByText`/`getByLabel`/`getByPlaceholder` and `text=`/`role=` engine
      selectors (no understudy equivalent) → `act()` or a CSS/XPath `locator()`;
    - **flag needs-human-review** (no surface): `page.route()`/request mocking, `waitForResponse`/`waitForRequest`,
@@ -59,9 +62,12 @@ Browserbase session options (proxies, stealth, captcha, persistent context) go i
 - Model is a `"provider/model"` string (`"anthropic/claude-sonnet-4-6"`, `"openai/gpt-5"`, …).
 - Default `env: "BROWSERBASE"`; show `env: "LOCAL"` as the dev option.
 - `extract` takes `(instruction, zodSchema, options?)` and supports a top-level `z.array(...)`.
-- Secrets: `act("…%key%…", { variables: { key } })` + `process.env`; never hardcode.
+- Secrets out of source via `process.env`. For a **stable** field, fill deterministically —
+  `page.locator("#password").fill(process.env.PASS!)` (no LLM call, secret never enters a prompt).
+  Use `act("…%key%…", { variables: { key } })` only when the field needs AI resolution.
 - Replace `waitForTimeout` sleeps with real waits; never use `waitUntil: "networkidle"` (use `"domcontentloaded"`).
-- Don't over-AI-ify stable selectors; don't copy `getBy*`/`page.click(sel)`/`$$eval`/`expect` verbatim.
+- Don't over-AI-ify deterministic code: a stable `$$eval` scrape → `page.evaluate` (not `extract`); a
+  stable `#id` fill/click stays a `locator` (not `act`). And don't copy `getBy*`/`page.click(sel)`/`$$eval`/`expect` verbatim.
 
 **Output:**
 1. The runnable Stagehand v3 TypeScript (plus `package.json` + `.env` if asked).

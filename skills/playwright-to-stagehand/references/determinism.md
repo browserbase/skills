@@ -35,29 +35,38 @@ flow, don't throw that determinism away for an agent loop.
 
 ```
 Is it a native page call understudy implements (goto, screenshot, evaluate, waitForLoadState, frames)?
-├─ YES → Port it onto the Stagehand page (mind signature diffs)                 (Level 0)
-└─ NO  → It selects/acts on an element. Does understudy support that exact call?
-         ├─ NO, but there's a deterministic equivalent
-         │   (page.click(sel)→locator(sel).click(); $$eval→evaluate; getByTestId→[data-testid]) → Rewrite  (Level 1r)
-         └─ It resolves an element by selector. Is the selector stable AND CSS/XPath-expressible?
-            ├─ YES → Port: page.locator(sel).<action/read>                       (Level 1)
-            └─ NO  → brittle CSS / nth-child / text-XPath, OR a semantic getByRole/Text/Label, OR a list scrape.
-                     Is it a structured READ?
-                     ├─ YES → extract("…", zodSchema)                            (Level 4)
-                     └─ NO  → action. Repeats / needs replay?
-                              ├─ YES → observe("…") once, persist, replay act(action)  (Level 2/3)
-                              └─ NO  → act("natural-language instruction")        (Level 4)
+├─ YES → Port onto the Stagehand page (mind signature diffs)                      (Level 0)
+└─ NO  → Is it a READ (scrape / get text / list)?
+         ├─ YES → Are the selectors stable (#id, data-*, clean CSS/XPath)?
+         │        ├─ YES → page.evaluate(...) — deterministic, zero AI, zero cost (Level 1r)  ← DEFAULT
+         │        └─ NO  → brittle/variable markup, OR you explicitly want DOM-drift
+         │                 resilience → extract("…", zodSchema)                   (Level 4)
+         └─ NO → it's an ACTION on an element. Does understudy support the call as written?
+                 ├─ Stable selector, needs reshaping (page.click(sel)→locator(sel).click();
+                 │   getByTestId→[data-testid]) → Rewrite                          (Level 1r)
+                 ├─ Stable CSS/XPath selector → page.locator(sel).<action>         (Level 1)
+                 └─ Brittle selector / semantic getByRole/Text/Label / no clean selector:
+                          repeats & needs replay? → observe("…") once, replay act(action)  (Level 2/3)
+                          else                    → act("natural-language instruction")     (Level 4)
 ```
 
-Reading a list/table is **always** `extract("…", schema)` — never reproduce a `$$eval` with
-per-element selectors when one schema'd read survives markup churn.
+**Reads default to deterministic, not AI.** `$$eval`/`querySelectorAll` have no understudy
+equivalent, but the right port for **stable** selectors is `page.evaluate(...)` — it's free, instant,
+and exactly as deterministic as the original. Only reach for `extract("…", schema)` when the markup is
+**brittle/variable**, or when you specifically want the scrape to survive DOM drift (the resilience
+trade-off: an LLM call per read). Don't spend an LLM call to read a table whose selectors never change.
 
 ---
 
 ## The three failure modes to avoid
 
-1. **Over-AI-ifying** — replacing a stable `page.locator("#id").click()` with `act()`. Adds latency,
-   token cost, and non-determinism for nothing. Keep Levels 0–1r where the selector is stable.
+1. **Over-AI-ifying** — turning deterministic code into AI calls for no reason. The three common
+   slips: (a) a stable-selector scrape (`$$eval`) → `extract()` instead of `page.evaluate(...)`;
+   (b) a stable `page.click("#id")` → `act("click …")`; (c) filling a stable field via
+   `act("type %password%…", {variables})` when `page.locator("#password").fill(process.env.PASS)` is
+   deterministic **and** keeps the secret out of every prompt (no LLM sees it). Each adds latency,
+   token cost, and non-determinism for nothing. Keep Levels 0–1r where the selector is stable; reserve
+   `act`/`extract` for brittle/semantic/variable steps or when you explicitly want DOM-drift resilience.
 2. **Under-migrating** — copying brittle CSS/XPath verbatim. It compiles and runs, but you carried the
    brittleness over and gained only a cloud browser. Upgrade fragile selectors.
 3. **Copying what doesn't exist** — emitting `page.click("#x")`, `page.getByRole(...)`, `page.$$eval`,
@@ -102,5 +111,8 @@ const stagehand = new Stagehand({
 - **Scope `extract`/`observe`** with `{ selector: "//main" }` to cut noise/cost on big pages.
 - **Lock the viewport** so cached selectors stay valid: `page.setViewportSize(width, height)` —
   **positional** args, not Playwright's `{ width, height }` object.
-- **Secrets** move from hardcoded strings into `act("…%key%…", { variables: { key } })` + `process.env`.
+- **Secrets** move out of source into `process.env`. For a **stable** field, fill deterministically:
+  `page.locator("#password").fill(process.env.PASS!)` — no LLM call, and the secret never reaches a
+  prompt. Use `act("…%key%…", { variables: { key } })` only when the field itself needs AI resolution
+  (brittle/semantic selector); `variables` keeps the value out of the prompt in that case.
 - **Anchor `act` prompts to visible UI labels** ("click the *Sign in* button"), not internal structure.

@@ -92,18 +92,24 @@ Apply the decision tree in determinism.md. For each step:
 - **Port** — native calls understudy implements (`goto`, `screenshot`, `evaluate`, `waitForLoadState`,
   `frames`) and stable `page.locator(css/xpath).fill/click/textContent/…`. Keep ~1:1 (mind signature diffs).
 - **Rewrite** — deterministic but different shape: page-level `page.click(sel)`/`fill(sel)` →
-  `page.locator(sel).click()/.fill()`; `$$eval`/`$`/`$$`/`content()` → `page.evaluate(...)`;
-  `getByTestId("x")` → `locator('[data-testid="x"]')`; `setViewportSize({w,h})` → positional `(w,h)`.
-- **Upgrade** — brittle selectors (long CSS, `nth-child`, text-XPath) → `act("…")` / `observe()`→`act()`;
-  list/table reads (`$$eval` scrapes) → `extract("…", zodSchema)`; semantic `getByRole/getByText/getByLabel`
+  `page.locator(sel).click()/.fill()`; **stable-selector reads** `$$eval`/`$`/`$$`/`content()` →
+  `page.evaluate(...)` (deterministic, zero AI — the **default** for scrapes whose selectors don't
+  change); `getByTestId("x")` → `locator('[data-testid="x"]')`; `setViewportSize({w,h})` → positional `(w,h)`.
+- **Upgrade** — only what's genuinely fragile/semantic: brittle selectors (long CSS, `nth-child`,
+  text-XPath) → `act("…")` / `observe()`→`act()`; **brittle or variable-markup reads, or reads you
+  want to survive DOM drift** → `extract("…", zodSchema)`; semantic `getByRole/getByText/getByLabel`
   (no understudy equivalent) → `act()` or a CSS/XPath locator.
 - **Flag** — `page.route()`/interception, `waitForResponse/Request`, `page.on(event)`, `expect()`
   assertions, downloads, multiple contexts → needs-human-review (api-mapping §7).
+- **Secrets** — for a **stable** field, fill deterministically: `page.locator("#password").fill(process.env.PASS!)`
+  (no LLM call, secret never enters a prompt). Use `act("…%key%…", { variables })` only when the field
+  needs AI resolution.
 - **Arbitrary sleep** (`waitForTimeout`) → replace with a real wait.
 
-Default to **port/rewrite** for stable selectors; upgrade only what's fragile or semantic.
-Over-AI-ifying stable locators is a failure — but copying `getBy*`/`page.click(sel)`/`$$eval`
-verbatim won't work either (those APIs don't exist on understudy).
+Default to **port/rewrite** for stable selectors and stable reads; reach for `act`/`extract` only when
+a step is fragile, semantic, or you explicitly want DOM-drift resilience. Two symmetric failures:
+**over-AI-ifying** deterministic code (a stable `$$eval` → `extract`, a stable `#id` fill → `act`), and
+**copying what doesn't exist** (`getBy*`/`page.click(sel)`/`$$eval` verbatim — not on understudy).
 
 ### 5. Produce the Stagehand v3 rewrite
 **First, verify the API.** Confirm the exact signatures against the installed package
@@ -198,16 +204,18 @@ main().catch((err) => { console.error(err); process.exit(1); });
 - [ ] AI methods are on the **instance** (`stagehand.act/extract/observe`), not the page.
 - [ ] Selector actions routed through `page.locator(sel)` (no page-level `page.click(sel)`/`page.fill(sel)`); `getBy*`/`$$eval`/`page.content()` rewritten (locator/`evaluate`) or upgraded (`act`/`extract`).
 - [ ] Stable selectors ported deterministically; only **brittle/semantic** ones upgraded to `act`/`extract`.
-- [ ] List/table scrapes use `extract` + a zod schema; `zod` is in dependencies.
+- [ ] Stable-selector reads use deterministic `page.evaluate(...)`; `extract` + zod reserved for brittle/variable markup or wanted DOM-drift resilience (`zod` in deps when used).
 - [ ] Model is a `"provider/model"` string; the matching provider key is in `.env`.
-- [ ] Secrets use `variables` + `process.env`; nothing hardcoded.
+- [ ] Secrets out of source via `process.env`; **stable** fields filled deterministically (`locator(sel).fill(process.env…)`), `act`+`variables` only for AI-resolved fields; nothing hardcoded.
 - [ ] `waitForTimeout` sleeps replaced with real waits; no `"networkidle"`.
 - [ ] `init()` / `close()` present; `close()` in `finally`.
 - [ ] Gaps flagged in the summary: `route()`/network interception, `waitForResponse`, `@playwright/test` scaffolding, multi-context, downloads.
 
 ## Common mistakes to avoid
-- **Over-AI-ifying** — replacing a stable `page.locator("#id").click()` with `act()`. Adds cost,
-  latency, and non-determinism for nothing. Keep ported selectors.
+- **Over-AI-ifying** — turning deterministic code into AI calls: a stable-selector `$$eval` scrape →
+  `extract()` (use `page.evaluate(...)`); a stable `page.locator("#id").click()` → `act()`; a stable
+  `#password` fill → `act("type %password%…")` (use `locator("#password").fill(process.env.PASS!)` —
+  deterministic and the secret never enters a prompt). Adds cost/latency/non-determinism for nothing.
 - **Emitting APIs understudy doesn't have** — `page.click(sel)` (page-level is coordinate-based),
   `page.getByRole/getByText/getByLabel`, `page.$$eval`/`$`/`$$`, `page.keyboard`/`page.mouse`,
   `page.waitForResponse`, `expect()`. Rewrite to `locator`/`evaluate`/`keyPress`/`act`, or flag the

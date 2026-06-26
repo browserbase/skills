@@ -157,7 +157,10 @@ different shape), or **Upgrade/Flag** (no deterministic equivalent → `act`/`ex
 
 ## 4. Detailed translations
 
-### 4.1 Brittle list scrape → `extract()` (the highest-value upgrade)
+### 4.1 List scrape → `page.evaluate` (default) or `extract` (when brittle)
+
+`$$eval`/`querySelectorAll` have no understudy equivalent, so a scrape must be re-expressed. **Choose
+by selector stability — don't reflexively reach for AI.**
 
 **Before — Playwright (TS)**
 ```typescript
@@ -168,7 +171,20 @@ const quotes = await page.$$eval("div.quote", (els) =>
   })),
 );
 ```
-**After — Stagehand**
+
+**Default — deterministic `page.evaluate` (stable selectors, zero AI, zero cost):**
+```typescript
+const quotes = await page.evaluate(() =>
+  Array.from(document.querySelectorAll("div.quote")).slice(0, 5).map((el) => ({
+    text: el.querySelector("span.text")?.textContent?.trim() ?? "",
+    author: el.querySelector("small.author")?.textContent?.trim() ?? "",
+  })),
+);
+```
+Same CSS read as the original, no LLM call. This is the right move whenever the selectors are stable —
+which is most scrapes. (Verified to run on understudy.)
+
+**Upgrade — `extract` (brittle/variable markup, or you want DOM-drift resilience):**
 ```typescript
 import { z } from "zod";
 const quotes = await stagehand.extract(
@@ -176,9 +192,9 @@ const quotes = await stagehand.extract(
   z.array(z.object({ text: z.string(), author: z.string() })),
 );
 ```
-`$$eval` has no understudy equivalent, and the per-element CSS chain is exactly what breaks on DOM
-drift. One schema'd read replaces it. (A deterministic `$$eval` with *stable* selectors can instead
-be a 1:1 `page.evaluate(...)` — only upgrade when the selectors are brittle.)
+`extract` trades an LLM call per read for resilience — it survives markup churn that would break the
+selectors. Reserve it for fragile/variable pages or production scrapes you need to keep working as the
+DOM changes, **not** for a stable table.
 
 ### 4.2 Page-level selector action → `locator` (mechanical rewrite, stays deterministic)
 
@@ -207,7 +223,7 @@ This is the one place migrating *from* Playwright legitimately *adds* AI: Playwr
 role/text/label engines don't exist in understudy, so a semantic locator with no obvious CSS
 equivalent becomes an `act()`.
 
-### 4.4 Login / secrets → `variables`
+### 4.4 Login / secrets
 
 ```typescript
 // Playwright: hardcoded creds + #id fills
@@ -216,12 +232,18 @@ await page.fill("#password", "SuperSecretPassword!");
 await page.click("button[type='submit']");
 ```
 ```typescript
-// Stagehand: keep the stable #id fills; move secrets out of source
+// Stagehand: stable #id fields → deterministic locator.fill; secrets out of source via process.env.
+// A deterministic fill is best for a secret — the value (and the field) never go to an LLM at all.
 await page.locator("#username").fill(process.env.APP_USER!);
+await page.locator("#password").fill(process.env.APP_PASS!);
+await page.locator("button[type='submit']").click();
+```
+Only when a field must be **resolved by AI** (brittle/semantic selector, no clean `#id`) use `act`
+with `variables` — that keeps the secret out of the prompt while the LLM locates the field:
+```typescript
 await stagehand.act("type %password% into the password field", {
   variables: { password: process.env.APP_PASS! },
 });
-await page.locator("button[type='submit']").click();
 ```
 For repeat runs prefer a **Browserbase Context** (§5) so you log in once and reuse the auth state.
 

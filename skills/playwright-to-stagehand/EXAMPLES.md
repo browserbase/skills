@@ -52,11 +52,12 @@ console.log(quotes);
 await browser.close();
 ```
 
-**After — Stagehand v3**
+**After — Stagehand v3 (default: deterministic `page.evaluate`)**
+`$$eval` has no understudy equivalent, but the selectors here are stable, so the right port is a
+deterministic `page.evaluate` — no LLM call, no cost, same result.
 ```typescript
 import "dotenv/config";
 import { Stagehand } from "@browserbasehq/stagehand";
-import { z } from "zod";
 
 async function main() {
   const stagehand = new Stagehand({ env: "BROWSERBASE", model: "anthropic/claude-sonnet-4-6" });
@@ -64,11 +65,12 @@ async function main() {
   try {
     const page = stagehand.context.pages()[0];
     await page.goto("https://quotes.toscrape.com/");          // ported; dropped "networkidle"
-    await page.waitForLoadState("domcontentloaded");          // settle before the AI snapshot
 
-    const quotes = await stagehand.extract(                    // upgraded: $$eval scrape → extract
-      "extract the first 5 quotes with their text and author",
-      z.array(z.object({ text: z.string(), author: z.string() })),
+    const quotes = await page.evaluate(() =>                   // $$eval → evaluate (deterministic)
+      Array.from(document.querySelectorAll("div.quote")).slice(0, 5).map((el) => ({
+        text: el.querySelector("span.text")?.textContent?.trim() ?? "",
+        author: el.querySelector("small.author")?.textContent?.trim() ?? "",
+      })),
     );
     console.log(quotes);
   } finally {
@@ -78,12 +80,24 @@ async function main() {
 main().catch((e) => { console.error(e); process.exit(1); });
 ```
 
+**Alternative — `extract` (only if the markup is brittle/variable, or you want DOM-drift resilience)**
+Trades an LLM call per read for resilience. Don't use it for a stable table like this one.
+```typescript
+import { z } from "zod";
+// const page = stagehand.context.pages()[0]; await page.goto(...); await page.waitForLoadState("domcontentloaded");
+const quotes = await stagehand.extract(
+  "extract the first 5 quotes with their text and author",
+  z.array(z.object({ text: z.string(), author: z.string() })),
+);
+```
+
 ---
 
-## 2. Login form (TS): `#id` selectors kept, secrets → `variables`, `expect` → read + throw
+## 2. Login form (TS): `#id` selectors kept deterministic, secrets → `process.env`, `expect` → read + throw
 
 Stable `#id` selectors are **ported** through `locator` (page-level `page.fill(sel)` doesn't exist).
-Hardcoded creds become `variables` + env. `expect()` isn't available — read and throw.
+The password is stable too, so it's a **deterministic** `locator.fill(process.env…)` — that keeps the
+secret out of any prompt without an LLM call (no `act` needed). `expect()` isn't available — read and throw.
 
 **Before — Playwright (TS)**
 ```typescript
@@ -112,12 +126,12 @@ async function main() {
     const page = stagehand.context.pages()[0];
     await page.goto("https://the-internet.herokuapp.com/login");
 
-    // #username is stable → port via locator. Username is not secret here, but the password is:
+    // Stable #id fields → deterministic locator.fill; secrets from process.env (never sent to an LLM).
     await page.locator("#username").fill(process.env.APP_USER ?? "tomsmith");
-    await stagehand.act("type %password% into the password field", {
-      variables: { password: process.env.APP_PASS ?? "SuperSecretPassword!" },
-    });
+    await page.locator("#password").fill(process.env.APP_PASS ?? "SuperSecretPassword!");
     await page.locator("button[type='submit']").click();      // page.click(sel) → locator(sel).click()
+    // (Only if the field had no clean selector would you reach for
+    //  stagehand.act("type %password%…", { variables: { password } }) to let AI locate it.)
 
     // expect() has no equivalent → read + throw (add waitForSelector since #flash appears post-nav)
     await page.waitForSelector("#flash");
