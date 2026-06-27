@@ -1,5 +1,5 @@
 {
-  "skill": "record-and-replay",
+  "skill": "browser-record",
   "evals": [
     {
       "prompt": "Record my flight search on Google Flights and turn it into a reusable skill.",
@@ -7,15 +7,11 @@
     },
     {
       "prompt": "Now distill that recording into a task skill.",
-      "expected": "Acts as the teacher agent per references/distill.md: reads recording.json + screenshots, queries the CDP trace as needed, recovers intent (committed values, not keystrokes), and writes a parameterized skills/<task>/SKILL.md."
+      "expected": "Acts as the teacher agent per references/distill.md: reads recording.json + screenshots, queries the CDP trace as needed, recovers intent (committed values, not keystrokes), and writes skills/<task>/ with a parameterized SKILL.md, a curated screenshots/ folder referenced per step, and recording.json as fallback."
     },
     {
       "prompt": "I typed San Francisco, deleted it, then typed Los Angeles — make sure the skill only does Los Angeles.",
       "expected": "Explains that the teacher-agent distiller collapses self-corrections and drops abandoned actions, so the emitted skill sets origin = Los Angeles only; the intermediate San Francisco state is omitted as noise."
-    },
-    {
-      "prompt": "Replay /tmp/rec.json deterministically and tell me which steps passed.",
-      "expected": "Runs the optional fast path scripts/replay.mjs with RR_HEAL=1, reporting the per-step pass/fail scorecard (resolution path: semantic/xpath/css/healed) and the screenshots directory."
     }
   ]
 }

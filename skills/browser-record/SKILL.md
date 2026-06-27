@@ -1,16 +1,16 @@
 ---
-name: record-and-replay
-description: Turn a recorded human browser flow into a reusable, parameterized task skill. Capture clicks/typing/screenshots plus a full CDP trace on a Browserbase session, then let an agent distill what the human *meant* (collapsing corrections, dropping abandoned actions) into an intent-level SKILL.md that replays against the live page. Use for "show, don't prompt" — record a flow once and reuse it. Triggers on "record this flow", "turn this into a skill", "record and replay", "replay the recording".
+name: browser-record
+description: Record a human browser flow on a Browserbase session and distill it into a reusable, parameterized task skill. Captures clicks/typing/screenshots (plus an optional full CDP trace), then an agent reasons about what the human *meant* — collapsing corrections, dropping abandoned actions — and writes an intent-level SKILL.md that replays against the live page. Use for "show, don't prompt": record a flow once and turn it into a skill. Triggers on "record this flow", "turn this into a skill", "record a browser workflow", "browser record".
 compatibility: "Requires Node 18+ and the browse CLI (`npm install -g browse`), plus `BROWSERBASE_API_KEY` and `BROWSERBASE_PROJECT_ID`. Record uses `@browserbasehq/sdk` + `playwright-core` — run `npm install` in this skill dir. Pairs with the `browser-trace` skill for the full CDP firehose."
 license: MIT
 allowed-tools: Bash, Read, Grep
 ---
 
-# Record & Replay
+# Browser Record
 
 "Show the bug instead of prompting it." Record a human flow once, then turn it
-into a **reusable task skill** an agent can replay — and parameterize — against
-the live page.
+into a **reusable, parameterized task skill** an agent can replay against the live
+page.
 
 The pipeline is **capture wide, reason narrow**:
 
@@ -66,13 +66,25 @@ Read `references/distill.md`, then **act as the teacher agent**: read
 `recording.json` + the screenshots, query the `browser-trace` buckets as needed,
 and reconstruct the *smallest set of intents that explains the session* —
 collapsing corrections, dropping abandoned/undone actions, parameterizing the
-values the user supplied. Write the result as `skills/<task>/SKILL.md`.
+values the user supplied. Write the result as `skills/<task>/`.
 
 Each step's headline is the value the field **committed to** (the acted element's
 `name`), never the keystrokes or a dynamic selector. The committed value is also
 the step's verification check.
 
+### What the generated task skill must contain
+
+- `SKILL.md` — intent steps (shape below).
+- `screenshots/NN-<label>.png` — the committed-state shot for each intent step,
+  curated from the recording and referenced per step. This is the visual oracle.
+- `recording.json` — the raw mechanics, last-resort fallback only.
+
 ### Task skill shape
+
+Each step states the **intent**, names the **recorded target** (the element's
+accessible name/role, and its selector if useful) as a *hint*, explicitly grants
+the agent **agency to use whatever element achieves the intent**, points at the
+screenshot, and gives a verification check.
 
 ```markdown
 ---
@@ -81,29 +93,25 @@ description: <what it does + when to fire, with triggers>
 license: MIT
 ---
 # <Task>
-Realize each intent against the live UI (don't replay keystrokes). Verify each.
+Realize each intent against the live UI — do NOT replay keystrokes or dynamic
+selectors. The "recorded target" is a hint; if the live page differs, use any
+element that achieves the intent. Verify each step.
 
-Inputs: origin, destination, depart, return
-1. Set "Where from?" = {origin}.   ✅ field reads {origin}
-2. Set "Where to?"   = {destination}.   ✅ reads {destination}, not "Anywhere"
-3. Set dates = {depart}/{return}; confirm Done.
-4. Click "Search".   ✅ results for {origin}→{destination} load.
+Inputs: origin, destination, depart
 
-Fallback: recording.json (mechanics) · <recording>-shots/step-NN.png (oracle)
+1. Set destination = {destination}.
+   Recorded target: combobox "Where to?" (aria/Where to?) → suggestion option.
+   See screenshots/03-destination.png · ✅ field reads {destination}, not "Anywhere".
+...
+Fallback: screenshots/ (oracle) · recording.json (raw mechanics, last resort)
 ```
 
 ## 3. Replay
 
-Replay = **invoke the generated task skill**: the agent realizes each intent via
-`browse`, verifying against committed values / step screenshots. Because it
-replays *intent*, it survives dynamic-id churn and minor layout change.
-
-A deterministic fast path is also available for cheap, reproducible CI checks
-(it executes the recorded selectors directly, with snapshot-ref healing):
-
-```bash
-RR_FILE=/tmp/rec.json RR_HEAL=1 node --env-file=.env scripts/replay.mjs
-```
+Replay = **invoke the generated task skill** like any skill (a natural-language
+request that matches its triggers). The agent realizes each intent via `browse`,
+using the per-step screenshots as the oracle and verifying committed values.
+Because it replays *intent*, it survives dynamic-id churn and minor layout change.
 
 ## Recording shape
 

@@ -41,10 +41,13 @@ parameterized task skill. Specifically:
 ## Output
 
 Write `skills/<task-name>/`:
-- `SKILL.md` — intent-level, parameterized, with per-step verification (see the
-  shape in the parent SKILL.md).
-- `recording.json` + `<recording>-shots/` — carried along as the mechanics
-  fallback and the visual oracle.
+- `SKILL.md` — intent-level, parameterized, per-step verification. Each step names
+  the **recorded target** (accessible name/role, plus selector if useful) as a
+  *hint*, and explicitly grants the agent agency to use whatever live element
+  achieves the intent — never bind it to a dynamic id.
+- `screenshots/NN-<label>.png` — the committed-state shot for each intent step,
+  curated from the recording and referenced per step. The visual oracle.
+- `recording.json` — the raw mechanics, carried as a last-resort fallback.
 
 ## Teacher prompt (starting point)
 

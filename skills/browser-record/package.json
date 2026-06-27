@@ -1,5 +1,5 @@
 {
-  "name": "record-and-replay",
+  "name": "browser-record",
   "version": "0.1.0",
   "private": true,
   "type": "module",
