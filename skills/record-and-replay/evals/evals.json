@@ -2,16 +2,20 @@
   "skill": "record-and-replay",
   "evals": [
     {
-      "prompt": "Record my login flow on https://www.saucedemo.com so I can replay it later.",
-      "expected": "Runs scripts/record.mjs with RR_URL set to the site, surfaces the live-view URL for the user to perform the flow, and saves a Chrome DevTools Recorder JSON when the user stops."
+      "prompt": "Record my flight search on Google Flights and turn it into a reusable skill.",
+      "expected": "Runs scripts/record.mjs (ideally attached to a browser-trace session via RR_CONNECT_URL), surfaces the live-view URL for the user to perform the flow, and saves the interaction stream + per-step screenshots."
     },
     {
-      "prompt": "Replay /tmp/rec.json and tell me which steps passed.",
-      "expected": "Runs scripts/replay.mjs with RR_FILE=/tmp/rec.json and RR_HEAL=1, then reports the per-step pass/fail scorecard including the resolution path (semantic/xpath/css/healed) and the screenshots directory."
+      "prompt": "Now distill that recording into a task skill.",
+      "expected": "Acts as the teacher agent per references/distill.md: reads recording.json + screenshots, queries the CDP trace as needed, recovers intent (committed values, not keystrokes), and writes a parameterized skills/<task>/SKILL.md."
     },
     {
-      "prompt": "The recorded flow stopped selecting the right autocomplete option on replay — can you make it self-heal?",
-      "expected": "Explains that replay heals selector misses by matching the typed value to a live accessibility-snapshot ref (RR_HEAL=1), which rescues autocomplete picks recorded only via dynamic ids, and re-runs the replay to verify."
+      "prompt": "I typed San Francisco, deleted it, then typed Los Angeles — make sure the skill only does Los Angeles.",
+      "expected": "Explains that the teacher-agent distiller collapses self-corrections and drops abandoned actions, so the emitted skill sets origin = Los Angeles only; the intermediate San Francisco state is omitted as noise."
+    },
+    {
+      "prompt": "Replay /tmp/rec.json deterministically and tell me which steps passed.",
+      "expected": "Runs the optional fast path scripts/replay.mjs with RR_HEAL=1, reporting the per-step pass/fail scorecard (resolution path: semantic/xpath/css/healed) and the screenshots directory."
     }
   ]
 }

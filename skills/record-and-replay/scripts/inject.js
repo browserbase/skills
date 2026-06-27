@@ -50,6 +50,24 @@
     return (g('aria-label') || g('placeholder') || g('name') || g('title') || '').trim();
   }
 
+  // The INTENT signal: the human-meaningful name of what was acted on, recovered
+  // ungated (not limited to certain tags) so an autocomplete suggestion ("New
+  // York") is captured even when its only selector is a dynamic id. Priority:
+  // explicit aria > labelledby > placeholder/title/alt > value > visible text.
+  function nameOf(el) {
+    const g = (a) => (el.getAttribute && el.getAttribute(a)) || '';
+    let lbl = '';
+    const lb = g('aria-labelledby');
+    if (lb) lbl = lb.split(/\s+/).map((id) => (document.getElementById(id) || {}).innerText || '').join(' ').trim();
+    const text = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+    const cand = g('aria-label') || lbl || g('placeholder') || g('title') || g('alt')
+      || (el.tagName === 'INPUT' ? el.value : '') || text;
+    return (cand || '').slice(0, 120);
+  }
+  function roleOf(el) {
+    return ((el.getAttribute && el.getAttribute('role')) || el.tagName || '').toLowerCase();
+  }
+
   // Chrome DevTools Recorder format: selectors is an array of selector-groups,
   // tried in priority order during replay. This list IS the healing.
   function selectorsFor(el) {
@@ -69,7 +87,7 @@
   document.addEventListener('click', (e) => {
     const el = e.target;
     if (!el || el.nodeType !== 1) return;
-    send({ type: 'click', selectors: selectorsFor(el), url: location.href, ts: now() });
+    send({ type: 'click', name: nameOf(el), role: roleOf(el), selectors: selectorsFor(el), url: location.href, ts: now() });
   }, true);
 
   // 'change' fires on commit/blur -> captures the final field value, not keystrokes.
@@ -77,7 +95,7 @@
     const el = e.target;
     if (!el || el.nodeType !== 1) return;
     const value = ('value' in el) ? el.value : '';
-    send({ type: 'change', selectors: selectorsFor(el), value, url: location.href, ts: now() });
+    send({ type: 'change', name: nameOf(el), role: roleOf(el), selectors: selectorsFor(el), value, url: location.href, ts: now() });
   }, true);
 
   document.addEventListener('keydown', (e) => {
