@@ -40,21 +40,6 @@
       ]
     },
     {
-      "name": "browserbase-cli",
-      "source": "./",
-      "description": "Use the Browserbase CLI (`bb`) for Browserbase Functions and platform API workflows. Use when the user asks to run `bb`, deploy or invoke functions, manage sessions, projects, contexts, or extensions, fetch a page through the Browserbase Fetch API, or open the Browserbase dashboard from the command line.",
-      "version": "0.0.1",
-      "author": {
-        "name": "Browserbase"
-      },
-      "category": "automation",
-      "keywords": ["browserbase", "cli", "bb", "functions", "sessions", "fetch"],
-      "strict": false,
-      "skills": [
-        "./skills/browserbase-cli"
-      ]
-    },
-    {
       "name": "browser-trace",
       "source": "./",
       "description": "Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets. Use when the user wants to debug a failed run, audit network/console/DOM activity, attach a trace to an in-flight Browserbase session, or feed structured per-page summaries back into an agent loop.",
