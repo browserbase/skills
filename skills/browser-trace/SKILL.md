@@ -220,7 +220,7 @@ jq -c 'select(.params.type == "error")' .o11y/<run>/cdp/console/logs.jsonl
 jq -r '.params.frame.url' .o11y/<run>/cdp/page/navigations.jsonl
 
 # Find the screenshot taken closest to a timestamp (e.g., when an exception fired)
-ls .o11y/<run>/screenshots/ | sort | awk -v t=20260427T1714123NZ '
+ls .o11y/<run>/screenshots/ | sort | awk -v t=20260427T171412Z '
   $0 >= t { print; exit }'
 ```
 
