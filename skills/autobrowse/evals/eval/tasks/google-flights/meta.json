@@ -1,0 +1,8 @@
+{
+  "tier": "B",
+  "category": "search-filter-extract",
+  "env": "local",
+  "max_turns": 35,
+  "timeout_min": 25,
+  "gotchas": "airport fields are comboboxes needing keystrokes + dropdown selection; stops filter is in a Stops chip; prices drift run to run (verifier checks invariants only)"
+}
