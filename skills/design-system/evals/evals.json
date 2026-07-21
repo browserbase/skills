@@ -1,0 +1,18 @@
+[
+  {
+    "prompt": "Extract the design system from https://stripe.com",
+    "expected_behavior": "Opens a Browserbase remote session via browse CLI, looks at a screenshot before acting, dismisses any consent overlay, runs the three measurement probes (styles, structure at 3 viewport widths, components), captures per-section screenshots after scrolling each into view, and writes design-system.json with strictly separated measured / proposedTokens / notProvided tiers where every proposed token carries evidenceRefs JSON paths."
+  },
+  {
+    "prompt": "Snapshot the brand styles of a news site with editorial sections that have different accent colors",
+    "expected_behavior": "In addition to the base flow, visits each section front, verifies the page loaded (document.title, not a 404), frequency-ranks non-neutral computed colors per section, and proposes per-section accent tokens (e.g. pillar.news) with occurrence counts as evidence."
+  },
+  {
+    "prompt": "Why does the design system you extracted say the primary button is a carousel arrow?",
+    "expected_behavior": "Recognizes the misclassification pattern: an element with a Move/Next/Previous aria-label and no text is a carousel control, not a CTA. Re-classifies using the component probe's accessible-name data and points the CTA token at an element with text and a distinct background."
+  },
+  {
+    "prompt": "The component screenshots came out blank or half-dark",
+    "expected_behavior": "Diagnoses page-coordinate clips of unrendered off-screen content: scrolls each section into view first, enlarges the viewport so tall sections fit, passes --animations disabled, and visually verifies every capture instead of trusting file creation."
+  }
+]

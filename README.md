@@ -10,6 +10,7 @@ This plugin includes the following skills (see `skills/` for details):
 |-------|-------------|
 | [browser](skills/browser/SKILL.md) | Automate web browser interactions via CLI commands — supports remote Browserbase sessions with Browserbase Identity, Verified browsers, CAPTCHA solving, and residential proxies |
 | [browserbase-agents](skills/browserbase-agents/SKILL.md) | Create, run, and integrate Browserbase Agents via the Agents API — reusable agents with system prompts and result schemas, runs with variables, polling, downloads, and prompt/schema best practices |
+| [design-system](skills/design-system/SKILL.md) | Agent-driven design-system snapshot of any URL — measured colors/type/breakpoints/states/motion plus proposed semantic tokens with machine-linked evidence |
 | [functions](skills/functions/SKILL.md) | Deploy serverless browser automation to Browserbase cloud using the `browse` CLI |
 | [browser-trace](skills/browser-trace/SKILL.md) | Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets |
 | [browser-to-api](skills/browser-to-api/SKILL.md) | Turn a website's observable HTTP traffic into a best-effort OpenAPI 3.1 spec by analyzing a `browser-trace` capture |
