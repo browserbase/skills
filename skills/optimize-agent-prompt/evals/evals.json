@@ -1,0 +1,36 @@
+{
+  "skill_name": "optimize-agent-prompt",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use Optimize Agent Prompt to create a POC that looks up a company in a state registry, improves the system prompt from run traces, and stops after it confirms convergence.",
+      "expected_output": "An isolated experiment workspace with a fixed task/schema, versioned prompts, raw Agent messages and session logs per run, a comparison report, and a winning prompt confirmed unchanged.",
+      "assertions": [
+        "The task and result schema remain fixed while system prompts change",
+        "Each prompt change is tied to one observable trace failure",
+        "The workflow retrieves both run messages and session logs when a browser session exists",
+        "The winning prompt is rerun unchanged before convergence is claimed"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "My Browserbase Agent keeps looping after a protected site returns 403. Use the self-improving Agent API loop to make it fail fast without losing useful fallback results.",
+      "expected_output": "A bounded baseline and improved run whose prompt caps repeated retries, preserves qualified fallback completion, and compares quality, status, messages, and duration.",
+      "assertions": [
+        "The harness enforces a message or time budget and can stop a spiraling run",
+        "The teacher inspects the first consequential tool failure before editing the prompt",
+        "The evaluator does not reward a shorter failed or unsafe run as an improvement"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Build an Agent API prompt optimizer for a workflow that could submit a real payment. Explore and improve navigation, but never let evaluation runs submit the payment.",
+      "expected_output": "A task and baseline prompt with an explicit irreversible-action boundary, structured evidence of the pre-submit state, and iterations that preserve the boundary while optimizing the prompt.",
+      "assertions": [
+        "The experiment encodes the irreversible payment action as forbidden before any run",
+        "Factuality or safety warnings penalize evidence of a forbidden submission",
+        "No iteration broadens authority merely to complete the task"
+      ]
+    }
+  ]
+}
