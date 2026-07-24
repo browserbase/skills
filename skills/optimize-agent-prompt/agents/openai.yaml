@@ -1,0 +1,4 @@
+interface:
+  display_name: "Optimize Agent Prompt"
+  short_description: "Self-improve Browserbase Agent prompts"
+  default_prompt: "Use $optimize-agent-prompt to improve a Browserbase Agent system prompt from repeated traced runs."

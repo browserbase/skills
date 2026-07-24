@@ -1,9 +1,9 @@
 {
-  "skill_name": "agent-api-autobrowse",
+  "skill_name": "optimize-agent-prompt",
   "evals": [
     {
       "id": 1,
-      "prompt": "Use Agent API Autobrowse to create a POC that looks up a company in a state registry, improves the system prompt from run traces, and stops after it confirms convergence.",
+      "prompt": "Use Optimize Agent Prompt to create a POC that looks up a company in a state registry, improves the system prompt from run traces, and stops after it confirms convergence.",
       "expected_output": "An isolated experiment workspace with a fixed task/schema, versioned prompts, raw Agent messages and session logs per run, a comparison report, and a winning prompt confirmed unchanged.",
       "assertions": [
         "The task and result schema remain fixed while system prompts change",

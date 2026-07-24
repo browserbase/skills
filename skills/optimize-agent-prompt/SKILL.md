@@ -1,12 +1,12 @@
 ---
-name: agent-api-autobrowse
+name: optimize-agent-prompt
 description: Builds and improves Browserbase Agent API demos through an Autobrowse-style outer loop: run a fixed task, collect Agent messages and session logs, score the result, revise one system-prompt heuristic, and confirm convergence. Use when creating a Browserbase Agents demo or POC, optimizing an Agent system prompt, diagnosing flaky Agent runs, or applying auto-research/autobrowse to the Browserbase Agents API.
 license: MIT
 compatibility: "Requires Node.js 18+ and BROWSERBASE_API_KEY. Uses only Node built-ins."
 allowed-tools: Bash Read Write Edit Grep Glob
 ---
 
-# Agent API Autobrowse
+# Optimize Agent Prompt
 
 Optimize a Browserbase Agent's `systemPrompt` while holding its task, result schema, variables, and evaluation criteria fixed. Treat the outer agent as the teacher and each Browserbase Agent run as an inner-agent rollout.
 
@@ -15,8 +15,8 @@ Optimize a Browserbase Agent's `systemPrompt` while holding its task, result sch
 Choose a short experiment name and create an isolated workspace inside the demo or POC repository:
 
 ```bash
-node <skill-dir>/scripts/agent_api_autobrowse.mjs init \
-  --workspace ./agent-api-autobrowse/<experiment-name> \
+node <skill-dir>/scripts/optimize_agent_prompt.mjs init \
+  --workspace ./agent-prompt-optimization/<experiment-name> \
   --name <experiment-name>
 ```
 
@@ -30,8 +30,8 @@ Use concrete success criteria. Prefer a strict JSON Schema with required fields 
 ## Run the baseline
 
 ```bash
-node <skill-dir>/scripts/agent_api_autobrowse.mjs run \
-  --workspace ./agent-api-autobrowse/<experiment-name> \
+node <skill-dir>/scripts/optimize_agent_prompt.mjs run \
+  --workspace ./agent-prompt-optimization/<experiment-name> \
   --prompt prompts/iteration-001.md \
   --label iteration-001
 ```
@@ -55,8 +55,8 @@ It stops a run after the configured message budget instead of paying for an unpr
 Start with the compact trajectory:
 
 ```bash
-node <skill-dir>/scripts/agent_api_autobrowse.mjs inspect \
-  --workspace ./agent-api-autobrowse/<experiment-name> \
+node <skill-dir>/scripts/optimize_agent_prompt.mjs inspect \
+  --workspace ./agent-prompt-optimization/<experiment-name> \
   --label iteration-001
 ```
 
@@ -89,8 +89,8 @@ Keep wins. If the new run regresses, restore the previous prompt and test a diff
 Generate the comparison table after each run:
 
 ```bash
-node <skill-dir>/scripts/agent_api_autobrowse.mjs report \
-  --workspace ./agent-api-autobrowse/<experiment-name>
+node <skill-dir>/scripts/optimize_agent_prompt.mjs report \
+  --workspace ./agent-prompt-optimization/<experiment-name>
 ```
 
 Judge more than field completeness. Require:

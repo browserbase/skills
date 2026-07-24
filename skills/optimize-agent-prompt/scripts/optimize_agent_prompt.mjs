@@ -164,7 +164,7 @@ async function runIteration(args) {
   await fs.mkdir(runDir, { recursive: true });
   try { await fs.access(path.join(runDir, "created-run.json")); throw new Error(`Label already has a run: ${label}`); } catch (error) { if (error.code !== "ENOENT") throw error; }
   await fs.writeFile(path.join(runDir, "system-prompt.md"), `${prompt}\n`);
-  const agent = await loadOrCreateAgent(apiKey, workspace, prompt, config, args.agentName ?? `Agent API Autobrowse: ${config.name ?? path.basename(workspace)}`);
+  const agent = await loadOrCreateAgent(apiKey, workspace, prompt, config, args.agentName ?? `Prompt optimization: ${config.name ?? path.basename(workspace)}`);
   const browserSettings = { ...(config.browserSettings ?? {}) };
   if (args.proxies) browserSettings.proxies = true;
   if (args.verified) browserSettings.verified = true;
@@ -231,10 +231,10 @@ async function report(args) {
 
 function usage() {
   console.log(`Usage:
-  agent_api_autobrowse.mjs init --workspace PATH --name NAME
-  agent_api_autobrowse.mjs run --workspace PATH --prompt FILE [--label NAME] [--max-messages N]
-  agent_api_autobrowse.mjs inspect --workspace PATH --label NAME
-  agent_api_autobrowse.mjs report --workspace PATH`);
+  optimize_agent_prompt.mjs init --workspace PATH --name NAME
+  optimize_agent_prompt.mjs run --workspace PATH --prompt FILE [--label NAME] [--max-messages N]
+  optimize_agent_prompt.mjs inspect --workspace PATH --label NAME
+  optimize_agent_prompt.mjs report --workspace PATH`);
 }
 
 const args = parseArgs(process.argv.slice(2));

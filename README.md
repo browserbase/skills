@@ -13,7 +13,7 @@ This plugin includes the following skills (see `skills/` for details):
 | [browser-trace](skills/browser-trace/SKILL.md) | Capture a full DevTools-protocol trace (CDP firehose, screenshots, DOM dumps) alongside any browser automation, then bisect the stream into per-page searchable buckets |
 | [browser-to-api](skills/browser-to-api/SKILL.md) | Turn a website's observable HTTP traffic into a best-effort OpenAPI 3.1 spec by analyzing a `browser-trace` capture |
 | [autobrowse](skills/autobrowse/SKILL.md) | Self-improving browser automation — iteratively runs a browsing task, reads the trace, and improves the navigation skill until it reliably passes |
-| [agent-api-autobrowse](skills/agent-api-autobrowse/SKILL.md) | Optimize Browserbase Agent API system prompts through repeated runs, Agent message traces, session logs, scoring, and unchanged confirmation runs |
+| [optimize-agent-prompt](skills/optimize-agent-prompt/SKILL.md) | Optimize Browserbase Agent API system prompts through repeated runs, Agent message traces, session logs, scoring, and unchanged confirmation runs |
 | [safe-browser](skills/safe-browser/SKILL.md) | Build local Claude Agent SDK browser agents whose only browser capability is a CDP-gated `safe_browser` tool with domain allowlist enforcement |
 | [webmcp-gen](skills/webmcp-gen/SKILL.md) | Author, compile, and validate site-specific WebMCP init scripts with the Stagehand WebMCP runtime |
 | [cookie-sync](skills/cookie-sync/SKILL.md) | Sync cookies from local Chrome to a Browserbase persistent context so the browse CLI can access authenticated sites |

@@ -1,4 +1,4 @@
-# Browserbase APIs used by Agent API Autobrowse
+# Browserbase APIs used by Optimize Agent Prompt
 
 ## Authentication
 

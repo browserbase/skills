@@ -1,4 +1,0 @@
-interface:
-  display_name: "Agent API Autobrowse"
-  short_description: "Self-improve Browserbase Agent prompts"
-  default_prompt: "Use $agent-api-autobrowse to build and optimize a Browserbase Agent API demo from repeated traced runs."
