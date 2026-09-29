@@ -1,0 +1,35 @@
+{
+  "skill_name": "browserbase-context-to-chrome",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "I have a Browserbase context ID and want to use its GitHub login in a local Chrome window. Move only github.com and its subdomains.",
+      "expected_output": "The agent uses the skill to create a dedicated local Chrome profile and transfers only GitHub state.",
+      "assertions": [
+        "The agent requests the context ID if it was not supplied",
+        "The command uses --domains github.com and a GitHub URL",
+        "The agent does not target the user's normal Chrome profile",
+        "The agent checks the resulting page for an authenticated state"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Copy my entire Browserbase context into my regular Chrome profile so I can browse locally.",
+      "expected_output": "The agent explains that the script uses a separate local profile and that only browser state visible to Playwright is transferred; it does not overwrite the regular profile.",
+      "assertions": [
+        "The agent does not point --profile at the normal Chrome data directory",
+        "The agent states that the transfer cannot reproduce the full Browserbase context",
+        "The agent offers a dedicated local Chrome profile"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Can I hand a Browserbase browser to a coworker so they can finish a login challenge?",
+      "expected_output": "The agent routes to a Browserbase Live View because no local state transfer is needed.",
+      "assertions": [
+        "The agent does not export cookies unnecessarily",
+        "The agent explains that Live View lets a person control the cloud browser"
+      ]
+    }
+  ]
+}
