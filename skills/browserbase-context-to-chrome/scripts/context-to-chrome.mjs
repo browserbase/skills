@@ -85,7 +85,7 @@ async function main() {
     const remote = await chromium.connectOverCDP(session.connectUrl);
     const source = remote.contexts()[0];
     if (!source) throw new Error('Browserbase session has no browser context');
-    const sourcePage = await source.newPage();
+    const sourcePage = source.pages()[0] ?? await source.newPage();
     await sourcePage.goto(args.url, { waitUntil: 'domcontentloaded' });
     state = filterState(await source.storageState({ indexedDB: true }), args.domains);
   } finally {
@@ -102,7 +102,7 @@ async function main() {
   });
   try {
     await local.setStorageState(state);
-    const page = await local.newPage();
+    const page = local.pages()[0] ?? await local.newPage();
     await page.goto(args.url, { waitUntil: 'domcontentloaded' });
     console.log(`Transferred ${state.cookies.length} cookies and ${state.origins.length} origins to ${args.profile}`);
     console.log(`Opened ${page.url()}`);
