@@ -31,6 +31,7 @@ yarn-error.log*
 
 # Chrome automation profile
 .chrome-profile/
+.browserbase-chrome-profile/
 
 # Browser screenshots and custom scripts (ignore contents but keep directory structure)
 agent/browser_screenshots/*

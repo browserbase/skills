@@ -10,6 +10,8 @@ allowed-tools: Bash
 
 Exports cookies from your local Chrome and saves them into a Browserbase **persistent context**. After syncing, use the `browse` CLI to open authenticated sessions with that context.
 
+To copy state in the other direction, from a Browserbase Context into a dedicated local Chrome profile, use [browserbase-context-to-chrome](../browserbase-context-to-chrome/SKILL.md).
+
 Supports **domain filtering** (only sync cookies you need) and **context reuse** (refresh cookies without creating a new context).
 
 ## Prerequisites

@@ -1,0 +1,9 @@
+{
+  "name": "browserbase-context-to-chrome-skill",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@browserbasehq/sdk": "2.20.0",
+    "playwright": "1.63.0"
+  }
+}
