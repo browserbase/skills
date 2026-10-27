@@ -17,8 +17,8 @@ This plugin includes the following skills (see `skills/` for details):
 | [safe-browser](skills/safe-browser/SKILL.md) | Build local Claude Agent SDK browser agents whose only browser capability is a CDP-gated `safe_browser` tool with domain allowlist enforcement |
 | [webmcp-gen](skills/webmcp-gen/SKILL.md) | Author, compile, and validate site-specific WebMCP init scripts with the Stagehand WebMCP runtime |
 | [add-webmcp](skills/add-webmcp/SKILL.md) | Analyze an existing web app, add first-party WebMCP tools backed by its routes, forms, actions, and schemas, and validate them through Stagehand |
-| [cookie-sync](skills/cookie-sync/SKILL.md) | Sync cookies from local Chrome to a Browserbase persistent context so the browse CLI can access authenticated sites |
-| [fetch](skills/fetch/SKILL.md) | Fetch HTML or JSON from static pages without a browser session — inspect status codes, headers, follow redirects |
+| [cookie-sync](skills/cookie-sync/SKILL.md) | Sync local Chrome cookies to a Browserbase context for Authenticated Fetch or browser sessions |
+| [fetch](skills/fetch/SKILL.md) | Fetch HTML, Markdown or JSON without an interactive browser session, including Authenticated Fetch with saved login cookies |
 | [search](skills/search/SKILL.md) | Search the web and return structured results (titles, URLs, metadata) without a browser session |
 | [ui-test](skills/ui-test/SKILL.md) | AI-powered adversarial UI testing — analyzes git diffs to test changes, or explores the full app to find bugs |
 | [browser-use-to-stagehand](skills/browser-use-to-stagehand/SKILL.md) | Migrate browser-use (Python) automation to Stagehand v3 (TypeScript) on Browserbase — maps features and picks the right determinism level per step |
@@ -64,6 +64,7 @@ Once installed, you can ask Claude to browse or use the Browserbase CLI:
 - *"QA test http://localhost:3000 and fix any bugs you encounter"*
 - *"Order me a pizza, you're already signed in on Doordash"*
 - *"Use `browse` to list my Browserbase projects and show the output as JSON"*
+- *"Fetch my orders page using the login saved in my Browserbase context"*
 - *"Initialize a new Browserbase Function with `browse functions init` and explain the next commands"*
 - *"Use safe-browser to build a Hacker News scraper that only stays on the main site"*
 

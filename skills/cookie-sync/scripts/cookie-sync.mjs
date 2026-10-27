@@ -295,6 +295,10 @@ async function main() {
   console.log('Cookies synced to context.');
   console.log(`Context ID: ${contextId}`);
   console.log('');
+  console.log('Fetch authenticated pages after the context save completes:');
+  console.log(`  browse cloud fetch <url> --context-id ${contextId} --format raw`);
+  console.log('Fetch reads saved cookies; use a browser for JavaScript or interaction.');
+  console.log('');
   console.log('Browse authenticated sites with:');
   console.log(`  SESSION_JSON="$(browse cloud sessions create --context-id ${contextId} --persist --keep-alive)"`);
   console.log('  SESSION_ID="$(echo "$SESSION_JSON" | jq -r .id)"');
@@ -303,7 +307,7 @@ async function main() {
   console.log('  # when done: browse stop && browse cloud sessions update "$SESSION_ID" --status REQUEST_RELEASE');
   console.log('');
   console.log('To refresh cookies later:');
-  console.log(`  node cookie-sync.mjs --context ${contextId}`);
+  console.log(`  node "$COOKIE_SYNC_DIR/scripts/cookie-sync.mjs" --context ${contextId}`);
 
   process.exit(0);
 }

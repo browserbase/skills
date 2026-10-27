@@ -4,9 +4,11 @@
 
 - [Endpoint](#endpoint)
 - [Authentication](#authentication)
+- [CLI](#cli)
 - [Request](#request)
 - [Response](#response)
 - [Error Responses](#error-responses)
+- [Authenticated Fetch Errors](#authenticated-fetch-errors)
 - [SDK Reference](#sdk-reference)
 - [Configuration](#configuration)
 
@@ -31,6 +33,22 @@ curl -X POST "https://api.browserbase.com/v1/fetch" \
 
 Get your API key from https://browserbase.com/settings.
 
+## CLI
+
+```bash
+browse cloud fetch https://example.com/account/orders --context-id work-login --format raw
+```
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--context-id <id-or-name>` | Unauthenticated | Saved context UUID, or a local alias created with `browse cloud contexts create --name <name>` |
+| `--format raw\|markdown\|json` | `markdown` | Output content format; `json` requires `--schema` |
+| `--allow-redirects` | `false` | Follow HTTP redirects |
+| `--proxies` | `false` | Enable Browserbase proxy support |
+| `--output <path>` | — | Save content to a file and return metadata |
+
+Context aliases resolve locally before the API request. Use the actual UUID with cURL or SDKs. Run `browse cloud fetch --help` for all flags; update `browse` if `--context-id` is missing.
+
 ## Request
 
 **Content-Type:** `application/json`
@@ -40,6 +58,7 @@ Get your API key from https://browserbase.com/settings.
 | Parameter | Type | Required | Default | Description |
 |-----------|------|----------|---------|-------------|
 | `url` | `string` (URI format) | Yes | — | The URL to fetch |
+| `contextId` | `string` | No | — | Context UUID containing saved login cookies; omit for ordinary Fetch |
 | `allowRedirects` | `boolean` | No | `false` | Whether to follow HTTP redirects |
 | `allowInsecureSsl` | `boolean` | No | `false` | Whether to bypass TLS certificate verification for trusted test or staging hosts |
 | `proxies` | `boolean` | No | `false` | Whether to enable proxy support for the request |
@@ -159,9 +178,26 @@ The fetch request timed out. Default timeout is 60 seconds.
 
 **Fix**: Check that the URL is reachable. If the target server is slow, consider using the Browser skill which has longer timeouts.
 
+## Authenticated Fetch Errors
+
+These are errors from the Fetch API, distinct from the target site's `statusCode` returned in a successful Fetch response.
+
+| API status / message | Recovery |
+|----------------------|----------|
+| 400 / `Context ID not found` | Check the UUID and that the context belongs to the project used by the API key |
+| 404 / no saved cookies or context last saved before September 1, 2026 | Use the context in a browser session with `persist: true`, authenticate if needed, then end the session before retrying |
+| 400 / context storage access denied | For bring-your-own-storage, check the configured role, bucket and KMS access using the public BYOS setup guide |
+| 400 / fetching with a context is not supported for this project | Contact Browserbase support |
+
+A target response containing a login page, 401 or 403 can mean the saved cookies expired or the site requires JavaScript authentication. Refresh the login in a browser, or continue in a browser if cookies alone are insufficient. Fetch reads saved cookies; it never saves response cookies back to the context.
+
+See [Authenticated Fetch](https://docs.browserbase.com/platform/fetch/authenticated-fetch) for context compatibility and [BYOS setup](https://docs.browserbase.com/account/enterprise/byos-setup-guide) for storage access.
+
 ## SDK Reference
 
 ### Node.js / TypeScript
+
+Use `@browserbasehq/sdk` 2.23.0 or newer for `contextId`.
 
 ```typescript
 import { Browserbase } from "@browserbasehq/sdk";
@@ -173,7 +209,13 @@ const response = await bb.fetchAPI.create({
   url: "https://example.com",
 });
 
-// With all options
+// Authenticated Fetch (contextId is a UUID, not a CLI alias)
+const authenticated = await bb.fetchAPI.create({
+  url: "https://example.com/account/orders",
+  contextId: "<context-id>",
+});
+
+// With other options
 const response = await bb.fetchAPI.create({
   url: "https://example.com",
   allowRedirects: true,
@@ -192,6 +234,8 @@ response.encoding;    // string
 
 ### Python
 
+Use `browserbase` 1.22.0 or newer for `context_id`.
+
 ```python
 from browserbase import Browserbase
 import os
@@ -201,7 +245,13 @@ bb = Browserbase(api_key=os.environ["BROWSERBASE_API_KEY"])
 # Basic fetch
 response = bb.fetch_api.create(url="https://example.com")
 
-# With all options
+# Authenticated Fetch (context_id is a UUID, not a CLI alias)
+authenticated = bb.fetch_api.create(
+    url="https://example.com/account/orders",
+    context_id="<context-id>",
+)
+
+# With other options
 response = bb.fetch_api.create(
     url="https://example.com",
     allow_redirects=True,

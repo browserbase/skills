@@ -13,7 +13,7 @@
       "name": "browse",
       "source": "./",
       "description": "Automate web browser interactions using natural language. Use when the user asks to browse websites, navigate web pages, extract data from websites, take screenshots, fill forms, click buttons, or interact with web applications.",
-      "version": "0.0.1",
+      "version": "0.1.0",
       "author": {
         "name": "Browserbase"
       },
@@ -21,7 +21,9 @@
       "keywords": ["browser", "automation", "web-scraping", "stagehand", "screenshots"],
       "strict": false,
       "skills": [
-        "./skills/browser"
+        "./skills/browser",
+        "./skills/fetch",
+        "./skills/cookie-sync"
       ]
     },
     {
