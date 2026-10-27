@@ -1,5 +1,7 @@
 # Cookie Sync Reference
 
+Resolve `COOKIE_SYNC_DIR` using the setup instructions in [SKILL.md](SKILL.md#setup) before running these commands.
+
 ## Table of Contents
 
 - [Architecture](#architecture)
@@ -63,14 +65,14 @@ Contexts persist browser state (cookies, localStorage, IndexedDB) across session
 ### First sync (creates context)
 
 ```bash
-node cookie-sync.mjs
+node "$COOKIE_SYNC_DIR/scripts/cookie-sync.mjs"
 # Output includes: Context ID: ctx_abc123
 ```
 
 ### Subsequent sessions (reuses context)
 
 ```bash
-BROWSERBASE_CONTEXT_ID=ctx_abc123 node cookie-sync.mjs
+BROWSERBASE_CONTEXT_ID=ctx_abc123 node "$COOKIE_SYNC_DIR/scripts/cookie-sync.mjs"
 ```
 
 ### Context lifecycle

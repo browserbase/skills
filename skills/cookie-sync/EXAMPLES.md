@@ -1,12 +1,14 @@
 # Cookie Sync Examples
 
+Resolve `COOKIE_SYNC_DIR` using the setup instructions in [SKILL.md](SKILL.md#setup) before running these commands.
+
 ## Example 1: Basic Cookie Sync
 
 **User request**: "Sync my Chrome cookies to a cloud browser"
 
 ```bash
 export BROWSERBASE_API_KEY="bb_live_xxx"
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
+node "$COOKIE_SYNC_DIR/scripts/cookie-sync.mjs"
 ```
 
 After syncing, navigate to a site:
@@ -45,7 +47,7 @@ ws.onmessage = (ev) => {
 
 ```bash
 export BROWSERBASE_CONTEXT_ID="ctx_abc123"
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
+node "$COOKIE_SYNC_DIR/scripts/cookie-sync.mjs"
 ```
 
 This creates a new session using the saved context — no need to re-export cookies from Chrome (though the script still does to ensure freshness).
@@ -98,7 +100,7 @@ Brave is auto-detected. If your browser stores DevToolsActivePort in a non-stand
 
 ```bash
 export CDP_PORT_FILE="$HOME/Library/Application Support/MyBrowser/DevToolsActivePort"
-node .claude/skills/cookie-sync/scripts/cookie-sync.mjs
+node "$COOKIE_SYNC_DIR/scripts/cookie-sync.mjs"
 ```
 
 ## Tips

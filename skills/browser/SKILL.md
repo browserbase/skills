@@ -20,6 +20,16 @@ metadata:
 
 Automate browser interactions using the browse CLI with Claude.
 
+## Fetching page content
+
+For HTML, Markdown or JSON that needs no JavaScript or interaction, use the [fetch skill](../fetch/SKILL.md). A saved cookie login can be reused with Authenticated Fetch:
+
+```bash
+browse cloud fetch https://example.com/account/orders --context-id work-login
+```
+
+`work-login` must be a saved local context name; a context UUID also works. Use a browser session to establish or refresh the login, render JavaScript, interact with the page, or handle JavaScript-generated authorization headers. A context's cookies must be saved by ending its browser session with persistence enabled before Fetch can use them.
+
 ## Setup check
 
 Before running any browser commands, verify the CLI is available:
