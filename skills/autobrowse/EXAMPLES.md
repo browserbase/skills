@@ -88,4 +88,4 @@ https://portal.example.com/pay?invoice=true
 - "Invalid credentials" = bot detection, retry with --env remote
 ```
 
-This file drops straight into your stagehand/browser-use agent as a system prompt addition.
+This file drops straight into your Stagehand agent as a system prompt addition.
