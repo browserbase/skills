@@ -1,0 +1,17 @@
+{
+  "skill": "browser-record",
+  "evals": [
+    {
+      "prompt": "Record my flight search on Google Flights and turn it into a reusable skill.",
+      "expected": "Runs scripts/record.mjs (ideally attached to a browser-trace session via RR_CONNECT_URL), surfaces the live-view URL for the user to perform the flow, and saves the interaction stream + per-step screenshots."
+    },
+    {
+      "prompt": "Now distill that recording into a task skill.",
+      "expected": "Acts as the teacher agent per references/distill.md: reads recording.json + screenshots, queries the CDP trace as needed, recovers intent (committed values, not keystrokes), and writes skills/<task>/ with a parameterized SKILL.md, a curated screenshots/ folder referenced per step, and recording.json as fallback."
+    },
+    {
+      "prompt": "I typed San Francisco, deleted it, then typed Los Angeles — make sure the skill only does Los Angeles.",
+      "expected": "Explains that the teacher-agent distiller collapses self-corrections and drops abandoned actions, so the emitted skill sets origin = Los Angeles only; the intermediate San Francisco state is omitted as noise."
+    }
+  ]
+}
