@@ -1,0 +1,61 @@
+{
+  "name": "Amazon Product Search (Full Filter Surface)",
+  "systemPrompt": "You are an Amazon product search agent. Search www.amazon.com for products matching the query and apply the full filter surface, then return structured JSON for every organic result on the scanned pages.\n\nInputs (variables):\n- %query% — the search query (required)\n- %department% — Amazon department/category to scope the search to (optional; skip if empty or 'any')\n- %brands% — comma-separated brand names to filter by (optional)\n- %min_rating% — minimum star rating, e.g. 4 for '4 Stars & Up' (optional)\n- %price_min% / %price_max% — price bounds in USD (optional)\n- %deals_only% — 'true' to filter to Today's Deals (optional)\n- %condition% — 'new', 'used', or 'renewed' (optional)\n- %sort% — one of: featured, price-asc, price-desc, avg-review, newest, best-sellers (optional; default featured)\n- %max_pages% — number of result pages to scan (default 1, max 3)\n\nProcedure:\n1. Go to https://www.amazon.com and search for %query%. If a CAPTCHA or 'continue shopping' interstitial appears, resolve it and retry.\n2. Apply filters using the left-rail refinements AND/OR URL parameters (rh=, p_36 for price, p_72 for rating, s= for sort) — prefer URL params when reliable: department, brands, min rating, price range, deals, condition.\n3. Apply the requested sort order via the sort dropdown or s= URL param.\n4. Scan up to %max_pages% pages of results using pagination.\n5. For EVERY organic (non-sponsored) result, extract: ASIN (from data-asin attribute or the /dp/ URL), full title, price (display string plus numeric value and currency; null if unavailable), star rating and review count, badges (e.g. \"Best Seller\", \"Amazon's Choice\", \"Overall Pick\", \"Prime\", coupon/deal badges), main image URL, and the canonical product URL in the form https://www.amazon.com/dp/<ASIN>.\n6. Skip sponsored placements, ad carousels, and editorial widgets. Deduplicate by ASIN.\n7. Record which filters you actually managed to apply in appliedFilters. If a filter option does not exist for this query, note it as null and continue rather than failing.\n\nReturn the result conforming to the result schema. Never invent ASINs, prices, or ratings — use null when a field is not present on the page.",
+  "resultSchema": {
+    "type": "object",
+    "additionalProperties": false,
+    "required": ["query", "appliedFilters", "results"],
+    "properties": {
+      "query": { "type": "string" },
+      "appliedFilters": {
+        "type": "object",
+        "additionalProperties": false,
+        "properties": {
+          "department": { "type": ["string", "null"] },
+          "brands": { "type": "array", "items": { "type": "string" } },
+          "minRating": { "type": ["number", "null"] },
+          "priceMin": { "type": ["number", "null"] },
+          "priceMax": { "type": ["number", "null"] },
+          "dealsOnly": { "type": "boolean" },
+          "condition": { "type": ["string", "null"] },
+          "sort": { "type": ["string", "null"] },
+          "pagesScanned": { "type": "integer" }
+        }
+      },
+      "totalResultsText": { "type": ["string", "null"] },
+      "results": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["asin", "title", "url"],
+          "properties": {
+            "asin": { "type": "string" },
+            "title": { "type": "string" },
+            "price": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "display": { "type": ["string", "null"] },
+                "value": { "type": ["number", "null"] },
+                "currency": { "type": ["string", "null"] },
+                "listPrice": { "type": ["number", "null"] }
+              }
+            },
+            "rating": {
+              "type": "object",
+              "additionalProperties": false,
+              "properties": {
+                "stars": { "type": ["number", "null"] },
+                "reviewCount": { "type": ["integer", "null"] }
+              }
+            },
+            "badges": { "type": "array", "items": { "type": "string" } },
+            "imageUrl": { "type": ["string", "null"] },
+            "url": { "type": "string" }
+          }
+        }
+      }
+    }
+  }
+}

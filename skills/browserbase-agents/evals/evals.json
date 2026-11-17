@@ -1,0 +1,18 @@
+[
+  {
+    "prompt": "Create a Browserbase agent that searches Hacker News for stories matching a query and returns title, points, and URL as structured JSON, then run it once for 'browser automation' and show me the result.",
+    "expected_behavior": "Writes an agent payload with a systemPrompt documenting %variables% and a strict resultSchema, creates it via POST /v1/agents (scripts/bb_agents.py create), triggers a run with variables, polls to a terminal state, and reports result.output — without inventing data or fields."
+  },
+  {
+    "prompt": "My Browserbase agent run came back with only 1 result on Walmart. What should I change?",
+    "expected_behavior": "Diagnoses anti-bot protection (PerimeterX) and recommends re-running with browserSettings proxies/verified, plus checking appliedFilters echo-back and the session replay via sessionId."
+  },
+  {
+    "prompt": "How do I pass a confirmation code to a Browserbase agent run without putting it in the task text?",
+    "expected_behavior": "Uses the variables object on POST /v1/agents/runs with a %placeholder% reference in the prompt, noting values are not persisted."
+  },
+  {
+    "prompt": "Poll my Browserbase agent run wf-123 until it finishes and get any files it downloaded.",
+    "expected_behavior": "Polls GET /v1/agents/runs/{runId} until a terminal state, reads sessionId from the run, then lists files via GET /v1/downloads?sessionId=."
+  }
+]
