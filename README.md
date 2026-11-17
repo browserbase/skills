@@ -14,6 +14,7 @@ This plugin includes the following skills (see `skills/` for details):
 | [browser-to-api](skills/browser-to-api/SKILL.md) | Turn a website's observable HTTP traffic into a best-effort OpenAPI 3.1 spec by analyzing a `browser-trace` capture |
 | [autobrowse](skills/autobrowse/SKILL.md) | Self-improving browser automation — iteratively runs a browsing task, reads the trace, and improves the navigation skill until it reliably passes |
 | [optimize-agent-prompt](skills/optimize-agent-prompt/SKILL.md) | Optimize Browserbase Agent API system prompts through repeated runs, Agent message traces, session logs, scoring, and unchanged confirmation runs |
+| [verified-eval](skills/verified-eval/SKILL.md) | Compare the same browser task in Standard and Verified sessions with an existing flow or a Stagehand v4 agent, then report task scores and timing |
 | [safe-browser](skills/safe-browser/SKILL.md) | Build local Claude Agent SDK browser agents whose only browser capability is a CDP-gated `safe_browser` tool with domain allowlist enforcement |
 | [webmcp-gen](skills/webmcp-gen/SKILL.md) | Author, compile, and validate site-specific WebMCP init scripts with the Stagehand WebMCP runtime |
 | [add-webmcp](skills/add-webmcp/SKILL.md) | Analyze an existing web app, add first-party WebMCP tools backed by its routes, forms, actions, and schemas, and validate them through Stagehand |
@@ -26,6 +27,8 @@ This plugin includes the following skills (see `skills/` for details):
 | [company-research](skills/company-research/SKILL.md) | Discover target companies matching your ICP using the Browserbase Search API, deep-research each one, and score fit into a research report and CSV |
 | [event-prospecting](skills/event-prospecting/SKILL.md) | Extract speakers from a conference page, filter their companies against your ICP, and deep-research the best-fit people into a person-first prospecting report |
 | [competitor-analysis](skills/competitor-analysis/SKILL.md) | Auto-discover a company's competitors via the Browserbase Search API, deep-research each across marketing, signal, benchmark, and strategic-diff lanes, and compile a browsable HTML report with an overview, per-competitor deep dives, a feature/pricing matrix, and a mentions feed |
+
+To install only the Verified eval skill, run `npx skills add browserbase/skills --skill verified-eval`.
 
 ## Installation
 

@@ -1,0 +1,39 @@
+{
+  "skill_name": "verified-eval",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use verified-eval to compare Standard and Verified Browserbase sessions for my existing Stagehand cart flow. The task passes only when one item is in the cart. The time goal is 15 seconds. Save evidence for each run and tell me whether Verified helps.",
+      "expected_output": "A saved test plan, runner, per-attempt results, and report with the same Stagehand flow and independent cart check in both modes.",
+      "assertions": [
+        "The comparison uses the same flow, model, task, test data, and assertion in both modes",
+        "A page load or Add button alone does not count as a cart pass",
+        "The report separates task completion from completion within 15 seconds",
+        "The report does not claim a reliability gain from one pair"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "I have no repository or agent code. Use verified-eval on a grocery site that needs a delivery address before I can add one product to a cart. Compare Standard and Verified and stop before checkout.",
+      "expected_output": "A small Stagehand v4 Code Mode agent harness, a public or site-suggested test address that is applied and checked, matched runs, and a report based on the cart state.",
+      "assertions": [
+        "The agent builds a Stagehand v4 Code Mode harness when no user flow exists",
+        "The agent uses non-sensitive address test data and confirms the site applied it",
+        "The agent does not stop at the address prompt or count an unsubmitted suggestion as success",
+        "The run stops before checkout or purchase",
+        "The agent continues useful diagnosis without a fixed session count"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Use verified-eval for my login task. My Browserbase project might not have Verified access, and the site requires an account that I have not supplied.",
+      "expected_output": "A setup check that distinguishes Verified access errors from website results, plus a clear account requirement for a full login task.",
+      "assertions": [
+        "A Verified session creation error is reported as setup_error rather than a website block",
+        "A login form is not scored as a completed login",
+        "The agent does not invent credentials or claim that Verified signs in to the site",
+        "The report keeps incomplete or inconclusive pairs visible"
+      ]
+    }
+  ]
+}
