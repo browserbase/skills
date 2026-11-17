@@ -1,0 +1,8 @@
+{
+  "tier": "B",
+  "category": "search-and-extract",
+  "env": "remote",
+  "max_turns": 35,
+  "timeout_min": 25,
+  "gotchas": "ppubs.uspto.gov is a heavy SPA with its own query syntax; record pages render in an embedded viewer"
+}

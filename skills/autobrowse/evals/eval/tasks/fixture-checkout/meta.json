@@ -1,0 +1,9 @@
+{
+  "tier": "A",
+  "category": "multi-step-form",
+  "env": "local",
+  "max_turns": 30,
+  "timeout_min": 15,
+  "requires": ["fixtures-server"],
+  "gotchas": "shipping radio buttons render 900ms after step 2 appears; Next buttons stay disabled until fields validate"
+}

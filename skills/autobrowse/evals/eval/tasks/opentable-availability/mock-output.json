@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "restaurant": "Arquet",
+  "date": "2026-08-15",
+  "party_size": 2,
+  "has_availability": true,
+  "slots": ["17:45", "18:00", "20:15", "21:00"],
+  "error_reasoning": null
+}

@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>Acme Checkout</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 560px; margin: 40px auto; }
+  .step { display: none; }
+  .step.active { display: block; }
+  label { display: block; margin: 10px 0 2px; }
+  input, select { padding: 6px; width: 280px; }
+  button { margin-top: 16px; padding: 8px 18px; }
+  button:disabled { opacity: 0.4; }
+  #confirmation { display: none; border: 2px solid #2a7; padding: 16px; }
+  .muted { color: #777; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>Acme Store — Checkout</h1>
+<p class="muted">Cart: Widget Pro × 2 @ $19.99 each</p>
+
+<div id="step1" class="step active">
+  <h2>Step 1 — Contact</h2>
+  <label for="name">Full name</label>
+  <input id="name" name="name" type="text" />
+  <label for="email">Email</label>
+  <input id="email" name="email" type="email" />
+  <br /><button id="next1" disabled>Next</button>
+</div>
+
+<div id="step2" class="step">
+  <h2>Step 2 — Shipping</h2>
+  <label for="address">Street address</label>
+  <input id="address" name="address" type="text" />
+  <label for="city">City</label>
+  <input id="city" name="city" type="text" />
+  <label for="zip">ZIP code</label>
+  <input id="zip" name="zip" type="text" />
+  <div id="shipping-options" class="muted">Loading shipping options…</div>
+  <br /><button id="next2" disabled>Next</button>
+</div>
+
+<div id="step3" class="step">
+  <h2>Step 3 — Review</h2>
+  <div id="review"></div>
+  <p><strong>Total: $<span id="total"></span></strong></p>
+  <button id="place-order">Place order</button>
+</div>
+
+<div id="confirmation">
+  <h2>Order confirmed 🎉</h2>
+  <p>Your confirmation code is <strong id="confirmation-code"></strong></p>
+  <p>Total charged: $<span id="confirmed-total"></span></p>
+</div>
+
+<script>
+  // Deterministic confirmation code — the eval verifier recomputes this
+  // exact function from the task inputs.
+  function checkoutCode(name, email, zip, shipping) {
+    const s = (name + "|" + email + "|" + zip + "|" + shipping).toLowerCase();
+    let sum = 0;
+    for (const ch of s) sum = (sum * 31 + ch.codePointAt(0)) % 100000;
+    return "BB-" + String(sum).padStart(5, "0");
+  }
+
+  const $ = (id) => document.getElementById(id);
+  const state = {};
+
+  // Step 1: Next enables only with a name and a plausible email.
+  function validate1() {
+    $("next1").disabled = !($("name").value.trim().length > 1 && /.+@.+\..+/.test($("email").value));
+  }
+  $("name").addEventListener("input", validate1);
+  $("email").addEventListener("input", validate1);
+  $("next1").addEventListener("click", () => {
+    state.name = $("name").value.trim();
+    state.email = $("email").value.trim();
+    $("step1").classList.remove("active");
+    $("step2").classList.add("active");
+    // Gotcha: shipping radios render after a delay — naive agents snapshot too early.
+    setTimeout(() => {
+      $("shipping-options").innerHTML =
+        '<label><input type="radio" name="shipping" value="standard" checked /> Standard (free, 5–7 days)</label>' +
+        '<label><input type="radio" name="shipping" value="express" /> Express ($7.50, 1–2 days)</label>';
+      validate2();
+    }, 900);
+  });
+
+  function validate2() {
+    const ship = document.querySelector('input[name="shipping"]');
+    $("next2").disabled = !($("address").value.trim() && $("city").value.trim() && /^\d{5}$/.test($("zip").value) && ship);
+  }
+  ["address", "city", "zip"].forEach((id) => $(id).addEventListener("input", validate2));
+
+  $("next2").addEventListener("click", () => {
+    state.address = $("address").value.trim();
+    state.city = $("city").value.trim();
+    state.zip = $("zip").value.trim();
+    state.shipping = document.querySelector('input[name="shipping"]:checked').value;
+    state.total = (2 * 19.99 + (state.shipping === "express" ? 7.5 : 0)).toFixed(2);
+    $("review").innerHTML =
+      `<p>${state.name} &lt;${state.email}&gt;</p><p>${state.address}, ${state.city} ${state.zip}</p>` +
+      `<p>Shipping: ${state.shipping}</p><p>Widget Pro × 2 — $39.98</p>`;
+    $("total").textContent = state.total;
+    $("step2").classList.remove("active");
+    $("step3").classList.add("active");
+  });
+
+  $("place-order").addEventListener("click", () => {
+    $("step3").classList.remove("active");
+    $("confirmation-code").textContent = checkoutCode(state.name, state.email, state.zip, state.shipping);
+    $("confirmed-total").textContent = state.total;
+    $("confirmation").style.display = "block";
+  });
+</script>
+</body>
+</html>

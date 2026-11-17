@@ -1,0 +1,7 @@
+{
+  "success": true,
+  "count": 11,
+  "cheapest": { "title": "The Road to Little Dribbling: Adventures of an American in Britain (Notes From a Small Island #2)", "price_gbp": 23.21 },
+  "most_expensive": { "title": "A Year in Provence (Provence #1)", "price_gbp": 56.88 },
+  "error_reasoning": null
+}

@@ -1,0 +1,8 @@
+{
+  "tier": "B",
+  "category": "media-extraction",
+  "env": "local",
+  "max_turns": 30,
+  "timeout_min": 20,
+  "gotchas": "transcript button hidden behind '...more' description expander; consent dialogs may appear; player keyboard shortcuts can pause/seek accidentally"
+}

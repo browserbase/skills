@@ -1,0 +1,9 @@
+{
+  "id": "inner-haiku",
+  "notes": "Cheap inner agent hypothesis: a smart outer agent distills intelligence into strategy.md, so a Haiku inner agent should converge to the same place at a fraction of the cost.",
+  "inner_model": "claude-haiku-4-5",
+  "outer_model": "claude-opus-4-8",
+  "outer_prompt": "outer-default",
+  "max_iters": 7,
+  "holdout_runs": 3
+}

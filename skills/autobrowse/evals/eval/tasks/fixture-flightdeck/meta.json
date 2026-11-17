@@ -1,0 +1,9 @@
+{
+  "tier": "A",
+  "category": "search-filter-extract",
+  "env": "local",
+  "max_turns": 25,
+  "timeout_min": 15,
+  "requires": ["fixtures-server"],
+  "gotchas": "results render 700ms after Search; default sort is by departure time, not price; cheaper one-stop and cheaper wrong-route flights are deliberate traps"
+}

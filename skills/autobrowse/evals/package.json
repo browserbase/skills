@@ -1,0 +1,17 @@
+{
+  "name": "autobrowse-evals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Eval harness for the autobrowse self-improving browser-automation loop: convergence, accuracy, speed, and token cost across models/prompts/architectures.",
+  "scripts": {
+    "fixtures": "node fixtures/serve.mjs",
+    "test:verifiers": "node scripts/test-verifiers.mjs",
+    "matrix": "node eval/run-matrix.mjs",
+    "report": "node eval/report.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.74.0",
+    "dotenv": "^17.2.3"
+  }
+}

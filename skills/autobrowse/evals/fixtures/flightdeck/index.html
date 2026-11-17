@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<title>FlightDeck — Search</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; }
+  .flight { border: 1px solid #ccc; padding: 8px 12px; margin: 6px 0; }
+  .price { font-weight: bold; float: right; }
+  button, select { padding: 6px 10px; }
+  .muted { color: #777; font-size: 13px; }
+</style>
+</head>
+<body>
+<h1>FlightDeck</h1>
+<label>From
+  <select id="origin">
+    <option>SFO</option><option>LAX</option><option>SEA</option>
+  </select>
+</label>
+<label>To
+  <select id="dest">
+    <option>JFK</option><option>BOS</option><option>ORD</option>
+  </select>
+</label>
+<label><input type="checkbox" id="nonstop" /> Nonstop only</label>
+<button id="search">Search</button>
+<button id="sort-price" style="display:none">Sort by price</button>
+<div id="results"><p class="muted">Search to see flights.</p></div>
+
+<script>
+  // Seeded, immutable flight data — ground truth for the eval verifier.
+  // Cheapest NONSTOP SFO→JFK is Meridian Air MA 214 at $218 (a cheaper
+  // one-stop at $189 and a cheaper nonstop on another route are traps).
+  const FLIGHTS = [
+    { airline: "Horizon Connect", flight: "HZ 17",  from: "SFO", to: "JFK", depart: "06:10", arrive: "17:25", stops: 1, price: 189 },
+    { airline: "Meridian Air",    flight: "MA 214", from: "SFO", to: "JFK", depart: "07:05", arrive: "15:40", stops: 0, price: 218 },
+    { airline: "Atlantic Blue",   flight: "AB 901", from: "SFO", to: "JFK", depart: "09:30", arrive: "18:05", stops: 0, price: 232 },
+    { airline: "Pacific Western", flight: "PW 88",  from: "SFO", to: "JFK", depart: "11:45", arrive: "20:21", stops: 0, price: 245 },
+    { airline: "Meridian Air",    flight: "MA 442", from: "SFO", to: "JFK", depart: "13:20", arrive: "21:58", stops: 0, price: 261 },
+    { airline: "Horizon Connect", flight: "HZ 233", from: "SFO", to: "JFK", depart: "16:40", arrive: "03:55", stops: 1, price: 205 },
+    { airline: "Atlantic Blue",   flight: "AB 117", from: "SFO", to: "BOS", depart: "08:15", arrive: "16:50", stops: 0, price: 149 },
+    { airline: "Pacific Western", flight: "PW 301", from: "SFO", to: "BOS", depart: "10:05", arrive: "18:44", stops: 0, price: 171 },
+    { airline: "Meridian Air",    flight: "MA 77",  from: "LAX", to: "JFK", depart: "07:55", arrive: "16:12", stops: 0, price: 198 },
+    { airline: "Atlantic Blue",   flight: "AB 555", from: "LAX", to: "JFK", depart: "12:30", arrive: "20:48", stops: 0, price: 226 },
+    { airline: "Horizon Connect", flight: "HZ 64",  from: "SEA", to: "ORD", depart: "06:45", arrive: "12:31", stops: 0, price: 142 },
+    { airline: "Pacific Western", flight: "PW 410", from: "SEA", to: "JFK", depart: "09:10", arrive: "17:36", stops: 0, price: 234 },
+  ];
+
+  const $ = (id) => document.getElementById(id);
+  let current = [];
+
+  function render(list) {
+    $("results").innerHTML = list.length
+      ? list.map((f) =>
+          `<div class="flight" data-flight="${f.flight}"><span class="price">$${f.price}</span>` +
+          `<strong>${f.airline} ${f.flight}</strong><br/>${f.from} ${f.depart} → ${f.to} ${f.arrive} · ` +
+          `${f.stops === 0 ? "Nonstop" : f.stops + " stop"}</div>`
+        ).join("")
+      : "<p>No flights found.</p>";
+  }
+
+  $("search").addEventListener("click", () => {
+    $("results").innerHTML = '<p class="muted">Searching…</p>';
+    // Gotcha: results render after a delay; default order is by DEPARTURE
+    // time, so "first result" is not the cheapest.
+    setTimeout(() => {
+      current = FLIGHTS.filter(
+        (f) => f.from === $("origin").value && f.to === $("dest").value && (!$("nonstop").checked || f.stops === 0)
+      ).sort((a, b) => a.depart.localeCompare(b.depart));
+      render(current);
+      $("sort-price").style.display = "inline-block";
+    }, 700);
+  });
+
+  $("sort-price").addEventListener("click", () => {
+    current = [...current].sort((a, b) => a.price - b.price);
+    render(current);
+  });
+</script>
+</body>
+</html>

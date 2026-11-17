@@ -1,0 +1,9 @@
+{
+  "id": "inner-fable-5",
+  "notes": "Fable 5 as the INNER browsing agent (vs inner-opus / baseline). Measures raw browsing competence: iteration-1 pass rate, turns, holdout reliability. 2x Opus pricing — watch cost_to_converge.",
+  "inner_model": "claude-fable-5",
+  "outer_model": "claude-opus-4-8",
+  "outer_prompt": "outer-default",
+  "max_iters": 5,
+  "holdout_runs": 3
+}

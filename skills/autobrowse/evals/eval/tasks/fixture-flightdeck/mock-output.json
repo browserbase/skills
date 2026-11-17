@@ -1,0 +1,9 @@
+{
+  "success": true,
+  "airline": "Meridian Air",
+  "flight_number": "MA 214",
+  "price_usd": 218,
+  "depart_time": "07:05",
+  "nonstop": true,
+  "error_reasoning": null
+}

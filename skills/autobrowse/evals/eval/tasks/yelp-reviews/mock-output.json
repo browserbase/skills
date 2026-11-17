@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "name": "Tartine Bakery",
+  "rating": 4.0,
+  "review_count": 8900,
+  "reviews": [
+    { "reviewer": "Maya L.", "rating": 5, "date": "2026-06-01", "text": "The morning bun is still the single best pastry in San Francisco. Line moved fast on a Tuesday morning and staff were lovely." },
+    { "reviewer": "Derek W.", "rating": 3, "date": "2026-05-28", "text": "Great bread, genuinely world class, but the line was 40 minutes and there is nowhere to sit. Get it to go and walk to Dolores Park." },
+    { "reviewer": "Priya S.", "rating": 4, "date": "2026-05-25", "text": "Croissant was perfectly laminated and the coffee was solid. Docking a star because they were out of the country bread by 10am." }
+  ],
+  "error_reasoning": null
+}

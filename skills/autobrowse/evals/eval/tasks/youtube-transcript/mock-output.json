@@ -1,0 +1,12 @@
+{
+  "success": true,
+  "title": "Me at the zoo",
+  "channel": "jawed",
+  "has_transcript": true,
+  "segments": [
+    { "ts": "0:00", "text": "All right, so here we are in front of the elephants" },
+    { "ts": "0:05", "text": "the cool thing about these guys is that they have really really really long trunks" },
+    { "ts": "0:12", "text": "and that's cool" }
+  ],
+  "error_reasoning": null
+}

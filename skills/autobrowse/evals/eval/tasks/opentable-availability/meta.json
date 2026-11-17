@@ -1,0 +1,8 @@
+{
+  "tier": "B",
+  "category": "availability-widget",
+  "env": "remote",
+  "max_turns": 30,
+  "timeout_min": 25,
+  "gotchas": "Akamai bot wall on plain sessions — harness pre-creates verified+proxied Browserbase sessions (connect-url path); detail page accepts dateTime/covers query params (skips widget interaction); widget times render in 12h format — convert; do not click slots (that starts a booking)"
+}

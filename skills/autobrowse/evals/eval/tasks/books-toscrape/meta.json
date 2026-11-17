@@ -1,0 +1,8 @@
+{
+  "tier": "A",
+  "category": "list-extraction",
+  "env": "local",
+  "max_turns": 25,
+  "timeout_min": 15,
+  "gotchas": "listing truncates long titles (full title in the anchor's title attribute); single page for Travel but the agent must confirm no pagination"
+}
