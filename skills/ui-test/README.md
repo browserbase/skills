@@ -5,7 +5,7 @@ Adversarial UI testing that catches what Playwright can't. Analyzes git diffs to
 ## Install
 
 ```bash
-npx skills add browserbase/ui-test
+npx skills add browserbase/skills --skill ui-test
 ```
 
 ## Quick Start
