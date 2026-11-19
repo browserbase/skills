@@ -32,6 +32,11 @@ const domainArgs = domainsList.flatMap(d => ['--domain', d]);
 
 const RD = runDir(runId);
 ensureDir(path.join(RD, 'cdp'));
+// `cdp/network/` is also created by bisect-cdp.mjs, but users typically snapshot
+// `browse network` bodies into `cdp/network/bodies/` BEFORE bisect runs. Create
+// the parent dir up front so `cp -r ... cdp/network/bodies` works without an
+// extra `mkdir -p` step in the docs.
+ensureDir(path.join(RD, 'cdp', 'network'));
 ensureDir(path.join(RD, 'screenshots'));
 ensureDir(path.join(RD, 'dom'));
 

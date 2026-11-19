@@ -98,9 +98,17 @@ Workflow:
 # during capture, alongside browser-trace
 browse network on
 # ...drive...
-# IMPORTANT: snapshot the dir before it gets reused
-cp -r "$(browse network path | jq -r .path)" .o11y/<run>/cdp/network/bodies/
-browse network off
+# IMPORTANT: snapshot the dir before another `browse network on` overwrites it.
+# The helper handles the mkdir + cp + `browse network off` sequence.
+node ../browser-trace/scripts/snapshot-bodies.mjs <run>
+
+# Equivalent manual form if you want to do it by hand. The mkdir is required
+# because `cp -r src dest/` fails on macOS BSD cp when dest's parent doesn't
+# exist yet. start-capture.mjs already creates `cdp/network/`, but older runs
+# may not have it — the mkdir is cheap insurance.
+#   mkdir -p .o11y/<run>/cdp/network
+#   cp -R "$(browse network path | jq -r .path)" .o11y/<run>/cdp/network/bodies
+#   browse network off
 ```
 
 Internals (matched in `lib/io.mjs` + `load.mjs`):
