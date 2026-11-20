@@ -1,0 +1,50 @@
+{
+  "skill_name": "fetch-event-receipts",
+  "evals": [
+    {
+      "id": 1,
+      "prompt": "Use fetch-event-receipts for DoorDash on 8/18, the ~$50 order.",
+      "expected_output": "The agent normalizes the request and invokes the bundled runner once without attaching.",
+      "assertions": [
+        "The date is normalized to the current calendar year",
+        "Approximate $50 becomes a 5000-cent hint with a 500-cent tolerance",
+        "The foreground runner executes exactly once without --attach",
+        "Only five runner milestones and final links are relayed"
+      ]
+    },
+    {
+      "id": 2,
+      "prompt": "Use fetch-event-receipts to attach the DoorDash receipt from 8/18, the ~$50 order, to Ramp.",
+      "expected_output": "The agent invokes the runner once with --attach and reports the verified nested Ramp upload result.",
+      "assertions": [
+        "The runner owns Browserbase, PDF printing, Ramp upload, and cleanup",
+        "A non-empty receipt_uuids array stops the write",
+        "Success requires data[0].attached_to_transaction true and a receipt UUID",
+        "The matched Ramp transaction opens only after successful completion",
+        "No schema probing or automatic retry occurs"
+      ]
+    },
+    {
+      "id": 3,
+      "prompt": "Attach the DoorDash receipt, but the Ramp transaction already has a receipt.",
+      "expected_output": "The run stops before Browserbase and asks the operator to remove the receipt.",
+      "assertions": [
+        "The duplicate check uses the exact transaction receipt_uuids array",
+        "No Browserbase session or upload is created",
+        "The agent does not bypass the guard"
+      ]
+    },
+    {
+      "id": 4,
+      "prompt": "Run the approved receipt demo and show the Browserbase live view.",
+      "expected_output": "The branded viewer opens while one recorded Browserbase session executes the workflow.",
+      "assertions": [
+        "The signed debugger URL stays server-side",
+        "One Browserbase session is used for navigation and PDF printing",
+        "The agent relays five milestones instead of narrating commands",
+        "The matched Ramp transaction opens after the run succeeds",
+        "Cleanup releases only resources created by the runner"
+      ]
+    }
+  ]
+}

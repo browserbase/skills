@@ -27,6 +27,7 @@ This plugin includes the following skills (see `skills/` for details):
 | [company-research](skills/company-research/SKILL.md) | Discover target companies matching your ICP using the Browserbase Search API, deep-research each one, and score fit into a research report and CSV |
 | [event-prospecting](skills/event-prospecting/SKILL.md) | Extract speakers from a conference page, filter their companies against your ICP, and deep-research the best-fit people into a person-first prospecting report |
 | [competitor-analysis](skills/competitor-analysis/SKILL.md) | Auto-discover a company's competitors via the Browserbase Search API, deep-research each across marketing, signal, benchmark, and strategic-diff lanes, and compile a browsable HTML report with an overview, per-competitor deep dives, a feature/pricing matrix, and a mentions feed |
+| [fetch-event-receipts](skills/fetch-event-receipts/SKILL.md) | Retrieve a final DoorDash receipt through a persistent Browserbase Context, match it exactly to a Ramp transaction, and attach it through a standalone Ramp Agent Identity |
 
 To install only the Verified eval skill, run `npx skills add browserbase/skills --skill verified-eval`.
 
