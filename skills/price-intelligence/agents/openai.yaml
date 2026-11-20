@@ -1,0 +1,4 @@
+interface:
+  display_name: "Price Intelligence"
+  short_description: "Compare live prices across five retailers"
+  default_prompt: "Use $price-intelligence to find the cheapest purchasable price for an item."

@@ -1,0 +1,220 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="referrer" content="no-referrer" />
+    <title>Price intelligence · Live browser grid</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --ink: #000000;
+        --paper: #f8fafc;
+        --line: #c5d3e8;
+        --red: #ff4500;
+        --green: #00c851;
+        --grey-800: #5a78af;
+        --negative: #46639f;
+      }
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background: var(--paper);
+        color: var(--ink);
+        font-family: "IBM Plex Sans", Arial, Helvetica, sans-serif;
+      }
+      header {
+        min-height: 82px;
+        padding: 17px 24px;
+        border-bottom: 1px solid var(--line);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 24px;
+      }
+      h1 {
+        margin: 0;
+        font-family: "Work Sans", Arial, Helvetica, sans-serif;
+        font-size: clamp(22px, 2.4vw, 38px);
+        font-weight: 600;
+        letter-spacing: -0.03em;
+      }
+      .kicker, .query, .status, .card-head, footer {
+        font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+      .kicker {
+        margin-bottom: 5px;
+        color: var(--grey-800);
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: -.01em;
+        text-transform: uppercase;
+      }
+      .query { margin-top: 6px; color: var(--grey-800); font-size: 11px; }
+      .status {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        font-size: 12px;
+        font-weight: 600;
+        white-space: nowrap;
+      }
+      .status::before {
+        content: "";
+        width: 9px;
+        height: 9px;
+        border-radius: 50%;
+        background: var(--red);
+        box-shadow: 0 0 0 5px #ffe4da;
+        animation: pulse 1s infinite alternate;
+      }
+      .status[data-state="error"]::before {
+        background: var(--negative);
+        box-shadow: 0 0 0 5px var(--line);
+      }
+      main { padding: 18px; }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 12px;
+        max-width: 1600px;
+        margin: 0 auto;
+      }
+      .card {
+        min-width: 0;
+        border: 1px solid var(--line);
+        background: white;
+        overflow: hidden;
+        box-shadow: 0 2px 0 rgba(70, 99, 159, .08);
+      }
+      .card.recommended { outline: 3px solid var(--red); outline-offset: 2px; }
+      .card-head {
+        min-height: 38px;
+        padding: 0 11px;
+        border-bottom: 1px solid var(--line);
+        background: var(--paper);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: -.01em;
+        text-transform: uppercase;
+      }
+      .result { color: var(--negative); text-align: right; }
+      .result.live { color: var(--green); }
+      iframe {
+        display: block;
+        width: 100%;
+        aspect-ratio: 16 / 9;
+        border: 0;
+        background: var(--paper);
+        pointer-events: none;
+      }
+      footer {
+        padding: 5px 24px 18px;
+        color: var(--grey-800);
+        display: flex;
+        justify-content: space-between;
+        gap: 24px;
+        font-size: 11px;
+        line-height: 1.4;
+      }
+      @keyframes pulse { to { opacity: .45; transform: scale(.85); } }
+      @media (max-width: 900px) {
+        header { align-items: flex-start; flex-direction: column; gap: 10px; }
+        .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <div>
+        <div class="kicker">Browserbase · Live price comparison</div>
+        <h1>Price intelligence</h1>
+        <div class="query" id="query"></div>
+      </div>
+      <div class="status" id="summary">Connecting live browsers…</div>
+    </header>
+    <main><section class="grid" id="grid" aria-label="Live browser sessions"></section></main>
+    <footer>
+      <span>BROWSERBASE</span>
+      <span>Five isolated live browsers · Seller and availability checks included</span>
+    </footer>
+    <script>
+      const bootstrap = __BOOTSTRAP_JSON__;
+      const statePath = __STATE_PATH_JSON__;
+      const grid = document.querySelector("#grid");
+      const summary = document.querySelector("#summary");
+      const query = document.querySelector("#query");
+      const cards = new Map();
+      query.textContent = `Find the cheapest purchasable price for: ${bootstrap.item}`;
+
+      for (const session of bootstrap.sessions) {
+        const card = document.createElement("article");
+        card.className = "card";
+        card.dataset.slot = session.slot;
+        const head = document.createElement("div");
+        head.className = "card-head";
+        const vendor = document.createElement("span");
+        vendor.textContent = session.vendor;
+        const result = document.createElement("span");
+        result.className = "result live";
+        result.textContent = "searching";
+        const frame = document.createElement("iframe");
+        frame.title = `${session.vendor} live browser`;
+        frame.src = session.liveViewUrl;
+        frame.loading = "eager";
+        frame.sandbox = "allow-same-origin allow-scripts allow-forms";
+        head.append(vendor, result);
+        card.append(head, frame);
+        grid.append(card);
+        cards.set(session.slot, { card, result });
+      }
+
+      function price(value, currency) {
+        if (typeof value !== "number") return null;
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: currency || "USD",
+        }).format(value);
+      }
+
+      async function refresh() {
+        try {
+          const response = await fetch(statePath, { cache: "no-store" });
+          const state = await response.json();
+          let complete = 0;
+          for (const session of state.sessions) {
+            const target = cards.get(session.slot);
+            if (!target || !session.result) continue;
+            complete += 1;
+            const formatted = price(session.result.price, session.result.currency);
+            target.result.textContent = session.result.eligible && formatted
+              ? formatted
+              : session.result.availability.replaceAll("_", " ");
+            target.result.classList.toggle("live", Boolean(session.result.eligible));
+            target.card.classList.toggle(
+              "recommended",
+              Boolean(state.recommendation && state.recommendation.slot === session.slot),
+            );
+          }
+          if (state.recommendation) {
+            summary.textContent = `${complete}/${state.sessions.length} results · ${state.recommendation.vendor} leads at ${price(state.recommendation.price, state.recommendation.currency)}`;
+          } else {
+            summary.textContent = `${complete}/${state.sessions.length} results · searching`;
+          }
+          summary.dataset.state = "live";
+        } catch {
+          summary.textContent = "Live browsers connected · waiting for results";
+          summary.dataset.state = "error";
+        }
+      }
+
+      refresh();
+      setInterval(refresh, 1000);
+    </script>
+  </body>
+</html>
