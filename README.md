@@ -1,5 +1,7 @@
 # Browserbase Skills
 
+Browse the [website and task skill catalog](browser-skills/README.md): 467 Markdown snapshots from the public browse.sh API, alongside the framework and tooling skills below.
+
 A set of skills for enabling **[Claude Code](https://docs.claude.com/en/docs/claude-code/overview)** to work with Browserbase through browser automation and the official `browse` CLI.
 
 ## Skills

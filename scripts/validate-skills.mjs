@@ -263,6 +263,70 @@ function readmeLinkedSkills() {
   return linked;
 }
 
+// Catalog snapshots preserve upstream metadata and Markdown-only scope. They
+// have a separate contract from the authored skills/ collection above.
+function validateBrowserSnapshots(authoredNames) {
+  const directory = join(ROOT, "browser-skills");
+  if (!existsSync(directory)) return 0;
+  const errors = [];
+  const names = new Set(authoredNames);
+  const readme = readFileSync(join(directory, "README.md"), "utf8");
+  const marketplace = JSON.parse(
+    readFileSync(join(ROOT, ".claude-plugin", "marketplace.json"), "utf8"),
+  );
+  const declared = marketplace.plugins.find(
+    (plugin) => plugin.name === "browser-skills",
+  )?.skills ?? [];
+  const expected = [];
+  const entries = readdirSync(directory, { withFileTypes: true });
+  let count = 0;
+
+  function checkMarkdownOnly(path) {
+    for (const entry of readdirSync(path, { withFileTypes: true })) {
+      const child = join(path, entry.name);
+      if (entry.isDirectory()) checkMarkdownOnly(child);
+      else if (!entry.isFile() || !entry.name.endsWith(".md")) {
+        errors.push(`snapshot contains a non-Markdown file: ${child}`);
+      }
+    }
+  }
+
+  checkMarkdownOnly(directory);
+  for (const entry of entries) {
+    if (!entry.isDirectory()) continue;
+    count += 1;
+    const name = entry.name;
+    expected.push(`./browser-skills/${name}`);
+    const skillMd = join(directory, name, "SKILL.md");
+    if (!existsSync(skillMd)) {
+      errors.push(`${name}: missing SKILL.md`);
+      continue;
+    }
+    const { data, error } = parseFrontmatter(readFileSync(skillMd, "utf8"));
+    if (error) {
+      errors.push(`${name}: ${error}`);
+      continue;
+    }
+    if (data.name !== name || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(name) || name.length > 64) {
+      errors.push(`${name}: name must match its directory and use at most 64 lowercase letters, numbers, or hyphens`);
+    }
+    if (typeof data.description !== "string" || !data.description.trim()) {
+      errors.push(`${name}: missing description`);
+    }
+    if (names.has(data.name)) errors.push(`${name}: duplicate skill name`);
+    names.add(data.name);
+    if (!readme.includes(`](${name}/SKILL.md)`)) {
+      errors.push(`${name}: missing browser-skills README link`);
+    }
+  }
+  if (JSON.stringify([...declared].sort()) !== JSON.stringify(expected.sort())) {
+    errors.push("browser-skills marketplace paths must match the catalog exactly");
+  }
+  for (const error of errors) console.log(`  error: ${error}`);
+  console.log(`[${errors.length ? "FAIL" : "OK  "}] ${count} browser skill snapshots; ${errors.length} error(s)`);
+  return errors.length;
+}
+
 // ---------------------------------------------------------------------------
 // Runner
 // ---------------------------------------------------------------------------
@@ -332,6 +396,7 @@ function main() {
         errorCount += 1;
       }
     }
+    errorCount += validateBrowserSnapshots(allSkills);
   }
 
   console.log("");

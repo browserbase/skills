@@ -2,6 +2,15 @@
 
 This repo is Browserbase's public collection of agent skills — the skills we ship to users via `npx skills add browserbase/skills` and the Claude Code plugin marketplace. Every skill must meet the standards below; CI enforces the machine-checkable ones.
 
+The standards below apply to authored skills in `skills/`. The separate
+[`browser-skills/`](browser-skills/README.md) collection contains Markdown-only
+snapshots from the public browse.sh catalog. Those snapshots preserve upstream
+content and license metadata rather than adding per-skill `LICENSE.txt`, scripts,
+or eval files. Their names are namespaced by website and task to avoid collisions.
+The validator checks their names, descriptions, Markdown-only contents, index
+links, and explicit marketplace discovery paths. Script-backed snapshots link to
+their full upstream distributions in the catalog README.
+
 ## Skill anatomy
 
 Each skill lives in `skills/<name>/`:
