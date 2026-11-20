@@ -1,0 +1,11 @@
+{
+  "name": "keychain-context-sync",
+  "version": "0.2.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@browserbasehq/sdk": "^2.7.0",
+    "@browserbasehq/stagehand": "^3.2.0",
+    "adm-zip": "^0.5.16"
+  }
+}

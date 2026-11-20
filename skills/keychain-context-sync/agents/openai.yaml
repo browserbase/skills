@@ -1,0 +1,7 @@
+interface:
+  display_name: "Keychain Context Sync"
+  short_description: "Upload a macOS Chrome profile without CDP"
+  default_prompt: "Use $keychain-context-sync to inspect and upload my macOS Chrome profile into a Browserbase Context without source CDP."
+
+policy:
+  allow_implicit_invocation: true
